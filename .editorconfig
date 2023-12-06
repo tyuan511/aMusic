@@ -1,0 +1,5 @@
+[*.dart]
+indent_size = 2
+
+[*.rust]
+indent_size = 4
