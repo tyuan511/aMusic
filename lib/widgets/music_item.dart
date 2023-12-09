@@ -30,19 +30,10 @@ class MusicItem extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width: 100,
+              width: 70,
               child: Text(
                 data.author,
-                style: Theme.of(context).textTheme.bodyLarge,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            SizedBox(
-              width: 180,
-              child: Text(
-                data.album,
-                style: Theme.of(context).textTheme.bodyLarge,
+                style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Theme.of(context).colorScheme.secondary),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -51,7 +42,7 @@ class MusicItem extends StatelessWidget {
               width: 60,
               child: Text(
                 data.duration.formate(),
-                style: Theme.of(context).textTheme.bodyLarge,
+                style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Theme.of(context).colorScheme.secondary),
               ),
             ),
           ],

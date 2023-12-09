@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:laji_music/models/playlist.dart';
+import 'package:laji_music/widgets/image_cover.dart';
 
 class PlaylistCoverItem extends StatelessWidget {
   final Playlist data;
@@ -18,8 +19,8 @@ class PlaylistCoverItem extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: Image.network(
-              data.picUrl,
+            child: ImageCover(
+              url: data.picUrl,
             ),
           ),
           const SizedBox(height: 4),
@@ -27,7 +28,7 @@ class PlaylistCoverItem extends StatelessWidget {
             data.name,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleMedium,
+            style: Theme.of(context).textTheme.bodyMedium,
           )
         ],
       ),
