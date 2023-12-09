@@ -12,7 +12,8 @@ class MenuItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.secondary;
+    final color =
+        isActive ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.secondary.withOpacity(0.7);
 
     return InkWell(
       onTap: () {
@@ -27,13 +28,13 @@ class MenuItem extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 32,
+              size: 28,
               color: color,
             ),
             const SizedBox(height: 4),
             Text(
               title,
-              style: Theme.of(context).textTheme.titleMedium!.copyWith(color: color),
+              style: Theme.of(context).textTheme.labelMedium!.copyWith(color: color),
             ),
           ],
         ),

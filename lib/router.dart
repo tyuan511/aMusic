@@ -2,15 +2,25 @@ import 'package:go_router/go_router.dart';
 import 'package:laji_music/consts/key.dart';
 import 'package:laji_music/layout/home.dart';
 import 'package:laji_music/models/playlist.dart';
+import 'package:laji_music/screen/login.dart';
 import 'package:laji_music/screen/setting.dart';
 import 'package:laji_music/screen/song_list.dart';
+import 'package:laji_music/screen/splash.dart';
 import 'package:laji_music/screen/user_playlist.dart';
 
 // GoRouter configuration
 final router = GoRouter(
-  initialLocation: '/user_playlist',
+  initialLocation: '/splash',
   navigatorKey: rootNavigatorKey,
   routes: [
+    GoRoute(
+      path: '/splash',
+      builder: (context, state) => const SplashScreen(),
+    ),
+    GoRoute(
+      path: '/login',
+      builder: (context, state) => const LoginScreen(),
+    ),
     ShellRoute(
       navigatorKey: shellNavigatorKey,
       builder: (context, state, child) => HomeLayout(
@@ -23,7 +33,7 @@ final router = GoRouter(
         ),
         GoRoute(
           path: '/setting',
-          builder: (context, state) => const SettingScreen(),
+          builder: (context, state) => SettingScreen(),
         ),
         GoRoute(
           path: '/song_list',

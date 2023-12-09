@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:laji_music/widgets/image_cover.dart';
 
 class MusicPlayer extends StatelessWidget {
   const MusicPlayer({Key? key}) : super(key: key);
@@ -9,24 +10,24 @@ class MusicPlayer extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          const SizedBox(height: 100),
+          const SizedBox(height: 60),
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              "https://p2.music.126.net/UAx4r7pN-53CNbiqQ4CcXQ==/109951166589723188.jpg",
-              width: 240,
-              height: 240,
+            child: const ImageCover(
+              url: "https://p2.music.126.net/UAx4r7pN-53CNbiqQ4CcXQ==/109951166589723188.jpg",
+              width: 200,
+              height: 200,
             ),
           ),
-          const SizedBox(height: 60),
+          const SizedBox(height: 24),
           Text(
             "落在生命里的光",
-            style: Theme.of(context).textTheme.titleLarge,
+            style: Theme.of(context).textTheme.titleMedium!.copyWith(fontSize: 18),
           ),
           const SizedBox(height: 8),
           Text(
             '尹昔眠',
-            style: Theme.of(context).textTheme.bodyLarge,
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 24),
           Expanded(
@@ -36,10 +37,10 @@ class MusicPlayer extends StatelessWidget {
               itemBuilder: (context, index) => Text(
                 "这是一句歌词哈",
                 textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyLarge!
-                    .copyWith(color: index == 2 ? Theme.of(context).colorScheme.onPrimaryContainer : null),
+                style: Theme.of(context).textTheme.bodyLarge!.copyWith(
+                    color: index == 2
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.secondary.withOpacity(0.5)),
               ),
             ),
           ),
@@ -87,7 +88,7 @@ class MusicPlayer extends StatelessWidget {
                   ))
             ],
           ),
-          const SizedBox(height: 32)
+          const SizedBox(height: 8)
         ],
       ),
     );
