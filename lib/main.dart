@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:laji_music/init.dart';
+import 'package:laji_music/no_transition.dart';
+import 'package:laji_music/router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,27 +14,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
+    return MaterialApp.router(
+      title: '辣鸡音乐',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        pageTransitionsTheme: pageTransitionsTheme,
         useMaterial3: true,
       ),
-      home: const Main(),
-    );
-  }
-}
-
-class Main extends StatelessWidget {
-  const Main({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('NCM API'),
-      ),
-      body: Center(child: ElevatedButton(onPressed: () async {}, child: const Text('Click'))),
+      routerConfig: router,
     );
   }
 }
