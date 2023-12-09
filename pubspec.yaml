@@ -38,6 +38,7 @@ dependencies:
   ncm_api:
     path: ./packages/ncm_api
   path_provider: ^2.1.1
+  go_router: ^12.1.3
 
 dev_dependencies:
   flutter_test:
