@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:laji_music/init.dart';
 import 'package:laji_music/providers/config.dart';
-import 'package:laji_music/router.dart';
+import 'package:laji_music/providers/router.dart';
 import 'package:laji_music/theme.dart';
 
 void main() async {
@@ -16,7 +16,9 @@ class MyApp extends HookConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
     final themeMode = ref.watch(configProvider.select((data) => data.themeMode));
+
     return MaterialApp.router(
       title: '辣鸡音乐',
       debugShowCheckedModeBanner: false,
