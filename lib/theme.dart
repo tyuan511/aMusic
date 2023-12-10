@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-const seedColor = Color(0xFF31D66A);
+const seedColor = Color(0xFFD23A35);
 
 class _PageTransitionsBuilder extends PageTransitionsBuilder {
   const _PageTransitionsBuilder();

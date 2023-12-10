@@ -10,7 +10,7 @@ class MusicPlayer extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          const SizedBox(height: 60),
+          const SizedBox(height: 72),
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: const ImageCover(
