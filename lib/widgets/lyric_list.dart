@@ -16,11 +16,11 @@ class LyricList extends HookConsumerWidget {
     final scrollController = useScrollController();
 
     useEffect(() {
-      if (lyricList == null) {
+      if (lyricList == null || !scrollController.hasClients) {
         return;
       }
 
-      final pos = min((index! - 1) * 30, scrollController.position.maxScrollExtent).toDouble();
+      final pos = min(index! * 30, scrollController.position.maxScrollExtent).toDouble();
       scrollController.jumpTo(pos);
       return null;
     }, [index]);
@@ -35,6 +35,8 @@ class LyricList extends HookConsumerWidget {
           child: Text(
             lyricList?[i].text ?? '',
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                 color: i == index
                     ? Theme.of(context).colorScheme.primary

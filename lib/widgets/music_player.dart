@@ -32,11 +32,12 @@ class MusicPlayer extends HookConsumerWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            player.currSong?.author ?? '-',
+            player.currSong?.author ?? '',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: 24),
           LyricList(
+            key: ValueKey(player.currSong?.id),
             lyricList: player.lyric,
             index: player.currentLyricIdx,
           ),
@@ -93,7 +94,7 @@ class MusicPlayer extends HookConsumerWidget {
                   ))
             ],
           ),
-          const SizedBox(height: 24)
+          const SizedBox(height: 12)
         ],
       ),
     );

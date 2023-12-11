@@ -137,8 +137,12 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
               child: ListView.builder(
                 padding: const EdgeInsets.only(left: 24, right: 24, bottom: 32),
                 itemCount: songs.length,
-                itemBuilder: (context, index) =>
-                    MusicItem(data: songs[index], isActive: currSong?.id == songs[index].id),
+                itemBuilder: (context, index) => MusicItem(
+                    data: songs[index],
+                    isActive: currSong?.id == songs[index].id,
+                    onPressed: () {
+                      ref.read(playerProvider.notifier).playSong(songs[index]);
+                    }),
               ),
             )
           ]);

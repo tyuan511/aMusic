@@ -7,7 +7,7 @@ import 'package:laji_music/theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initApi();
+  await Future.wait([initAudio(), initApi()]);
   runApp(const ProviderScope(child: MyApp()));
 }
 

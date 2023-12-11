@@ -10,6 +10,7 @@ import 'package:ncm_api/modules/response/playlist_user.dart';
 import 'package:ncm_api/modules/response/song_lyric.dart';
 import 'package:ncm_api/modules/response/song_recommand.dart';
 import 'package:ncm_api/modules/response/song_url.dart';
+import 'package:ncm_api/modules/response/user_likelist.dart';
 import 'package:ncm_api/utils/request.dart';
 
 part 'modules/user.dart';
