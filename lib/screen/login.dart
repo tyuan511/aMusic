@@ -63,7 +63,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     if (qrState == QRState.waiting || qrState == QRState.confirming) {
-      await Future.delayed(const Duration(seconds: 3));
+      await Future.delayed(const Duration(seconds: 2));
       checkQRStete();
       return;
     }
