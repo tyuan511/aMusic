@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:laji_music/init.dart';
 import 'package:laji_music/providers/config.dart';
@@ -7,6 +9,9 @@ import 'package:laji_music/theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+  await dotenv.load();
+
   await Future.wait([initAudio(), initApi()]);
   runApp(const ProviderScope(child: MyApp()));
 }

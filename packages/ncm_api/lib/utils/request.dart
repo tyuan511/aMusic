@@ -5,14 +5,22 @@ import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 class _Request {
   final _client = Dio(
     BaseOptions(
-      baseUrl: 'https://neteaseapi.tangge.me',
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
       responseType: ResponseType.json,
     ),
   );
 
-  init(String cookiePath) async {
+  init({required String cookiePath, required String serverURL}) async {
+    print(serverURL);
+    _client.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        options.baseUrl = serverURL;
+        handler.next(options);
+      },
+      onResponse: (response, handler) => handler.next(response),
+      onError: (error, handler) => handler.next(error),
+    ));
     final jar = PersistCookieJar(
       ignoreExpires: true,
       storage: FileStorage(cookiePath),

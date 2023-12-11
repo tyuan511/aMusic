@@ -17,6 +17,9 @@ part 'modules/user.dart';
 part 'modules/playlist.dart';
 part 'modules/song.dart';
 
-Future<void> init({required String cookiePath}) async {
-  await request.init(cookiePath);
+Future<void> init({required String cookiePath, required String serverURL}) async {
+  await request.init(
+    cookiePath: cookiePath,
+    serverURL: serverURL,
+  );
 }
