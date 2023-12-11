@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 import 'package:laji_music/models/lyric.dart';
 import 'package:laji_music/models/song.dart';
 import 'package:ncm_api/ncm_api.dart';
@@ -50,6 +49,7 @@ class PlayerState {
 @Riverpod(keepAlive: true)
 class Player extends _$Player {
   final _audioPlayer = AudioPlayer();
+  ConcatenatingAudioSource? _currPlaylist;
 
   Player() {
     _audioPlayer.playerStateStream.listen((e) {
@@ -86,6 +86,10 @@ class Player extends _$Player {
   }
 
   _getLyric(Song song) async {
+    state = state.copyWith(
+      lyric: null,
+      currentLyricIdx: null,
+    );
     final res = await getLyric(song.id);
     state = state.copyWith(
       lyric: LyricRow.fromString(res.lrc.lyric),
@@ -97,29 +101,33 @@ class Player extends _$Player {
     if (state.lyric == null) return;
     var index = state.lyric!.indexWhere((element) => element.time > state.position);
     if (index < 0) index = state.lyric!.length;
-    state = state.copyWith(currentLyricIdx: index);
+    state = state.copyWith(currentLyricIdx: index - 1);
   }
 
   playSongs(List<Song> songs) async {
     await _setPlaylist(songs);
-    final playlist = ConcatenatingAudioSource(
-      useLazyPreparation: true,
-      shuffleOrder: DefaultShuffleOrder(),
-      children: (state.songList ?? [])
-          .map(
-            (e) => AudioSource.uri(
-              Uri.parse(e.url!),
-              tag: MediaItem(
-                id: e.id.toString(),
-                title: e.name,
-                album: e.album,
-                artUri: Uri.parse(e.picUrl),
-              ),
-            ),
-          )
-          .toList(),
-    );
-    await _audioPlayer.setAudioSource(playlist, initialIndex: 0, initialPosition: Duration.zero);
+    _currPlaylist = ConcatenatingAudioSource(
+        useLazyPreparation: true,
+        shuffleOrder: DefaultShuffleOrder(),
+        children: (state.songList ?? []).map((e) => e.toAudioSource()).toList());
+    await _audioPlayer.setAudioSource(_currPlaylist!, initialIndex: 0, initialPosition: Duration.zero);
+    await _audioPlayer.play();
+  }
+
+  playSong(Song song) async {
+    int idx = state.songList!.indexWhere((element) => element.id == song.id);
+    if (idx < 0) {
+      final res = await getSongURL([song.id]);
+      song.url = res.data!.first.url;
+      state = state.copyWith(songList: [...state.songList!, song]);
+      idx = state.songList!.length - 1;
+    }
+
+    _currPlaylist ??=
+        ConcatenatingAudioSource(useLazyPreparation: true, shuffleOrder: DefaultShuffleOrder(), children: []);
+    _currPlaylist!.insert(idx, song.toAudioSource());
+    await _audioPlayer.setAudioSource(_currPlaylist!, initialIndex: idx, initialPosition: Duration.zero);
+    await _audioPlayer.seek(Duration.zero, index: idx);
     await _audioPlayer.play();
   }
 

@@ -26,3 +26,8 @@ Future<LoginCheckQrRes> checkLoginQRCode(String key) async {
   });
   return LoginCheckQrRes.fromJson(res.data);
 }
+
+Future<GetLikeListRes> getLikeList(int uid) async {
+  final res = await request.get('/likelist', params: {'uid': uid});
+  return GetLikeListRes.fromJson(res.data);
+}

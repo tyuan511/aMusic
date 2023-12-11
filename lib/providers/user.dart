@@ -8,8 +8,17 @@ part 'user.g.dart';
 class UserInfo {
   final int? id;
   final String? avatarUrl;
+  final List<int> likeSongs;
 
-  const UserInfo({this.id, this.avatarUrl});
+  const UserInfo({this.id, this.avatarUrl, this.likeSongs = const []});
+
+  UserInfo copyWith({int? id, String? avatarUrl, List<int>? likeSongs}) {
+    return UserInfo(
+      id: id ?? this.id,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      likeSongs: likeSongs ?? this.likeSongs,
+    );
+  }
 }
 
 @riverpod
@@ -24,6 +33,13 @@ class User extends _$User {
         id: res.data.profile!.userId,
         avatarUrl: res.data.profile!.avatarUrl,
       );
+
+      getLikeList();
     }
+  }
+
+  Future<void> getLikeList() async {
+    final res = await api.getLikeList(state.id!);
+    state = state.copyWith(likeSongs: res.ids);
   }
 }
