@@ -1,24 +1,24 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'router.dart';
+part of 'player.dart';
 
 // **************************************************************************
 // RiverpodGenerator
 // **************************************************************************
 
-String _$routerHash() => r'b2a78cb71092f31aca709118778d33445b4729b5';
+String _$playerHash() => r'c81562e90e527351759690976dbde54cb1c52cd3';
 
-/// See also [router].
-@ProviderFor(router)
-final routerProvider = AutoDisposeProvider<GoRouter>.internal(
-  router,
-  name: r'routerProvider',
+/// See also [Player].
+@ProviderFor(Player)
+final playerProvider = NotifierProvider<Player, PlayerState>.internal(
+  Player.new,
+  name: r'playerProvider',
   debugGetCreateSourceHash:
-      const bool.fromEnvironment('dart.vm.product') ? null : _$routerHash,
+      const bool.fromEnvironment('dart.vm.product') ? null : _$playerHash,
   dependencies: null,
   allTransitiveDependencies: null,
 );
 
-typedef RouterRef = AutoDisposeProviderRef<GoRouter>;
+typedef _$Player = Notifier<PlayerState>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member

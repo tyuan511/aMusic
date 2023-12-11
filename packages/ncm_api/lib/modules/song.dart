@@ -5,8 +5,8 @@ Future<SongRecommandRes> getRecommandSong() async {
   return SongRecommandRes.fromJson(res.data);
 }
 
-Future<SongUrlRes> getSongURL(int id) async {
-  final res = await request.get('/song/url', params: {'id': id});
+Future<SongUrlRes> getSongURL(List<int> ids, {String level = 'exhigh'}) async {
+  final res = await request.get('/song/url/v1', params: {'id': ids.join(','), 'level': level});
   return SongUrlRes.fromJson(res.data);
 }
 
