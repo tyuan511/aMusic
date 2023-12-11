@@ -1,21 +1,21 @@
 import 'dart:convert';
 
 class SongUrlRes {
-  final int code;
-  final List<Datum> data;
+  final List<Datum>? data;
+  final int? code;
 
   SongUrlRes({
-    required this.code,
-    required this.data,
+    this.data,
+    this.code,
   });
 
   SongUrlRes copyWith({
-    int? code,
     List<Datum>? data,
+    int? code,
   }) =>
       SongUrlRes(
-        code: code ?? this.code,
         data: data ?? this.data,
+        code: code ?? this.code,
       );
 
   factory SongUrlRes.fromRawJson(String str) => SongUrlRes.fromJson(json.decode(str));
@@ -23,71 +23,71 @@ class SongUrlRes {
   String toRawJson() => json.encode(toJson());
 
   factory SongUrlRes.fromJson(Map<String, dynamic> json) => SongUrlRes(
+        data: json["data"] == null ? [] : List<Datum>.from(json["data"]!.map((x) => Datum.fromJson(x))),
         code: json["code"],
-        data: List<Datum>.from(json["data"].map((x) => Datum.fromJson(x))),
       );
 
   Map<String, dynamic> toJson() => {
+        "data": data == null ? [] : List<dynamic>.from(data!.map((x) => x.toJson())),
         "code": code,
-        "data": List<dynamic>.from(data.map((x) => x.toJson())),
       };
 }
 
 class Datum {
-  final int id;
-  final String url;
-  final int br;
-  final int size;
-  final String md5;
-  final int code;
-  final int expi;
-  final String type;
-  final double gain;
-  final int peak;
-  final int fee;
+  final int? id;
+  final String? url;
+  final int? br;
+  final int? size;
+  final String? md5;
+  final int? code;
+  final int? expi;
+  final String? type;
+  final double? gain;
+  final double? peak;
+  final int? fee;
   final dynamic uf;
-  final int payed;
-  final int flag;
-  final bool canExtend;
+  final int? payed;
+  final int? flag;
+  final bool? canExtend;
   final dynamic freeTrialInfo;
-  final String level;
-  final String encodeType;
+  final String? level;
+  final String? encodeType;
   final dynamic channelLayout;
-  final FreeTrialPrivilege freeTrialPrivilege;
-  final FreeTimeTrialPrivilege freeTimeTrialPrivilege;
-  final int urlSource;
-  final int rightSource;
+  final FreeTrialPrivilege? freeTrialPrivilege;
+  final FreeTimeTrialPrivilege? freeTimeTrialPrivilege;
+  final int? urlSource;
+  final int? rightSource;
   final dynamic podcastCtrp;
   final dynamic effectTypes;
-  final int time;
+  final int? time;
 
   Datum({
-    required this.id,
-    required this.url,
-    required this.br,
-    required this.size,
-    required this.md5,
-    required this.code,
-    required this.expi,
-    required this.type,
-    required this.gain,
-    required this.peak,
-    required this.fee,
-    required this.uf,
-    required this.payed,
-    required this.flag,
-    required this.canExtend,
-    required this.freeTrialInfo,
-    required this.level,
-    required this.encodeType,
-    required this.channelLayout,
-    required this.freeTrialPrivilege,
-    required this.freeTimeTrialPrivilege,
-    required this.urlSource,
-    required this.rightSource,
-    required this.podcastCtrp,
-    required this.effectTypes,
-    required this.time,
+    this.id,
+    this.url,
+    this.br,
+    this.size,
+    this.md5,
+    this.code,
+    this.expi,
+    this.type,
+    this.gain,
+    this.peak,
+    this.fee,
+    this.uf,
+    this.payed,
+    this.flag,
+    this.canExtend,
+    this.freeTrialInfo,
+    this.level,
+    this.encodeType,
+    this.channelLayout,
+    this.freeTrialPrivilege,
+    this.freeTimeTrialPrivilege,
+    this.urlSource,
+    this.rightSource,
+    this.podcastCtrp,
+    this.effectTypes,
+    this.time,
   });
 
   Datum copyWith({
@@ -100,7 +100,7 @@ class Datum {
     int? expi,
     String? type,
     double? gain,
-    int? peak,
+    double? peak,
     int? fee,
     dynamic uf,
     int? payed,
@@ -161,7 +161,7 @@ class Datum {
         expi: json["expi"],
         type: json["type"],
         gain: json["gain"]?.toDouble(),
-        peak: json["peak"],
+        peak: json["peak"]?.toDouble(),
         fee: json["fee"],
         uf: json["uf"],
         payed: json["payed"],
@@ -171,8 +171,11 @@ class Datum {
         level: json["level"],
         encodeType: json["encodeType"],
         channelLayout: json["channelLayout"],
-        freeTrialPrivilege: FreeTrialPrivilege.fromJson(json["freeTrialPrivilege"]),
-        freeTimeTrialPrivilege: FreeTimeTrialPrivilege.fromJson(json["freeTimeTrialPrivilege"]),
+        freeTrialPrivilege:
+            json["freeTrialPrivilege"] == null ? null : FreeTrialPrivilege.fromJson(json["freeTrialPrivilege"]),
+        freeTimeTrialPrivilege: json["freeTimeTrialPrivilege"] == null
+            ? null
+            : FreeTimeTrialPrivilege.fromJson(json["freeTimeTrialPrivilege"]),
         urlSource: json["urlSource"],
         rightSource: json["rightSource"],
         podcastCtrp: json["podcastCtrp"],
@@ -200,8 +203,8 @@ class Datum {
         "level": level,
         "encodeType": encodeType,
         "channelLayout": channelLayout,
-        "freeTrialPrivilege": freeTrialPrivilege.toJson(),
-        "freeTimeTrialPrivilege": freeTimeTrialPrivilege.toJson(),
+        "freeTrialPrivilege": freeTrialPrivilege?.toJson(),
+        "freeTimeTrialPrivilege": freeTimeTrialPrivilege?.toJson(),
         "urlSource": urlSource,
         "rightSource": rightSource,
         "podcastCtrp": podcastCtrp,
@@ -211,16 +214,16 @@ class Datum {
 }
 
 class FreeTimeTrialPrivilege {
-  final bool resConsumable;
-  final bool userConsumable;
-  final int type;
-  final int remainTime;
+  final bool? resConsumable;
+  final bool? userConsumable;
+  final int? type;
+  final int? remainTime;
 
   FreeTimeTrialPrivilege({
-    required this.resConsumable,
-    required this.userConsumable,
-    required this.type,
-    required this.remainTime,
+    this.resConsumable,
+    this.userConsumable,
+    this.type,
+    this.remainTime,
   });
 
   FreeTimeTrialPrivilege copyWith({
@@ -256,18 +259,18 @@ class FreeTimeTrialPrivilege {
 }
 
 class FreeTrialPrivilege {
-  final bool resConsumable;
-  final bool userConsumable;
+  final bool? resConsumable;
+  final bool? userConsumable;
   final dynamic listenType;
   final dynamic cannotListenReason;
   final dynamic playReason;
 
   FreeTrialPrivilege({
-    required this.resConsumable,
-    required this.userConsumable,
-    required this.listenType,
-    required this.cannotListenReason,
-    required this.playReason,
+    this.resConsumable,
+    this.userConsumable,
+    this.listenType,
+    this.cannotListenReason,
+    this.playReason,
   });
 
   FreeTrialPrivilege copyWith({

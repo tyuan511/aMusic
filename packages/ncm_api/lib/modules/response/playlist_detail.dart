@@ -1,28 +1,28 @@
 import 'dart:convert';
 
 class PlaylistDetailRes {
-  final int code;
+  final int? code;
   final dynamic relatedVideos;
-  final Playlist playlist;
+  final Playlist? playlist;
   final dynamic urls;
-  final List<Privilege> privileges;
+  final List<Privilege>? privileges;
   final dynamic sharedPrivilege;
   final dynamic resEntrance;
   final dynamic fromUsers;
-  final int fromUserCount;
+  final int? fromUserCount;
   final dynamic songFromUsers;
 
   PlaylistDetailRes({
-    required this.code,
-    required this.relatedVideos,
-    required this.playlist,
-    required this.urls,
-    required this.privileges,
-    required this.sharedPrivilege,
-    required this.resEntrance,
-    required this.fromUsers,
-    required this.fromUserCount,
-    required this.songFromUsers,
+    this.code,
+    this.relatedVideos,
+    this.playlist,
+    this.urls,
+    this.privileges,
+    this.sharedPrivilege,
+    this.resEntrance,
+    this.fromUsers,
+    this.fromUserCount,
+    this.songFromUsers,
   });
 
   PlaylistDetailRes copyWith({
@@ -57,9 +57,11 @@ class PlaylistDetailRes {
   factory PlaylistDetailRes.fromJson(Map<String, dynamic> json) => PlaylistDetailRes(
         code: json["code"],
         relatedVideos: json["relatedVideos"],
-        playlist: Playlist.fromJson(json["playlist"]),
+        playlist: json["playlist"] == null ? null : Playlist.fromJson(json["playlist"]),
         urls: json["urls"],
-        privileges: List<Privilege>.from(json["privileges"].map((x) => Privilege.fromJson(x))),
+        privileges: json["privileges"] == null
+            ? []
+            : List<Privilege>.from(json["privileges"]!.map((x) => Privilege.fromJson(x))),
         sharedPrivilege: json["sharedPrivilege"],
         resEntrance: json["resEntrance"],
         fromUsers: json["fromUsers"],
@@ -70,9 +72,9 @@ class PlaylistDetailRes {
   Map<String, dynamic> toJson() => {
         "code": code,
         "relatedVideos": relatedVideos,
-        "playlist": playlist.toJson(),
+        "playlist": playlist?.toJson(),
         "urls": urls,
-        "privileges": List<dynamic>.from(privileges.map((x) => x.toJson())),
+        "privileges": privileges == null ? [] : List<dynamic>.from(privileges!.map((x) => x.toJson())),
         "sharedPrivilege": sharedPrivilege,
         "resEntrance": resEntrance,
         "fromUsers": fromUsers,
@@ -82,112 +84,112 @@ class PlaylistDetailRes {
 }
 
 class Playlist {
-  final int id;
-  final String name;
-  final double coverImgId;
-  final String coverImgUrl;
-  final String coverImgIdStr;
-  final int adType;
-  final int userId;
-  final int createTime;
-  final int status;
-  final bool opRecommend;
-  final bool highQuality;
-  final bool newImported;
-  final int updateTime;
-  final int trackCount;
-  final int specialType;
-  final int privacy;
-  final int trackUpdateTime;
-  final String commentThreadId;
-  final int playCount;
-  final int trackNumberUpdateTime;
-  final int subscribedCount;
-  final int cloudTrackCount;
-  final bool ordered;
-  final String description;
-  final List<dynamic> tags;
+  final int? id;
+  final String? name;
+  final double? coverImgId;
+  final String? coverImgUrl;
+  final String? coverImgIdStr;
+  final int? adType;
+  final int? userId;
+  final int? createTime;
+  final int? status;
+  final bool? opRecommend;
+  final bool? highQuality;
+  final bool? newImported;
+  final int? updateTime;
+  final int? trackCount;
+  final int? specialType;
+  final int? privacy;
+  final int? trackUpdateTime;
+  final String? commentThreadId;
+  final int? playCount;
+  final int? trackNumberUpdateTime;
+  final int? subscribedCount;
+  final int? cloudTrackCount;
+  final bool? ordered;
+  final String? description;
+  final List<String>? tags;
   final dynamic updateFrequency;
-  final int backgroundCoverId;
+  final int? backgroundCoverId;
   final dynamic backgroundCoverUrl;
-  final int titleImage;
+  final int? titleImage;
   final dynamic titleImageUrl;
   final dynamic englishTitle;
   final dynamic officialPlaylistType;
-  final bool copied;
+  final bool? copied;
   final dynamic relateResType;
-  final List<dynamic> subscribers;
-  final bool subscribed;
-  final Creator creator;
-  final List<Track> tracks;
+  final List<Creator>? subscribers;
+  final dynamic subscribed;
+  final Creator? creator;
+  final List<Track>? tracks;
   final dynamic videoIds;
   final dynamic videos;
-  final List<TrackId> trackIds;
+  final List<TrackId>? trackIds;
   final dynamic bannedTrackIds;
   final dynamic mvResourceInfos;
-  final int shareCount;
-  final int commentCount;
+  final int? shareCount;
+  final int? commentCount;
   final dynamic remixVideo;
   final dynamic sharedUsers;
   final dynamic historySharedUsers;
-  final String gradeStatus;
+  final String? gradeStatus;
   final dynamic score;
   final dynamic algTags;
-  final int trialMode;
+  final int? trialMode;
 
   Playlist({
-    required this.id,
-    required this.name,
-    required this.coverImgId,
-    required this.coverImgUrl,
-    required this.coverImgIdStr,
-    required this.adType,
-    required this.userId,
-    required this.createTime,
-    required this.status,
-    required this.opRecommend,
-    required this.highQuality,
-    required this.newImported,
-    required this.updateTime,
-    required this.trackCount,
-    required this.specialType,
-    required this.privacy,
-    required this.trackUpdateTime,
-    required this.commentThreadId,
-    required this.playCount,
-    required this.trackNumberUpdateTime,
-    required this.subscribedCount,
-    required this.cloudTrackCount,
-    required this.ordered,
-    required this.description,
-    required this.tags,
-    required this.updateFrequency,
-    required this.backgroundCoverId,
-    required this.backgroundCoverUrl,
-    required this.titleImage,
-    required this.titleImageUrl,
-    required this.englishTitle,
-    required this.officialPlaylistType,
-    required this.copied,
-    required this.relateResType,
-    required this.subscribers,
-    required this.subscribed,
-    required this.creator,
-    required this.tracks,
-    required this.videoIds,
-    required this.videos,
-    required this.trackIds,
-    required this.bannedTrackIds,
-    required this.mvResourceInfos,
-    required this.shareCount,
-    required this.commentCount,
-    required this.remixVideo,
-    required this.sharedUsers,
-    required this.historySharedUsers,
-    required this.gradeStatus,
-    required this.score,
-    required this.algTags,
-    required this.trialMode,
+    this.id,
+    this.name,
+    this.coverImgId,
+    this.coverImgUrl,
+    this.coverImgIdStr,
+    this.adType,
+    this.userId,
+    this.createTime,
+    this.status,
+    this.opRecommend,
+    this.highQuality,
+    this.newImported,
+    this.updateTime,
+    this.trackCount,
+    this.specialType,
+    this.privacy,
+    this.trackUpdateTime,
+    this.commentThreadId,
+    this.playCount,
+    this.trackNumberUpdateTime,
+    this.subscribedCount,
+    this.cloudTrackCount,
+    this.ordered,
+    this.description,
+    this.tags,
+    this.updateFrequency,
+    this.backgroundCoverId,
+    this.backgroundCoverUrl,
+    this.titleImage,
+    this.titleImageUrl,
+    this.englishTitle,
+    this.officialPlaylistType,
+    this.copied,
+    this.relateResType,
+    this.subscribers,
+    this.subscribed,
+    this.creator,
+    this.tracks,
+    this.videoIds,
+    this.videos,
+    this.trackIds,
+    this.bannedTrackIds,
+    this.mvResourceInfos,
+    this.shareCount,
+    this.commentCount,
+    this.remixVideo,
+    this.sharedUsers,
+    this.historySharedUsers,
+    this.gradeStatus,
+    this.score,
+    this.algTags,
+    this.trialMode,
   });
 
   Playlist copyWith({
@@ -215,7 +217,7 @@ class Playlist {
     int? cloudTrackCount,
     bool? ordered,
     String? description,
-    List<dynamic>? tags,
+    List<String>? tags,
     dynamic updateFrequency,
     int? backgroundCoverId,
     dynamic backgroundCoverUrl,
@@ -225,8 +227,8 @@ class Playlist {
     dynamic officialPlaylistType,
     bool? copied,
     dynamic relateResType,
-    List<dynamic>? subscribers,
-    bool? subscribed,
+    List<Creator>? subscribers,
+    dynamic subscribed,
     Creator? creator,
     List<Track>? tracks,
     dynamic videoIds,
@@ -328,7 +330,7 @@ class Playlist {
         cloudTrackCount: json["cloudTrackCount"],
         ordered: json["ordered"],
         description: json["description"],
-        tags: List<dynamic>.from(json["tags"].map((x) => x)),
+        tags: json["tags"] == null ? [] : List<String>.from(json["tags"]!.map((x) => x)),
         updateFrequency: json["updateFrequency"],
         backgroundCoverId: json["backgroundCoverId"],
         backgroundCoverUrl: json["backgroundCoverUrl"],
@@ -338,13 +340,14 @@ class Playlist {
         officialPlaylistType: json["officialPlaylistType"],
         copied: json["copied"],
         relateResType: json["relateResType"],
-        subscribers: List<dynamic>.from(json["subscribers"].map((x) => x)),
+        subscribers:
+            json["subscribers"] == null ? [] : List<Creator>.from(json["subscribers"]!.map((x) => Creator.fromJson(x))),
         subscribed: json["subscribed"],
-        creator: Creator.fromJson(json["creator"]),
-        tracks: List<Track>.from(json["tracks"].map((x) => Track.fromJson(x))),
+        creator: json["creator"] == null ? null : Creator.fromJson(json["creator"]),
+        tracks: json["tracks"] == null ? [] : List<Track>.from(json["tracks"]!.map((x) => Track.fromJson(x))),
         videoIds: json["videoIds"],
         videos: json["videos"],
-        trackIds: List<TrackId>.from(json["trackIds"].map((x) => TrackId.fromJson(x))),
+        trackIds: json["trackIds"] == null ? [] : List<TrackId>.from(json["trackIds"]!.map((x) => TrackId.fromJson(x))),
         bannedTrackIds: json["bannedTrackIds"],
         mvResourceInfos: json["mvResourceInfos"],
         shareCount: json["shareCount"],
@@ -383,7 +386,7 @@ class Playlist {
         "cloudTrackCount": cloudTrackCount,
         "ordered": ordered,
         "description": description,
-        "tags": List<dynamic>.from(tags.map((x) => x)),
+        "tags": tags == null ? [] : List<dynamic>.from(tags!.map((x) => x)),
         "updateFrequency": updateFrequency,
         "backgroundCoverId": backgroundCoverId,
         "backgroundCoverUrl": backgroundCoverUrl,
@@ -393,13 +396,13 @@ class Playlist {
         "officialPlaylistType": officialPlaylistType,
         "copied": copied,
         "relateResType": relateResType,
-        "subscribers": List<dynamic>.from(subscribers.map((x) => x)),
+        "subscribers": subscribers == null ? [] : List<dynamic>.from(subscribers!.map((x) => x.toJson())),
         "subscribed": subscribed,
-        "creator": creator.toJson(),
-        "tracks": List<dynamic>.from(tracks.map((x) => x.toJson())),
+        "creator": creator?.toJson(),
+        "tracks": tracks == null ? [] : List<dynamic>.from(tracks!.map((x) => x.toJson())),
         "videoIds": videoIds,
         "videos": videos,
-        "trackIds": List<dynamic>.from(trackIds.map((x) => x.toJson())),
+        "trackIds": trackIds == null ? [] : List<dynamic>.from(trackIds!.map((x) => x.toJson())),
         "bannedTrackIds": bannedTrackIds,
         "mvResourceInfos": mvResourceInfos,
         "shareCount": shareCount,
@@ -415,70 +418,70 @@ class Playlist {
 }
 
 class Creator {
-  final bool defaultAvatar;
-  final int province;
-  final int authStatus;
-  final bool followed;
-  final String avatarUrl;
-  final int accountStatus;
-  final int gender;
-  final int city;
-  final int birthday;
-  final int userId;
-  final int userType;
-  final String nickname;
-  final String signature;
-  final String description;
-  final String detailDescription;
-  final double avatarImgId;
-  final int backgroundImgId;
-  final String backgroundUrl;
-  final int authority;
-  final bool mutual;
+  final bool? defaultAvatar;
+  final int? province;
+  final int? authStatus;
+  final bool? followed;
+  final String? avatarUrl;
+  final int? accountStatus;
+  final int? gender;
+  final int? city;
+  final int? birthday;
+  final int? userId;
+  final int? userType;
+  final String? nickname;
+  final String? signature;
+  final String? description;
+  final String? detailDescription;
+  final double? avatarImgId;
+  final double? backgroundImgId;
+  final String? backgroundUrl;
+  final int? authority;
+  final bool? mutual;
   final dynamic expertTags;
   final dynamic experts;
-  final int djStatus;
-  final int vipType;
+  final int? djStatus;
+  final int? vipType;
   final dynamic remarkName;
-  final int authenticationTypes;
+  final int? authenticationTypes;
   final dynamic avatarDetail;
-  final bool anchor;
-  final String avatarImgIdStr;
-  final String backgroundImgIdStr;
-  final String creatorAvatarImgIdStr;
+  final String? avatarImgIdStr;
+  final String? backgroundImgIdStr;
+  final bool? anchor;
+  final String? creatorAvatarImgIdStr;
 
   Creator({
-    required this.defaultAvatar,
-    required this.province,
-    required this.authStatus,
-    required this.followed,
-    required this.avatarUrl,
-    required this.accountStatus,
-    required this.gender,
-    required this.city,
-    required this.birthday,
-    required this.userId,
-    required this.userType,
-    required this.nickname,
-    required this.signature,
-    required this.description,
-    required this.detailDescription,
-    required this.avatarImgId,
-    required this.backgroundImgId,
-    required this.backgroundUrl,
-    required this.authority,
-    required this.mutual,
-    required this.expertTags,
-    required this.experts,
-    required this.djStatus,
-    required this.vipType,
-    required this.remarkName,
-    required this.authenticationTypes,
-    required this.avatarDetail,
-    required this.anchor,
-    required this.avatarImgIdStr,
-    required this.backgroundImgIdStr,
-    required this.creatorAvatarImgIdStr,
+    this.defaultAvatar,
+    this.province,
+    this.authStatus,
+    this.followed,
+    this.avatarUrl,
+    this.accountStatus,
+    this.gender,
+    this.city,
+    this.birthday,
+    this.userId,
+    this.userType,
+    this.nickname,
+    this.signature,
+    this.description,
+    this.detailDescription,
+    this.avatarImgId,
+    this.backgroundImgId,
+    this.backgroundUrl,
+    this.authority,
+    this.mutual,
+    this.expertTags,
+    this.experts,
+    this.djStatus,
+    this.vipType,
+    this.remarkName,
+    this.authenticationTypes,
+    this.avatarDetail,
+    this.avatarImgIdStr,
+    this.backgroundImgIdStr,
+    this.anchor,
+    this.creatorAvatarImgIdStr,
   });
 
   Creator copyWith({
@@ -498,7 +501,7 @@ class Creator {
     String? description,
     String? detailDescription,
     double? avatarImgId,
-    int? backgroundImgId,
+    double? backgroundImgId,
     String? backgroundUrl,
     int? authority,
     bool? mutual,
@@ -509,9 +512,9 @@ class Creator {
     dynamic remarkName,
     int? authenticationTypes,
     dynamic avatarDetail,
-    bool? anchor,
     String? avatarImgIdStr,
     String? backgroundImgIdStr,
+    bool? anchor,
     String? creatorAvatarImgIdStr,
   }) =>
       Creator(
@@ -542,9 +545,9 @@ class Creator {
         remarkName: remarkName ?? this.remarkName,
         authenticationTypes: authenticationTypes ?? this.authenticationTypes,
         avatarDetail: avatarDetail ?? this.avatarDetail,
-        anchor: anchor ?? this.anchor,
         avatarImgIdStr: avatarImgIdStr ?? this.avatarImgIdStr,
         backgroundImgIdStr: backgroundImgIdStr ?? this.backgroundImgIdStr,
+        anchor: anchor ?? this.anchor,
         creatorAvatarImgIdStr: creatorAvatarImgIdStr ?? this.creatorAvatarImgIdStr,
       );
 
@@ -569,7 +572,7 @@ class Creator {
         description: json["description"],
         detailDescription: json["detailDescription"],
         avatarImgId: json["avatarImgId"]?.toDouble(),
-        backgroundImgId: json["backgroundImgId"],
+        backgroundImgId: json["backgroundImgId"]?.toDouble(),
         backgroundUrl: json["backgroundUrl"],
         authority: json["authority"],
         mutual: json["mutual"],
@@ -580,9 +583,9 @@ class Creator {
         remarkName: json["remarkName"],
         authenticationTypes: json["authenticationTypes"],
         avatarDetail: json["avatarDetail"],
-        anchor: json["anchor"],
         avatarImgIdStr: json["avatarImgIdStr"],
         backgroundImgIdStr: json["backgroundImgIdStr"],
+        anchor: json["anchor"],
         creatorAvatarImgIdStr: json["avatarImgId_str"],
       );
 
@@ -614,36 +617,36 @@ class Creator {
         "remarkName": remarkName,
         "authenticationTypes": authenticationTypes,
         "avatarDetail": avatarDetail,
-        "anchor": anchor,
         "avatarImgIdStr": avatarImgIdStr,
         "backgroundImgIdStr": backgroundImgIdStr,
+        "anchor": anchor,
         "avatarImgId_str": creatorAvatarImgIdStr,
       };
 }
 
 class TrackId {
-  final int id;
-  final int v;
-  final int t;
-  final int at;
+  final int? id;
+  final int? v;
+  final int? t;
+  final int? at;
   final dynamic alg;
-  final int uid;
-  final String rcmdReason;
+  final int? uid;
+  final String? rcmdReason;
   final dynamic sc;
   final dynamic f;
   final dynamic sr;
 
   TrackId({
-    required this.id,
-    required this.v,
-    required this.t,
-    required this.at,
-    required this.alg,
-    required this.uid,
-    required this.rcmdReason,
-    required this.sc,
-    required this.f,
-    required this.sr,
+    this.id,
+    this.v,
+    this.t,
+    this.at,
+    this.alg,
+    this.uid,
+    this.rcmdReason,
+    this.sc,
+    this.f,
+    this.sr,
   });
 
   TrackId copyWith({
@@ -703,102 +706,100 @@ class TrackId {
 }
 
 class Track {
-  final String name;
-  final int id;
-  final int pst;
-  final int t;
-  final List<Ar> ar;
-  final List<dynamic> alia;
-  final int pop;
-  final int st;
+  final String? name;
+  final int? id;
+  final int? pst;
+  final int? t;
+  final List<Ar>? ar;
+  final List<dynamic>? alia;
+  final int? pop;
+  final int? st;
   final String? rt;
-  final int fee;
-  final int v;
+  final int? fee;
+  final int? v;
   final dynamic crbt;
-  final String cf;
-  final Al al;
-  final int dt;
-  final H h;
-  final H m;
-  final H l;
+  final String? cf;
+  final Al? al;
+  final int? dt;
+  final H? h;
+  final H? m;
+  final H? l;
   final H? sq;
   final H? hr;
   final dynamic a;
-  final String cd;
-  final int no;
+  final String? cd;
+  final int? no;
   final dynamic rtUrl;
-  final int ftype;
-  final List<dynamic> rtUrls;
-  final int djId;
-  final int copyright;
-  final int sId;
-  final int mark;
-  final int originCoverType;
-  final OriginSongSimpleData? originSongSimpleData;
+  final int? ftype;
+  final List<dynamic>? rtUrls;
+  final int? djId;
+  final int? copyright;
+  final int? sId;
+  final int? mark;
+  final int? originCoverType;
+  final dynamic originSongSimpleData;
   final dynamic tagPicList;
-  final bool resourceState;
-  final int version;
+  final bool? resourceState;
+  final int? version;
   final dynamic songJumpInfo;
   final dynamic entertainmentTags;
   final dynamic awardTags;
-  final int single;
+  final int? single;
   final dynamic noCopyrightRcmd;
-  final int rtype;
+  final int? rtype;
   final dynamic rurl;
-  final int mst;
-  final int cp;
-  final int mv;
-  final int publishTime;
-  final List<String>? tns;
+  final int? mst;
+  final int? cp;
+  final int? mv;
+  final int? publishTime;
 
   Track({
-    required this.name,
-    required this.id,
-    required this.pst,
-    required this.t,
-    required this.ar,
-    required this.alia,
-    required this.pop,
-    required this.st,
-    required this.rt,
-    required this.fee,
-    required this.v,
-    required this.crbt,
-    required this.cf,
-    required this.al,
-    required this.dt,
-    required this.h,
-    required this.m,
-    required this.l,
-    required this.sq,
-    required this.hr,
-    required this.a,
-    required this.cd,
-    required this.no,
-    required this.rtUrl,
-    required this.ftype,
-    required this.rtUrls,
-    required this.djId,
-    required this.copyright,
-    required this.sId,
-    required this.mark,
-    required this.originCoverType,
-    required this.originSongSimpleData,
-    required this.tagPicList,
-    required this.resourceState,
-    required this.version,
-    required this.songJumpInfo,
-    required this.entertainmentTags,
-    required this.awardTags,
-    required this.single,
-    required this.noCopyrightRcmd,
-    required this.rtype,
-    required this.rurl,
-    required this.mst,
-    required this.cp,
-    required this.mv,
-    required this.publishTime,
-    this.tns,
+    this.name,
+    this.id,
+    this.pst,
+    this.t,
+    this.ar,
+    this.alia,
+    this.pop,
+    this.st,
+    this.rt,
+    this.fee,
+    this.v,
+    this.crbt,
+    this.cf,
+    this.al,
+    this.dt,
+    this.h,
+    this.m,
+    this.l,
+    this.sq,
+    this.hr,
+    this.a,
+    this.cd,
+    this.no,
+    this.rtUrl,
+    this.ftype,
+    this.rtUrls,
+    this.djId,
+    this.copyright,
+    this.sId,
+    this.mark,
+    this.originCoverType,
+    this.originSongSimpleData,
+    this.tagPicList,
+    this.resourceState,
+    this.version,
+    this.songJumpInfo,
+    this.entertainmentTags,
+    this.awardTags,
+    this.single,
+    this.noCopyrightRcmd,
+    this.rtype,
+    this.rurl,
+    this.mst,
+    this.cp,
+    this.mv,
+    this.publishTime,
   });
 
   Track copyWith({
@@ -833,7 +834,7 @@ class Track {
     int? sId,
     int? mark,
     int? originCoverType,
-    OriginSongSimpleData? originSongSimpleData,
+    dynamic originSongSimpleData,
     dynamic tagPicList,
     bool? resourceState,
     int? version,
@@ -848,7 +849,6 @@ class Track {
     int? cp,
     int? mv,
     int? publishTime,
-    List<String>? tns,
   }) =>
       Track(
         name: name ?? this.name,
@@ -897,7 +897,6 @@ class Track {
         cp: cp ?? this.cp,
         mv: mv ?? this.mv,
         publishTime: publishTime ?? this.publishTime,
-        tns: tns ?? this.tns,
       );
 
   factory Track.fromRawJson(String str) => Track.fromJson(json.decode(str));
@@ -909,8 +908,8 @@ class Track {
         id: json["id"],
         pst: json["pst"],
         t: json["t"],
-        ar: List<Ar>.from(json["ar"].map((x) => Ar.fromJson(x))),
-        alia: List<dynamic>.from(json["alia"].map((x) => x)),
+        ar: json["ar"] == null ? [] : List<Ar>.from(json["ar"]!.map((x) => Ar.fromJson(x))),
+        alia: json["alia"] == null ? [] : List<dynamic>.from(json["alia"]!.map((x) => x)),
         pop: json["pop"],
         st: json["st"],
         rt: json["rt"],
@@ -918,11 +917,11 @@ class Track {
         v: json["v"],
         crbt: json["crbt"],
         cf: json["cf"],
-        al: Al.fromJson(json["al"]),
+        al: json["al"] == null ? null : Al.fromJson(json["al"]),
         dt: json["dt"],
-        h: H.fromJson(json["h"]),
-        m: H.fromJson(json["m"]),
-        l: H.fromJson(json["l"]),
+        h: json["h"] == null ? null : H.fromJson(json["h"]),
+        m: json["m"] == null ? null : H.fromJson(json["m"]),
+        l: json["l"] == null ? null : H.fromJson(json["l"]),
         sq: json["sq"] == null ? null : H.fromJson(json["sq"]),
         hr: json["hr"] == null ? null : H.fromJson(json["hr"]),
         a: json["a"],
@@ -930,14 +929,13 @@ class Track {
         no: json["no"],
         rtUrl: json["rtUrl"],
         ftype: json["ftype"],
-        rtUrls: List<dynamic>.from(json["rtUrls"].map((x) => x)),
+        rtUrls: json["rtUrls"] == null ? [] : List<dynamic>.from(json["rtUrls"]!.map((x) => x)),
         djId: json["djId"],
         copyright: json["copyright"],
         sId: json["s_id"],
         mark: json["mark"],
         originCoverType: json["originCoverType"],
-        originSongSimpleData:
-            json["originSongSimpleData"] == null ? null : OriginSongSimpleData.fromJson(json["originSongSimpleData"]),
+        originSongSimpleData: json["originSongSimpleData"],
         tagPicList: json["tagPicList"],
         resourceState: json["resourceState"],
         version: json["version"],
@@ -952,7 +950,6 @@ class Track {
         cp: json["cp"],
         mv: json["mv"],
         publishTime: json["publishTime"],
-        tns: json["tns"] == null ? [] : List<String>.from(json["tns"]!.map((x) => x)),
       );
 
   Map<String, dynamic> toJson() => {
@@ -960,8 +957,8 @@ class Track {
         "id": id,
         "pst": pst,
         "t": t,
-        "ar": List<dynamic>.from(ar.map((x) => x.toJson())),
-        "alia": List<dynamic>.from(alia.map((x) => x)),
+        "ar": ar == null ? [] : List<dynamic>.from(ar!.map((x) => x.toJson())),
+        "alia": alia == null ? [] : List<dynamic>.from(alia!.map((x) => x)),
         "pop": pop,
         "st": st,
         "rt": rt,
@@ -969,11 +966,11 @@ class Track {
         "v": v,
         "crbt": crbt,
         "cf": cf,
-        "al": al.toJson(),
+        "al": al?.toJson(),
         "dt": dt,
-        "h": h.toJson(),
-        "m": m.toJson(),
-        "l": l.toJson(),
+        "h": h?.toJson(),
+        "m": m?.toJson(),
+        "l": l?.toJson(),
         "sq": sq?.toJson(),
         "hr": hr?.toJson(),
         "a": a,
@@ -981,13 +978,13 @@ class Track {
         "no": no,
         "rtUrl": rtUrl,
         "ftype": ftype,
-        "rtUrls": List<dynamic>.from(rtUrls.map((x) => x)),
+        "rtUrls": rtUrls == null ? [] : List<dynamic>.from(rtUrls!.map((x) => x)),
         "djId": djId,
         "copyright": copyright,
         "s_id": sId,
         "mark": mark,
         "originCoverType": originCoverType,
-        "originSongSimpleData": originSongSimpleData?.toJson(),
+        "originSongSimpleData": originSongSimpleData,
         "tagPicList": tagPicList,
         "resourceState": resourceState,
         "version": version,
@@ -1002,32 +999,31 @@ class Track {
         "cp": cp,
         "mv": mv,
         "publishTime": publishTime,
-        "tns": tns == null ? [] : List<dynamic>.from(tns!.map((x) => x)),
       };
 }
 
 class Al {
-  final int id;
-  final String name;
-  final String picUrl;
-  final List<String> tns;
-  final String picStr;
-  final double pic;
+  final int? id;
+  final String? name;
+  final String? picUrl;
+  final List<dynamic>? tns;
+  final String? picStr;
+  final double? pic;
 
   Al({
-    required this.id,
-    required this.name,
-    required this.picUrl,
-    required this.tns,
-    required this.picStr,
-    required this.pic,
+    this.id,
+    this.name,
+    this.picUrl,
+    this.tns,
+    this.picStr,
+    this.pic,
   });
 
   Al copyWith({
     int? id,
     String? name,
     String? picUrl,
-    List<String>? tns,
+    List<dynamic>? tns,
     String? picStr,
     double? pic,
   }) =>
@@ -1048,7 +1044,7 @@ class Al {
         id: json["id"],
         name: json["name"],
         picUrl: json["picUrl"],
-        tns: List<String>.from(json["tns"].map((x) => x)),
+        tns: json["tns"] == null ? [] : List<dynamic>.from(json["tns"]!.map((x) => x)),
         picStr: json["pic_str"],
         pic: json["pic"]?.toDouble(),
       );
@@ -1057,23 +1053,23 @@ class Al {
         "id": id,
         "name": name,
         "picUrl": picUrl,
-        "tns": List<dynamic>.from(tns.map((x) => x)),
+        "tns": tns == null ? [] : List<dynamic>.from(tns!.map((x) => x)),
         "pic_str": picStr,
         "pic": pic,
       };
 }
 
 class Ar {
-  final int id;
-  final String name;
-  final List<dynamic> tns;
-  final List<dynamic> alias;
+  final int? id;
+  final String? name;
+  final List<dynamic>? tns;
+  final List<dynamic>? alias;
 
   Ar({
-    required this.id,
-    required this.name,
-    required this.tns,
-    required this.alias,
+    this.id,
+    this.name,
+    this.tns,
+    this.alias,
   });
 
   Ar copyWith({
@@ -1096,31 +1092,31 @@ class Ar {
   factory Ar.fromJson(Map<String, dynamic> json) => Ar(
         id: json["id"],
         name: json["name"],
-        tns: List<dynamic>.from(json["tns"].map((x) => x)),
-        alias: List<dynamic>.from(json["alias"].map((x) => x)),
+        tns: json["tns"] == null ? [] : List<dynamic>.from(json["tns"]!.map((x) => x)),
+        alias: json["alias"] == null ? [] : List<dynamic>.from(json["alias"]!.map((x) => x)),
       );
 
   Map<String, dynamic> toJson() => {
         "id": id,
         "name": name,
-        "tns": List<dynamic>.from(tns.map((x) => x)),
-        "alias": List<dynamic>.from(alias.map((x) => x)),
+        "tns": tns == null ? [] : List<dynamic>.from(tns!.map((x) => x)),
+        "alias": alias == null ? [] : List<dynamic>.from(alias!.map((x) => x)),
       };
 }
 
 class H {
-  final int br;
-  final int fid;
-  final int size;
-  final int vd;
-  final int sr;
+  final int? br;
+  final int? fid;
+  final int? size;
+  final int? vd;
+  final int? sr;
 
   H({
-    required this.br,
-    required this.fid,
-    required this.size,
-    required this.vd,
-    required this.sr,
+    this.br,
+    this.fid,
+    this.size,
+    this.vd,
+    this.sr,
   });
 
   H copyWith({
@@ -1159,147 +1155,69 @@ class H {
       };
 }
 
-class OriginSongSimpleData {
-  final int songId;
-  final String name;
-  final List<AlbumMeta> artists;
-  final AlbumMeta albumMeta;
-
-  OriginSongSimpleData({
-    required this.songId,
-    required this.name,
-    required this.artists,
-    required this.albumMeta,
-  });
-
-  OriginSongSimpleData copyWith({
-    int? songId,
-    String? name,
-    List<AlbumMeta>? artists,
-    AlbumMeta? albumMeta,
-  }) =>
-      OriginSongSimpleData(
-        songId: songId ?? this.songId,
-        name: name ?? this.name,
-        artists: artists ?? this.artists,
-        albumMeta: albumMeta ?? this.albumMeta,
-      );
-
-  factory OriginSongSimpleData.fromRawJson(String str) => OriginSongSimpleData.fromJson(json.decode(str));
-
-  String toRawJson() => json.encode(toJson());
-
-  factory OriginSongSimpleData.fromJson(Map<String, dynamic> json) => OriginSongSimpleData(
-        songId: json["songId"],
-        name: json["name"],
-        artists: List<AlbumMeta>.from(json["artists"].map((x) => AlbumMeta.fromJson(x))),
-        albumMeta: AlbumMeta.fromJson(json["albumMeta"]),
-      );
-
-  Map<String, dynamic> toJson() => {
-        "songId": songId,
-        "name": name,
-        "artists": List<dynamic>.from(artists.map((x) => x.toJson())),
-        "albumMeta": albumMeta.toJson(),
-      };
-}
-
-class AlbumMeta {
-  final int id;
-  final String name;
-
-  AlbumMeta({
-    required this.id,
-    required this.name,
-  });
-
-  AlbumMeta copyWith({
-    int? id,
-    String? name,
-  }) =>
-      AlbumMeta(
-        id: id ?? this.id,
-        name: name ?? this.name,
-      );
-
-  factory AlbumMeta.fromRawJson(String str) => AlbumMeta.fromJson(json.decode(str));
-
-  String toRawJson() => json.encode(toJson());
-
-  factory AlbumMeta.fromJson(Map<String, dynamic> json) => AlbumMeta(
-        id: json["id"],
-        name: json["name"],
-      );
-
-  Map<String, dynamic> toJson() => {
-        "id": id,
-        "name": name,
-      };
-}
-
 class Privilege {
-  final int id;
-  final int fee;
-  final int payed;
-  final int realPayed;
-  final int st;
-  final int pl;
-  final int dl;
-  final int sp;
-  final int cp;
-  final int subp;
-  final bool cs;
-  final int maxbr;
-  final int fl;
+  final int? id;
+  final int? fee;
+  final int? payed;
+  final int? realPayed;
+  final int? st;
+  final int? pl;
+  final int? dl;
+  final int? sp;
+  final int? cp;
+  final int? subp;
+  final bool? cs;
+  final int? maxbr;
+  final int? fl;
   final dynamic pc;
-  final bool toast;
-  final int flag;
-  final bool paidBigBang;
-  final bool preSell;
-  final int playMaxbr;
-  final int downloadMaxbr;
-  final Level maxBrLevel;
-  final Level playMaxBrLevel;
-  final Level downloadMaxBrLevel;
-  final Level plLevel;
-  final Level dlLevel;
-  final FlLevel flLevel;
-  final dynamic rscl;
-  final FreeTrialPrivilege freeTrialPrivilege;
-  final int rightSource;
-  final List<ChargeInfoList> chargeInfoList;
+  final bool? toast;
+  final int? flag;
+  final bool? paidBigBang;
+  final bool? preSell;
+  final int? playMaxbr;
+  final int? downloadMaxbr;
+  final String? maxBrLevel;
+  final String? playMaxBrLevel;
+  final String? downloadMaxBrLevel;
+  final String? plLevel;
+  final String? dlLevel;
+  final String? flLevel;
+  final int? rscl;
+  final FreeTrialPrivilege? freeTrialPrivilege;
+  final int? rightSource;
+  final List<ChargeInfoList>? chargeInfoList;
 
   Privilege({
-    required this.id,
-    required this.fee,
-    required this.payed,
-    required this.realPayed,
-    required this.st,
-    required this.pl,
-    required this.dl,
-    required this.sp,
-    required this.cp,
-    required this.subp,
-    required this.cs,
-    required this.maxbr,
-    required this.fl,
-    required this.pc,
-    required this.toast,
-    required this.flag,
-    required this.paidBigBang,
-    required this.preSell,
-    required this.playMaxbr,
-    required this.downloadMaxbr,
-    required this.maxBrLevel,
-    required this.playMaxBrLevel,
-    required this.downloadMaxBrLevel,
-    required this.plLevel,
-    required this.dlLevel,
-    required this.flLevel,
-    required this.rscl,
-    required this.freeTrialPrivilege,
-    required this.rightSource,
-    required this.chargeInfoList,
+    this.id,
+    this.fee,
+    this.payed,
+    this.realPayed,
+    this.st,
+    this.pl,
+    this.dl,
+    this.sp,
+    this.cp,
+    this.subp,
+    this.cs,
+    this.maxbr,
+    this.fl,
+    this.pc,
+    this.toast,
+    this.flag,
+    this.paidBigBang,
+    this.preSell,
+    this.playMaxbr,
+    this.downloadMaxbr,
+    this.maxBrLevel,
+    this.playMaxBrLevel,
+    this.downloadMaxBrLevel,
+    this.plLevel,
+    this.dlLevel,
+    this.flLevel,
+    this.rscl,
+    this.freeTrialPrivilege,
+    this.rightSource,
+    this.chargeInfoList,
   });
 
   Privilege copyWith({
@@ -1323,13 +1241,13 @@ class Privilege {
     bool? preSell,
     int? playMaxbr,
     int? downloadMaxbr,
-    Level? maxBrLevel,
-    Level? playMaxBrLevel,
-    Level? downloadMaxBrLevel,
-    Level? plLevel,
-    Level? dlLevel,
-    FlLevel? flLevel,
-    dynamic rscl,
+    String? maxBrLevel,
+    String? playMaxBrLevel,
+    String? downloadMaxBrLevel,
+    String? plLevel,
+    String? dlLevel,
+    String? flLevel,
+    int? rscl,
     FreeTrialPrivilege? freeTrialPrivilege,
     int? rightSource,
     List<ChargeInfoList>? chargeInfoList,
@@ -1392,16 +1310,19 @@ class Privilege {
         preSell: json["preSell"],
         playMaxbr: json["playMaxbr"],
         downloadMaxbr: json["downloadMaxbr"],
-        maxBrLevel: levelValues.map[json["maxBrLevel"]]!,
-        playMaxBrLevel: levelValues.map[json["playMaxBrLevel"]]!,
-        downloadMaxBrLevel: levelValues.map[json["downloadMaxBrLevel"]]!,
-        plLevel: levelValues.map[json["plLevel"]]!,
-        dlLevel: levelValues.map[json["dlLevel"]]!,
-        flLevel: flLevelValues.map[json["flLevel"]]!,
+        maxBrLevel: json["maxBrLevel"],
+        playMaxBrLevel: json["playMaxBrLevel"],
+        downloadMaxBrLevel: json["downloadMaxBrLevel"],
+        plLevel: json["plLevel"],
+        dlLevel: json["dlLevel"],
+        flLevel: json["flLevel"],
         rscl: json["rscl"],
-        freeTrialPrivilege: FreeTrialPrivilege.fromJson(json["freeTrialPrivilege"]),
+        freeTrialPrivilege:
+            json["freeTrialPrivilege"] == null ? null : FreeTrialPrivilege.fromJson(json["freeTrialPrivilege"]),
         rightSource: json["rightSource"],
-        chargeInfoList: List<ChargeInfoList>.from(json["chargeInfoList"].map((x) => ChargeInfoList.fromJson(x))),
+        chargeInfoList: json["chargeInfoList"] == null
+            ? []
+            : List<ChargeInfoList>.from(json["chargeInfoList"]!.map((x) => ChargeInfoList.fromJson(x))),
       );
 
   Map<String, dynamic> toJson() => {
@@ -1425,30 +1346,30 @@ class Privilege {
         "preSell": preSell,
         "playMaxbr": playMaxbr,
         "downloadMaxbr": downloadMaxbr,
-        "maxBrLevel": levelValues.reverse[maxBrLevel],
-        "playMaxBrLevel": levelValues.reverse[playMaxBrLevel],
-        "downloadMaxBrLevel": levelValues.reverse[downloadMaxBrLevel],
-        "plLevel": levelValues.reverse[plLevel],
-        "dlLevel": levelValues.reverse[dlLevel],
-        "flLevel": flLevelValues.reverse[flLevel],
+        "maxBrLevel": maxBrLevel,
+        "playMaxBrLevel": playMaxBrLevel,
+        "downloadMaxBrLevel": downloadMaxBrLevel,
+        "plLevel": plLevel,
+        "dlLevel": dlLevel,
+        "flLevel": flLevel,
         "rscl": rscl,
-        "freeTrialPrivilege": freeTrialPrivilege.toJson(),
+        "freeTrialPrivilege": freeTrialPrivilege?.toJson(),
         "rightSource": rightSource,
-        "chargeInfoList": List<dynamic>.from(chargeInfoList.map((x) => x.toJson())),
+        "chargeInfoList": chargeInfoList == null ? [] : List<dynamic>.from(chargeInfoList!.map((x) => x.toJson())),
       };
 }
 
 class ChargeInfoList {
-  final int rate;
+  final int? rate;
   final dynamic chargeUrl;
   final dynamic chargeMessage;
-  final int chargeType;
+  final int? chargeType;
 
   ChargeInfoList({
-    required this.rate,
-    required this.chargeUrl,
-    required this.chargeMessage,
-    required this.chargeType,
+    this.rate,
+    this.chargeUrl,
+    this.chargeMessage,
+    this.chargeType,
   });
 
   ChargeInfoList copyWith({
@@ -1483,32 +1404,24 @@ class ChargeInfoList {
       };
 }
 
-enum Level { EXHIGH, HIRES, LOSSLESS }
-
-final levelValues = EnumValues({"exhigh": Level.EXHIGH, "hires": Level.HIRES, "lossless": Level.LOSSLESS});
-
-enum FlLevel { EXHIGH, NONE, STANDARD }
-
-final flLevelValues = EnumValues({"exhigh": FlLevel.EXHIGH, "none": FlLevel.NONE, "standard": FlLevel.STANDARD});
-
 class FreeTrialPrivilege {
-  final bool resConsumable;
-  final bool userConsumable;
+  final bool? resConsumable;
+  final bool? userConsumable;
   final dynamic listenType;
-  final dynamic cannotListenReason;
+  final int? cannotListenReason;
 
   FreeTrialPrivilege({
-    required this.resConsumable,
-    required this.userConsumable,
-    required this.listenType,
-    required this.cannotListenReason,
+    this.resConsumable,
+    this.userConsumable,
+    this.listenType,
+    this.cannotListenReason,
   });
 
   FreeTrialPrivilege copyWith({
     bool? resConsumable,
     bool? userConsumable,
     dynamic listenType,
-    dynamic cannotListenReason,
+    int? cannotListenReason,
   }) =>
       FreeTrialPrivilege(
         resConsumable: resConsumable ?? this.resConsumable,
@@ -1534,16 +1447,4 @@ class FreeTrialPrivilege {
         "listenType": listenType,
         "cannotListenReason": cannotListenReason,
       };
-}
-
-class EnumValues<T> {
-  Map<String, T> map;
-  late Map<T, String> reverseMap;
-
-  EnumValues(this.map);
-
-  Map<T, String> get reverse {
-    reverseMap = map.map((k, v) => MapEntry(v, k));
-    return reverseMap;
-  }
 }

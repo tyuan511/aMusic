@@ -1,99 +1,146 @@
 import 'package:flutter/material.dart';
-import 'package:laji_music/mock/song_list_data.dart';
-import 'package:laji_music/models/playlist.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:laji_music/models/song.dart';
+import 'package:laji_music/providers/player.dart';
 import 'package:laji_music/widgets/image_cover.dart';
 import 'package:laji_music/widgets/music_item.dart';
+import 'package:ncm_api/modules/response/playlist_detail.dart';
+import 'package:ncm_api/ncm_api.dart';
 
-class SongListScreen extends StatelessWidget {
-  final Playlist? playlist;
+class SongListScreen extends StatefulHookConsumerWidget {
+  final int? playlistID;
 
-  const SongListScreen({Key? key, this.playlist}) : super(key: key);
+  const SongListScreen({Key? key, this.playlistID}) : super(key: key);
+
+  @override
+  ConsumerState<SongListScreen> createState() => _SongListScreenState();
+}
+
+class _SongListScreenState extends ConsumerState<SongListScreen> {
+  List<Song> songs = [];
+  Playlist? playlist;
+
+  @override
+  void initState() {
+    super.initState();
+    getDetail();
+  }
+
+  getDetail() async {
+    if (widget.playlistID == null) return;
+    final res = await getPlaylistDetail(widget.playlistID!);
+    setState(() {
+      playlist = res.playlist;
+      songs = res.playlist!.tracks!
+          .map(
+            (s) => Song(
+              id: s.id!,
+              name: s.name!,
+              duration: Duration(milliseconds: s.dt!),
+              author: (s.ar ?? []).map((e) => e.name).join(' '),
+              album: s.al?.name ?? '',
+              picUrl: s.al?.picUrl ?? '',
+            ),
+          )
+          .toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (playlist == null) {
+    if (widget.playlistID == null) {
       return const Center(
         child: Text('歌单不存在'),
       );
     }
 
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(top: 32, left: 24, right: 24),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: ImageCover(
-                    url: playlist!.picUrl,
-                    width: 160,
-                    height: 160,
-                  )),
-              const SizedBox(width: 24),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    final currSong = ref.watch(playerProvider.select((value) => value.currSong));
+
+    return playlist == null
+        ? const Center(
+            child: CircularProgressIndicator(),
+          )
+        : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 32, left: 24, right: 24),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      playlist!.name,
-                      style: Theme.of(context).textTheme.titleLarge,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                              border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
-                              borderRadius: BorderRadius.circular(20)),
-                          child: ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: const ImageCover(
-                                url: "http://p1.music.126.net/K6NkXfZiDmRI_utJPXZG2g==/18525671418102343.jpg",
-                              )),
-                        ),
-                        const SizedBox(width: 8),
-                        Text('Tangge丶', style: Theme.of(context).textTheme.bodySmall),
-                        const SizedBox(width: 12),
-                        Text('2022-08-19创建', style: Theme.of(context).textTheme.bodySmall),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        ElevatedButton(
-                            onPressed: () {},
-                            child: const Row(
-                              children: [
-                                Icon(Icons.play_arrow_rounded),
-                                SizedBox(width: 4),
-                                Text("播放全部"),
-                              ],
-                            )),
-                        const SizedBox(width: 12),
-                        Text("共80首歌曲", style: Theme.of(context).textTheme.bodyMedium),
-                      ],
+                    ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: ImageCover(
+                          url: '${playlist!.coverImgUrl!}?param=160y160',
+                          width: 160,
+                          height: 160,
+                        )),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            playlist!.name!,
+                            style: Theme.of(context).textTheme.titleLarge,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                    border:
+                                        Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
+                                    borderRadius: BorderRadius.circular(20)),
+                                child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(20),
+                                    child: ImageCover(
+                                      url: playlist!.creator!.avatarUrl!,
+                                    )),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(playlist!.creator!.nickname!, style: Theme.of(context).textTheme.bodySmall),
+                              const SizedBox(width: 12),
+                              Text('${playlist!.createTime}创建', style: Theme.of(context).textTheme.bodySmall),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              ElevatedButton(
+                                  onPressed: () {
+                                    ref.read(playerProvider.notifier).playSongs(songs);
+                                  },
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.play_arrow_rounded),
+                                      SizedBox(width: 4),
+                                      Text("播放全部"),
+                                    ],
+                                  )),
+                              const SizedBox(width: 12),
+                              Text("共${playlist!.trackCount}首歌", style: Theme.of(context).textTheme.bodyMedium),
+                            ],
+                          )
+                        ],
+                      ),
                     )
                   ],
                 ),
-              )
-            ],
-          ),
-        ),
-      ),
-      const SizedBox(height: 12),
-      Expanded(
-        child: ListView.builder(
-          padding: const EdgeInsets.only(left: 24, right: 24, bottom: 32),
-          itemCount: songListData.length,
-          itemBuilder: (context, index) => MusicItem(data: songListData[index]),
-        ),
-      )
-    ]);
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.only(left: 24, right: 24, bottom: 32),
+                itemCount: songs.length,
+                itemBuilder: (context, index) =>
+                    MusicItem(data: songs[index], isActive: currSong?.id == songs[index].id),
+              ),
+            )
+          ]);
   }
 }

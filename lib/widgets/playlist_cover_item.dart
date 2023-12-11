@@ -12,7 +12,7 @@ class PlaylistCoverItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        context.go('/song_list', extra: data);
+        context.go('/song_list', extra: data.id);
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -20,7 +20,7 @@ class PlaylistCoverItem extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: ImageCover(
-              url: data.picUrl,
+              url: '${data.picUrl}?param=200y200',
             ),
           ),
           const SizedBox(height: 4),
