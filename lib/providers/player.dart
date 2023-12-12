@@ -14,7 +14,10 @@ part 'player.g.dart';
 
 @Riverpod(keepAlive: true)
 class Player extends _$Player {
-  final _audioPlayer = AudioPlayer();
+  final _audioPlayer = AudioPlayer(
+    userAgent:
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+  );
   ConcatenatingAudioSource? _currPlaylist;
 
   @override
@@ -50,15 +53,16 @@ class Player extends _$Player {
 
     _audioPlayer.currentIndexStream.listen((e) {
       state = state.copyWith(currentSongIdx: e);
-      if (state.currSong != null) {
-        _getLyric(state.currSong!);
-      }
+
+      _getLyric(state.currSong!);
+
       _saveState();
     });
   }
 
   Future<void> _setPlaylist(List<Song> songs) async {
-    final res = await getSongURL(songs.map((e) => e.id).toList());
+    final level = ref.read(configProvider.select((value) => value.level));
+    final res = await getSongURL(songs.map((e) => e.id).toList(), level: level.value);
     for (var element in songs) {
       element.url = res.data!.firstWhere((e) => e.id == element.id).url;
     }
@@ -84,19 +88,18 @@ class Player extends _$Player {
     state = state.copyWith(currentLyricIdx: index - 1);
   }
 
-  resume() async {
-    final snapshot = state.copyWith();
+  setVolume(double v) {
+    _audioPlayer.setVolume(v);
+  }
 
+  resume() async {
+    if (state.songList?.isEmpty ?? true) return;
     _currPlaylist = ConcatenatingAudioSource(
         useLazyPreparation: true,
         shuffleOrder: DefaultShuffleOrder(),
-        children: (snapshot.songList ?? []).map((e) => e.toAudioSource()).toList());
-    await _audioPlayer.setAudioSource(
-      _currPlaylist!,
-      initialIndex: snapshot.currentSongIdx,
-      initialPosition: snapshot.position,
-      preload: false,
-    );
+        children: (state.songList ?? []).map((e) => e.toAudioSource()).toList());
+    await _audioPlayer.setAudioSource(_currPlaylist!,
+        initialIndex: state.currentSongIdx, initialPosition: state.position);
     if (ref.read(configProvider).autoPlay) {
       await _audioPlayer.play();
     }
@@ -113,28 +116,10 @@ class Player extends _$Player {
       _currPlaylist!,
       initialIndex: index,
       initialPosition: Duration.zero,
-      preload: false,
     );
     await _audioPlayer.play();
     _saveState();
-  }
-
-  playSong(Song song) async {
-    int idx = state.songList!.indexWhere((element) => element.id == song.id);
-    if (idx < 0) {
-      final res = await getSongURL([song.id]);
-      song.url = res.data!.first.url;
-      state = state.copyWith(songList: [...state.songList!, song]);
-      idx = state.songList!.length - 1;
-      _currPlaylist ??=
-          ConcatenatingAudioSource(useLazyPreparation: true, shuffleOrder: DefaultShuffleOrder(), children: []);
-      _currPlaylist!.insert(idx, song.toAudioSource());
-      await _audioPlayer.setAudioSource(_currPlaylist!, initialIndex: idx, initialPosition: Duration.zero);
-    }
-
-    await _audioPlayer.seek(Duration.zero, index: idx);
-    await _audioPlayer.play();
-    _saveState();
+    _getLyric(state.currSong!);
   }
 
   playOrPause() {

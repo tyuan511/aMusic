@@ -4,6 +4,42 @@ import 'package:just_audio_background/just_audio_background.dart';
 
 part 'song.g.dart';
 
+enum SongLevel {
+  standard('standard'),
+  higher('higher'),
+  exhigh('exhigh'),
+  lossless('lossless'),
+  hires('hires'),
+  jyeffect('jyeffect'),
+  sky('sky'),
+  jymaster('jymaster');
+
+  final String value;
+
+  const SongLevel(this.value);
+
+  String get name {
+    switch (this) {
+      case SongLevel.standard:
+        return '标准';
+      case SongLevel.higher:
+        return '较高';
+      case SongLevel.exhigh:
+        return '极高';
+      case SongLevel.lossless:
+        return '无损';
+      case SongLevel.hires:
+        return 'Hi-Res';
+      case SongLevel.jyeffect:
+        return '高清环绕声';
+      case SongLevel.sky:
+        return '沉浸环绕声';
+      case SongLevel.jymaster:
+        return '超清母带';
+    }
+  }
+}
+
 @JsonSerializable()
 class Song {
   final int id;
