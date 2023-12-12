@@ -6,11 +6,11 @@ part of 'player.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$playerHash() => r'c81562e90e527351759690976dbde54cb1c52cd3';
+String _$playerHash() => r'cb1409b2b597cb1cfb7d58dfc56debac8a542313';
 
 /// See also [Player].
 @ProviderFor(Player)
-final playerProvider = NotifierProvider<Player, PlayerState>.internal(
+final playerProvider = NotifierProvider<Player, PlayerModel>.internal(
   Player.new,
   name: r'playerProvider',
   debugGetCreateSourceHash:
@@ -19,6 +19,6 @@ final playerProvider = NotifierProvider<Player, PlayerState>.internal(
   allTransitiveDependencies: null,
 );
 
-typedef _$Player = Notifier<PlayerState>;
+typedef _$Player = Notifier<PlayerModel>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member

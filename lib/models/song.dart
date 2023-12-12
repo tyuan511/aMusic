@@ -1,6 +1,10 @@
+import 'package:json_annotation/json_annotation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 
+part 'song.g.dart';
+
+@JsonSerializable()
 class Song {
   final int id;
   final String name;
@@ -33,4 +37,8 @@ class Song {
       ),
     );
   }
+
+  factory Song.fromJson(Map<String, dynamic> json) => _$SongFromJson(json);
+
+  Map<String, dynamic> toJson() => _$SongToJson(this);
 }

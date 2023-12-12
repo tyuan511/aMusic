@@ -37,6 +37,14 @@ class SettingScreen extends HookConsumerWidget {
                 ref.read(configProvider.notifier).changeThemeMode(themes[index]);
               },
             ),
+          ),
+          SettingItem(
+            label: '启动后自动播放',
+            value: Switch(
+                value: config.autoPlay,
+                onChanged: (v) {
+                  ref.read(configProvider.notifier).changeAutoPlay(v);
+                }),
           )
         ],
       )),

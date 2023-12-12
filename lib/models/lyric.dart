@@ -1,3 +1,8 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'lyric.g.dart';
+
+@JsonSerializable()
 class LyricRow {
   final Duration time;
   final String text;
@@ -46,4 +51,8 @@ class LyricRow {
 
     return res;
   }
+
+  factory LyricRow.fromJson(Map<String, dynamic> json) => _$LyricRowFromJson(json);
+
+  Map<String, dynamic> toJson() => _$LyricRowToJson(this);
 }
