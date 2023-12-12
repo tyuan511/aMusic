@@ -104,13 +104,14 @@ class Player extends _$Player {
     state = state.copyWith(currentLyricIdx: index - 1);
   }
 
-  playSongs(List<Song> songs) async {
+  playSongs(List<Song> songs, {int index = 0}) async {
     await _setPlaylist(songs);
     _currPlaylist = ConcatenatingAudioSource(
         useLazyPreparation: true,
         shuffleOrder: DefaultShuffleOrder(),
         children: (state.songList ?? []).map((e) => e.toAudioSource()).toList());
-    await _audioPlayer.setAudioSource(_currPlaylist!, initialIndex: 0, initialPosition: Duration.zero);
+    state = state.copyWith(currentSongIdx: index);
+    await _audioPlayer.setAudioSource(_currPlaylist!, initialIndex: index, initialPosition: Duration.zero);
     await _audioPlayer.play();
   }
 
@@ -121,12 +122,12 @@ class Player extends _$Player {
       song.url = res.data!.first.url;
       state = state.copyWith(songList: [...state.songList!, song]);
       idx = state.songList!.length - 1;
+      _currPlaylist ??=
+          ConcatenatingAudioSource(useLazyPreparation: true, shuffleOrder: DefaultShuffleOrder(), children: []);
+      _currPlaylist!.insert(idx, song.toAudioSource());
+      await _audioPlayer.setAudioSource(_currPlaylist!, initialIndex: idx, initialPosition: Duration.zero);
     }
 
-    _currPlaylist ??=
-        ConcatenatingAudioSource(useLazyPreparation: true, shuffleOrder: DefaultShuffleOrder(), children: []);
-    _currPlaylist!.insert(idx, song.toAudioSource());
-    await _audioPlayer.setAudioSource(_currPlaylist!, initialIndex: idx, initialPosition: Duration.zero);
     await _audioPlayer.seek(Duration.zero, index: idx);
     await _audioPlayer.play();
   }
