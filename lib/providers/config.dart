@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:laji_music/consts/key.dart';
 import 'package:laji_music/models/config.dart';
+import 'package:laji_music/models/song.dart';
+import 'package:laji_music/providers/player.dart';
 import 'package:laji_music/utils/storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -31,6 +33,17 @@ class Config extends _$Config {
 
   changeAutoPlay(bool autoPlay) {
     state = state.copyWith(autoPlay: autoPlay);
+    _saveState();
+  }
+
+  changeSongLevel(SongLevel level) {
+    state = state.copyWith(level: level);
+    _saveState();
+  }
+
+  changeVolume(double volume) {
+    state = state.copyWith(volume: volume);
+    ref.read(playerProvider.notifier).setVolume(volume);
     _saveState();
   }
 }

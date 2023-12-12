@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:laji_music/extensions/theme_mode.dart';
+import 'package:laji_music/models/song.dart';
 import 'package:laji_music/providers/config.dart';
 import 'package:laji_music/widgets/setting_item.dart';
 
@@ -21,21 +23,24 @@ class SettingScreen extends HookConsumerWidget {
           Text("系统设置", style: Theme.of(context).textTheme.titleLarge),
           SettingItem(
             label: '主题切换',
-            value: ToggleButtons(
-              borderRadius: const BorderRadius.all(Radius.circular(8)),
-              selectedColor: Theme.of(context).colorScheme.onPrimary,
-              selectedBorderColor: Theme.of(context).colorScheme.primary,
-              fillColor: Theme.of(context).colorScheme.primary,
-              color: Theme.of(context).colorScheme.secondary,
-              constraints: const BoxConstraints(
-                minHeight: 32,
-                minWidth: 60,
-              ),
-              isSelected: themes.map((theme) => config.themeMode == theme).toList(),
-              children: const [Text("自动"), Text("浅色"), Text("深色")],
-              onPressed: (index) {
-                ref.read(configProvider.notifier).changeThemeMode(themes[index]);
+            value: DropdownMenu(
+              initialSelection: config.themeMode,
+              onSelected: (ThemeMode? value) {
+                if (value != null) {
+                  ref.read(configProvider.notifier).changeThemeMode(value);
+                }
               },
+              dropdownMenuEntries: ThemeMode.values
+                  .map<DropdownMenuEntry<ThemeMode>>(
+                      (ThemeMode value) => DropdownMenuEntry<ThemeMode>(value: value, label: value.label))
+                  .toList(),
+              inputDecorationTheme: InputDecorationTheme(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                constraints: BoxConstraints.tight(const Size.fromHeight(48)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
             ),
           ),
           SettingItem(
@@ -45,6 +50,44 @@ class SettingScreen extends HookConsumerWidget {
                 onChanged: (v) {
                   ref.read(configProvider.notifier).changeAutoPlay(v);
                 }),
+          ),
+          SettingItem(
+              label: '默认音质',
+              value: DropdownMenu(
+                initialSelection: config.level,
+                onSelected: (SongLevel? value) {
+                  if (value != null) {
+                    ref.read(configProvider.notifier).changeSongLevel(value);
+                  }
+                },
+                dropdownMenuEntries: SongLevel.values
+                    .map<DropdownMenuEntry<SongLevel>>(
+                        (SongLevel value) => DropdownMenuEntry<SongLevel>(value: value, label: value.name))
+                    .toList(),
+                inputDecorationTheme: InputDecorationTheme(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                  constraints: BoxConstraints.tight(const Size.fromHeight(48)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              )),
+          SettingItem(
+            label: '音量增强',
+            value: Row(
+              children: [
+                Slider(
+                  value: config.volume,
+                  min: 1,
+                  max: 9,
+                  divisions: 8,
+                  onChanged: (double value) {
+                    ref.read(configProvider.notifier).changeVolume(value);
+                  },
+                ),
+                Text(config.volume.toInt().toString()),
+              ],
+            ),
           )
         ],
       )),

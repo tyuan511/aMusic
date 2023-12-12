@@ -22,7 +22,7 @@ class PlayerModel {
     this.currentLyricIdx,
   });
 
-  Song? get currSong => currentSongIdx == null || songList == null ? null : songList![currentSongIdx!];
+  Song? get currSong => (songList?.isEmpty ?? true) ? null : songList![currentSongIdx ?? 0];
 
   PlayerModel copyWith({
     bool? isPlaying,
