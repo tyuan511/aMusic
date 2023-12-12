@@ -141,7 +141,7 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
                     data: songs[index],
                     isActive: currSong?.id == songs[index].id,
                     onPressed: () {
-                      ref.read(playerProvider.notifier).playSong(songs[index]);
+                      ref.read(playerProvider.notifier).playSongs(songs, index: index);
                     }),
               ),
             )
