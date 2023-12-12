@@ -1,64 +1,51 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
+
+import 'package:laji_music/consts/key.dart';
 import 'package:laji_music/models/lyric.dart';
+import 'package:laji_music/models/player.dart';
 import 'package:laji_music/models/song.dart';
+import 'package:laji_music/providers/config.dart';
+import 'package:laji_music/utils/storage.dart';
 import 'package:ncm_api/ncm_api.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:just_audio/just_audio.dart';
 
 part 'player.g.dart';
 
-@immutable
-class PlayerState {
-  final bool isPlaying;
-  final Duration position;
-  final int? currentSongIdx;
-  final List<Song>? songList;
-  final List<LyricRow>? lyric;
-  final int? currentLyricIdx;
-
-  const PlayerState({
-    required this.isPlaying,
-    required this.position,
-    required this.currentSongIdx,
-    required this.songList,
-    this.lyric,
-    this.currentLyricIdx,
-  });
-
-  Song? get currSong => currentSongIdx == null || songList == null ? null : songList![currentSongIdx!];
-
-  PlayerState copyWith({
-    bool? isPlaying,
-    Duration? position,
-    int? currentSongIdx,
-    List<Song>? songList,
-    List<LyricRow>? lyric,
-    int? currentLyricIdx,
-  }) {
-    return PlayerState(
-      isPlaying: isPlaying ?? this.isPlaying,
-      position: position ?? this.position,
-      currentSongIdx: currentSongIdx ?? this.currentSongIdx,
-      songList: songList ?? this.songList,
-      lyric: lyric ?? this.lyric,
-      currentLyricIdx: currentLyricIdx ?? this.currentLyricIdx,
-    );
-  }
-}
-
 @Riverpod(keepAlive: true)
 class Player extends _$Player {
   final _audioPlayer = AudioPlayer();
   ConcatenatingAudioSource? _currPlaylist;
 
+  @override
+  PlayerModel build() {
+    final json = storage.read(playerStorageKey);
+    if (json != null) {
+      return PlayerModel.fromJson(jsonDecode(json));
+    }
+
+    return const PlayerModel(
+      isPlaying: false,
+      position: Duration.zero,
+      currentSongIdx: null,
+      songList: [],
+    );
+  }
+
+  _saveState() {
+    storage.write(playerStorageKey, jsonEncode(state.toJson()));
+  }
+
   Player() {
     _audioPlayer.playerStateStream.listen((e) {
       state = state.copyWith(isPlaying: e.playing);
+      _saveState();
     });
 
     _audioPlayer.positionStream.listen((e) {
       state = state.copyWith(position: e);
       _calcCurrLyric();
+      _saveState();
     });
 
     _audioPlayer.currentIndexStream.listen((e) {
@@ -66,16 +53,9 @@ class Player extends _$Player {
       if (state.currSong != null) {
         _getLyric(state.currSong!);
       }
+      _saveState();
     });
   }
-
-  @override
-  PlayerState build() => const PlayerState(
-        isPlaying: false,
-        position: Duration.zero,
-        currentSongIdx: null,
-        songList: [],
-      );
 
   Future<void> _setPlaylist(List<Song> songs) async {
     final res = await getSongURL(songs.map((e) => e.id).toList());
@@ -104,6 +84,24 @@ class Player extends _$Player {
     state = state.copyWith(currentLyricIdx: index - 1);
   }
 
+  resume() async {
+    final snapshot = state.copyWith();
+
+    _currPlaylist = ConcatenatingAudioSource(
+        useLazyPreparation: true,
+        shuffleOrder: DefaultShuffleOrder(),
+        children: (snapshot.songList ?? []).map((e) => e.toAudioSource()).toList());
+    await _audioPlayer.setAudioSource(
+      _currPlaylist!,
+      initialIndex: snapshot.currentSongIdx,
+      initialPosition: snapshot.position,
+      preload: false,
+    );
+    if (ref.read(configProvider).autoPlay) {
+      await _audioPlayer.play();
+    }
+  }
+
   playSongs(List<Song> songs, {int index = 0}) async {
     await _setPlaylist(songs);
     _currPlaylist = ConcatenatingAudioSource(
@@ -111,8 +109,14 @@ class Player extends _$Player {
         shuffleOrder: DefaultShuffleOrder(),
         children: (state.songList ?? []).map((e) => e.toAudioSource()).toList());
     state = state.copyWith(currentSongIdx: index);
-    await _audioPlayer.setAudioSource(_currPlaylist!, initialIndex: index, initialPosition: Duration.zero);
+    await _audioPlayer.setAudioSource(
+      _currPlaylist!,
+      initialIndex: index,
+      initialPosition: Duration.zero,
+      preload: false,
+    );
     await _audioPlayer.play();
+    _saveState();
   }
 
   playSong(Song song) async {
@@ -130,6 +134,7 @@ class Player extends _$Player {
 
     await _audioPlayer.seek(Duration.zero, index: idx);
     await _audioPlayer.play();
+    _saveState();
   }
 
   playOrPause() {

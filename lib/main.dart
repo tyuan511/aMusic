@@ -6,13 +6,13 @@ import 'package:laji_music/init.dart';
 import 'package:laji_music/providers/config.dart';
 import 'package:laji_music/providers/router.dart';
 import 'package:laji_music/theme.dart';
+import 'package:laji_music/utils/storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
   await dotenv.load();
-
-  await Future.wait([initAudio(), initApi()]);
+  await Future.wait([initAudio(), initApi(), initStorage()]);
   runApp(const ProviderScope(child: MyApp()));
 }
 

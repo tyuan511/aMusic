@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:laji_music/extensions/duration.dart';
 import 'package:laji_music/providers/player.dart';
@@ -12,13 +13,18 @@ class MusicPlayer extends HookConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final player = ref.watch(playerProvider);
 
+    useEffect(() {
+      ref.read(playerProvider.notifier).resume();
+      return null;
+    }, const []);
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           const SizedBox(height: 72),
           ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(40),
             child: ImageCover(
               url: player.currSong?.picUrl,
               width: 200,
