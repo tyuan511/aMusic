@@ -12,26 +12,27 @@ class PlayerModel {
   final List<Song>? songList;
   final List<LyricRow>? lyric;
   final int? currentLyricIdx;
+  final bool songLoading;
 
-  const PlayerModel({
-    required this.isPlaying,
-    required this.position,
-    required this.currentSongIdx,
-    required this.songList,
-    this.lyric,
-    this.currentLyricIdx,
-  });
+  const PlayerModel(
+      {required this.isPlaying,
+      required this.position,
+      required this.currentSongIdx,
+      required this.songList,
+      this.lyric,
+      this.currentLyricIdx,
+      this.songLoading = false});
 
   Song? get currSong => (songList?.isEmpty ?? true) ? null : songList![currentSongIdx ?? 0];
 
-  PlayerModel copyWith({
-    bool? isPlaying,
-    Duration? position,
-    int? currentSongIdx,
-    List<Song>? songList,
-    List<LyricRow>? lyric,
-    int? currentLyricIdx,
-  }) {
+  PlayerModel copyWith(
+      {bool? isPlaying,
+      Duration? position,
+      int? currentSongIdx,
+      List<Song>? songList,
+      List<LyricRow>? lyric,
+      int? currentLyricIdx,
+      bool? songLoading}) {
     return PlayerModel(
       isPlaying: isPlaying ?? this.isPlaying,
       position: position ?? this.position,
@@ -39,6 +40,7 @@ class PlayerModel {
       songList: songList ?? this.songList,
       lyric: lyric ?? this.lyric,
       currentLyricIdx: currentLyricIdx ?? this.currentLyricIdx,
+      songLoading: songLoading ?? this.songLoading,
     );
   }
 

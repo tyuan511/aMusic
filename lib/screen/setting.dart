@@ -72,23 +72,6 @@ class SettingScreen extends HookConsumerWidget {
                   ),
                 ),
               )),
-          SettingItem(
-            label: '音量增强',
-            value: Row(
-              children: [
-                Slider(
-                  value: config.volume,
-                  min: 1,
-                  max: 9,
-                  divisions: 8,
-                  onChanged: (double value) {
-                    ref.read(configProvider.notifier).changeVolume(value);
-                  },
-                ),
-                Text(config.volume.toInt().toString()),
-              ],
-            ),
-          )
         ],
       )),
     );

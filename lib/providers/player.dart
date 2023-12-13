@@ -41,7 +41,12 @@ class Player extends _$Player {
 
   Player() {
     _audioPlayer.playerStateStream.listen((e) {
-      state = state.copyWith(isPlaying: e.playing);
+      var isLoading = false;
+      if (e.processingState == ProcessingState.loading) {
+        isLoading = true;
+      }
+
+      state = state.copyWith(isPlaying: e.playing, songLoading: isLoading);
       _saveState();
     });
 
@@ -62,11 +67,16 @@ class Player extends _$Player {
 
   Future<void> _setPlaylist(List<Song> songs) async {
     final level = ref.read(configProvider.select((value) => value.level));
-    final res = await getSongURL(songs.map((e) => e.id).toList(), level: level.value);
-    for (var element in songs) {
-      element.url = res.data!.firstWhere((e) => e.id == element.id).url;
+    state.copyWith(songLoading: true);
+    final noURLSongs = songs.where((element) => element.url == null).toList();
+    if (noURLSongs.isNotEmpty) {
+      final res = await getSongURL(noURLSongs.map((e) => e.id).toList(), level: level.value);
+      for (var element in noURLSongs) {
+        element.url = res.data!.firstWhere((e) => e.id == element.id).url;
+      }
+      state = state.copyWith(songList: songs.where((value) => value.url != null).toList());
     }
-    state = state.copyWith(songList: songs.where((value) => value.url != null).toList());
+    state.copyWith(songLoading: false);
   }
 
   _getLyric(Song song) async {
@@ -93,16 +103,8 @@ class Player extends _$Player {
   }
 
   resume() async {
-    if (state.songList?.isEmpty ?? true) return;
-    _currPlaylist = ConcatenatingAudioSource(
-        useLazyPreparation: true,
-        shuffleOrder: DefaultShuffleOrder(),
-        children: (state.songList ?? []).map((e) => e.toAudioSource()).toList());
-    await _audioPlayer.setAudioSource(_currPlaylist!,
-        initialIndex: state.currentSongIdx, initialPosition: state.position);
-    if (ref.read(configProvider).autoPlay) {
-      await _audioPlayer.play();
-    }
+    if ((state.songList?.isEmpty ?? true)) return;
+    playSongs(state.songList!, index: state.currentSongIdx ?? 0);
   }
 
   playSongs(List<Song> songs, {int index = 0}) async {
@@ -112,10 +114,12 @@ class Player extends _$Player {
         shuffleOrder: DefaultShuffleOrder(),
         children: (state.songList ?? []).map((e) => e.toAudioSource()).toList());
     state = state.copyWith(currentSongIdx: index);
+    await _audioPlayer.stop();
     await _audioPlayer.setAudioSource(
       _currPlaylist!,
       initialIndex: index,
       initialPosition: Duration.zero,
+      preload: false,
     );
     await _audioPlayer.play();
     _saveState();
