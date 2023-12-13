@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:laji_music/extensions/datetime.dart';
 import 'package:laji_music/models/song.dart';
 import 'package:laji_music/providers/player.dart';
 import 'package:laji_music/widgets/image_cover.dart';
@@ -104,7 +105,8 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
                               const SizedBox(width: 8),
                               Text(playlist!.creator!.nickname!, style: Theme.of(context).textTheme.bodySmall),
                               const SizedBox(width: 12),
-                              Text('${playlist!.createTime}创建', style: Theme.of(context).textTheme.bodySmall),
+                              Text('${playlist!.createTime!.toDateTime().formate()}创建',
+                                  style: Theme.of(context).textTheme.bodySmall),
                             ],
                           ),
                           const SizedBox(height: 12),

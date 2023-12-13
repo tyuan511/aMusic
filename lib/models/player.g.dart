@@ -17,6 +17,7 @@ PlayerModel _$PlayerModelFromJson(Map<String, dynamic> json) => PlayerModel(
           ?.map((e) => LyricRow.fromJson(e as Map<String, dynamic>))
           .toList(),
       currentLyricIdx: json['currentLyricIdx'] as int?,
+      songLoading: json['songLoading'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$PlayerModelToJson(PlayerModel instance) =>
@@ -27,4 +28,5 @@ Map<String, dynamic> _$PlayerModelToJson(PlayerModel instance) =>
       'songList': instance.songList,
       'lyric': instance.lyric,
       'currentLyricIdx': instance.currentLyricIdx,
+      'songLoading': instance.songLoading,
     };

@@ -9,16 +9,14 @@ class ConfigModel {
   final ThemeMode themeMode;
   final bool autoPlay;
   final SongLevel level;
-  final double volume;
 
-  const ConfigModel({required this.themeMode, this.autoPlay = true, this.level = SongLevel.standard, this.volume = 1});
+  const ConfigModel({required this.themeMode, this.autoPlay = true, this.level = SongLevel.standard});
 
   ConfigModel copyWith({ThemeMode? themeMode, bool? autoPlay, SongLevel? level, double? volume}) {
     return ConfigModel(
       themeMode: themeMode ?? this.themeMode,
       autoPlay: autoPlay ?? this.autoPlay,
       level: level ?? this.level,
-      volume: volume ?? this.volume,
     );
   }
 

@@ -11,7 +11,6 @@ ConfigModel _$ConfigModelFromJson(Map<String, dynamic> json) => ConfigModel(
       autoPlay: json['autoPlay'] as bool? ?? true,
       level: $enumDecodeNullable(_$SongLevelEnumMap, json['level']) ??
           SongLevel.standard,
-      volume: (json['volume'] as num?)?.toDouble() ?? 1,
     );
 
 Map<String, dynamic> _$ConfigModelToJson(ConfigModel instance) =>
@@ -19,7 +18,6 @@ Map<String, dynamic> _$ConfigModelToJson(ConfigModel instance) =>
       'themeMode': _$ThemeModeEnumMap[instance.themeMode]!,
       'autoPlay': instance.autoPlay,
       'level': _$SongLevelEnumMap[instance.level]!,
-      'volume': instance.volume,
     };
 
 const _$ThemeModeEnumMap = {
