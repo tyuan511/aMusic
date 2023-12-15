@@ -3,10 +3,10 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:laji_music/extensions/datetime.dart';
 import 'package:laji_music/models/song.dart';
 import 'package:laji_music/providers/player.dart';
+import 'package:laji_music/utils/repo.dart';
 import 'package:laji_music/widgets/image_cover.dart';
 import 'package:laji_music/widgets/music_item.dart';
-import 'package:ncm_api/modules/response/playlist_detail.dart';
-import 'package:ncm_api/ncm_api.dart';
+import 'package:ncm_api/netease_api.dart';
 
 class SongListScreen extends StatefulHookConsumerWidget {
   final int? playlistID;
@@ -29,18 +29,21 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
 
   getDetail() async {
     if (widget.playlistID == null) return;
-    final res = await getPlaylistDetail(widget.playlistID!);
+
+    final res = await (await repo.playlistDetail(widget.playlistID!)).asFuture;
+
     setState(() {
       playlist = res.playlist;
-      songs = res.playlist!.tracks!
+
+      songs = res.playlist.tracks
           .map(
             (s) => Song(
-              id: s.id!,
-              name: s.name!,
-              duration: Duration(milliseconds: s.dt!),
-              author: (s.ar ?? []).map((e) => e.name).join(' '),
-              album: s.al?.name ?? '',
-              picUrl: s.al?.picUrl ?? '',
+              id: s.id,
+              name: s.name,
+              duration: Duration(milliseconds: s.dt),
+              author: (s.ar).map((e) => e.name).join(' '),
+              album: s.al.name,
+              picUrl: s.al.picUrl,
             ),
           )
           .toList();
@@ -71,7 +74,7 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
                     ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: ImageCover(
-                          url: '${playlist!.coverImgUrl!}?param=160y160',
+                          url: '${playlist!.coverImgUrl}?param=160y160',
                           width: 160,
                           height: 160,
                         )),
@@ -81,7 +84,7 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            playlist!.name!,
+                            playlist!.name,
                             style: Theme.of(context).textTheme.titleLarge,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -99,13 +102,13 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
                                 child: ClipRRect(
                                     borderRadius: BorderRadius.circular(20),
                                     child: ImageCover(
-                                      url: playlist!.creator!.avatarUrl!,
+                                      url: playlist!.creator.avatarUrl,
                                     )),
                               ),
                               const SizedBox(width: 8),
-                              Text(playlist!.creator!.nickname!, style: Theme.of(context).textTheme.bodySmall),
+                              Text(playlist!.creator.nickname, style: Theme.of(context).textTheme.bodySmall),
                               const SizedBox(width: 12),
-                              Text('${playlist!.createTime!.toDateTime().formate()}创建',
+                              Text('${playlist!.createTime.toDateTime().formate()}创建',
                                   style: Theme.of(context).textTheme.bodySmall),
                             ],
                           ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:laji_music/utils/repo.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:ncm_api/ncm_api.dart' as api;
 
 part 'user.g.dart';
 
@@ -27,11 +27,13 @@ class User extends _$User {
   UserInfo build() => const UserInfo();
 
   Future<void> getInfo() async {
-    final res = await api.checkLoginStatus();
-    if (res.data.profile != null) {
+    final res = await repo.loginStatus();
+    final profile = res['profile'];
+
+    if (profile != null) {
       state = UserInfo(
-        id: res.data.profile!.userId,
-        avatarUrl: res.data.profile!.avatarUrl,
+        id: profile['userId'],
+        avatarUrl: profile['avatarUrl'],
       );
 
       getLikeList();
@@ -39,7 +41,7 @@ class User extends _$User {
   }
 
   Future<void> getLikeList() async {
-    final res = await api.getLikeList(state.id!);
-    state = state.copyWith(likeSongs: res.ids);
+    final res = await (await repo.likedList(state.id!)).asFuture;
+    state = state.copyWith(likeSongs: res);
   }
 }
