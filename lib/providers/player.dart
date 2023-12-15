@@ -4,9 +4,8 @@ import 'package:laji_music/consts/key.dart';
 import 'package:laji_music/models/lyric.dart';
 import 'package:laji_music/models/player.dart';
 import 'package:laji_music/models/song.dart';
-import 'package:laji_music/providers/config.dart';
+import 'package:laji_music/utils/repo.dart';
 import 'package:laji_music/utils/storage.dart';
-import 'package:ncm_api/ncm_api.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -66,13 +65,11 @@ class Player extends _$Player {
   }
 
   Future<void> _setPlaylist(List<Song> songs) async {
-    final level = ref.read(configProvider.select((value) => value.level));
     state.copyWith(songLoading: true);
     final noURLSongs = songs.where((element) => element.url == null).toList();
     if (noURLSongs.isNotEmpty) {
-      final res = await getSongURL(noURLSongs.map((e) => e.id).toList(), level: level.value);
       for (var element in noURLSongs) {
-        element.url = res.data!.firstWhere((e) => e.id == element.id).url;
+        element.url = await (await repo.getPlayUrl(element.id)).asFuture;
       }
       state = state.copyWith(songList: songs.where((value) => value.url != null).toList());
     }
@@ -84,9 +81,9 @@ class Player extends _$Player {
       lyric: null,
       currentLyricIdx: null,
     );
-    final res = await getLyric(song.id);
+    final lyric = await repo.lyric(song.id);
     state = state.copyWith(
-      lyric: LyricRow.fromString(res.lrc.lyric),
+      lyric: LyricRow.fromString(lyric ?? ''),
       currentLyricIdx: 0,
     );
   }

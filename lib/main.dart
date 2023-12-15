@@ -6,6 +6,7 @@ import 'package:laji_music/init.dart';
 import 'package:laji_music/providers/config.dart';
 import 'package:laji_music/providers/router.dart';
 import 'package:laji_music/theme.dart';
+import 'package:laji_music/utils/repo.dart';
 import 'package:laji_music/utils/storage.dart';
 
 void main() async {

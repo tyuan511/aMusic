@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:laji_music/providers/user.dart';
+import 'package:laji_music/utils/repo.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:ncm_api/ncm_api.dart' as api;
 
 class LoginScreen extends StatefulHookConsumerWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -48,18 +48,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   get qrURL => qrKey == null ? null : 'https://music.163.com/login?codekey=$qrKey';
 
   createQR() async {
-    final res = await api.getLoginQRKey();
+    final res = await (await repo.loginQrKey()).asFuture;
     setState(() {
-      qrKey = res.data.unikey;
+      qrKey = res['unikey'];
     });
     checkQRStete();
   }
 
   checkQRStete() async {
     if (qrKey == null) return;
-    final res = await api.checkLoginQRCode(qrKey!);
+    final res = await repo.loginQrCheck(qrKey!);
+
     setState(() {
-      qrState = QRState.fromValue(res.code);
+      qrState = QRState.fromValue(res);
     });
 
     if (qrState == QRState.waiting || qrState == QRState.confirming) {
@@ -95,7 +96,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     data: qrURL,
                     version: QrVersions.auto,
                     size: 300,
-                    backgroundColor: Theme.of(context).colorScheme.onPrimary,
+                    backgroundColor: Theme.of(context).colorScheme.onBackground,
                   )
                 : Container(
                     width: 300,

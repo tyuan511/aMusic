@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:laji_music/models/playlist.dart';
 import 'package:laji_music/providers/user.dart';
+import 'package:laji_music/utils/repo.dart';
 import 'package:laji_music/widgets/playlist_cover_item.dart';
-import 'package:ncm_api/ncm_api.dart';
 
 class UserPlaylistScreen extends StatefulHookConsumerWidget {
   const UserPlaylistScreen({Key? key}) : super(key: key);
@@ -30,16 +30,18 @@ class _UserPlaylistScreenState extends ConsumerState<UserPlaylistScreen> {
 
   Future<void> getMyPlaylist() async {
     final userID = ref.read(userProvider.select((value) => value.id));
-    final res = await getUserPlaylist(userID!);
+    final res = await (await repo.userPlaylist(userID!)).asFuture;
+
     setState(() {
       myPlaylist = res.playlist.map((e) => Playlist(id: e.id, name: e.name, picUrl: e.coverImgUrl)).toList();
     });
   }
 
   Future<void> getRecommandList() async {
-    final res = await getRecommandPlaylist();
+    final res = await (await repo.personalizedPlaylist()).asFuture;
+
     setState(() {
-      recommandPlaylist = res.recommend.map((e) => Playlist(id: e.id, name: e.name, picUrl: e.picUrl)).toList();
+      recommandPlaylist = res.result.map((e) => Playlist(id: e.id, name: e.name, picUrl: e.picUrl)).toList();
     });
   }
 
