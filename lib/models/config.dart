@@ -7,16 +7,16 @@ part 'config.g.dart';
 @JsonSerializable()
 class ConfigModel {
   final ThemeMode themeMode;
-  final bool autoPlay;
   final SongLevel level;
+  final bool autoPlay;
 
-  const ConfigModel({required this.themeMode, this.autoPlay = true, this.level = SongLevel.standard});
+  const ConfigModel({required this.themeMode, this.level = SongLevel.standard, this.autoPlay = false});
 
-  ConfigModel copyWith({ThemeMode? themeMode, bool? autoPlay, SongLevel? level, double? volume}) {
+  ConfigModel copyWith({ThemeMode? themeMode, SongLevel? level, bool? autoPlay}) {
     return ConfigModel(
       themeMode: themeMode ?? this.themeMode,
-      autoPlay: autoPlay ?? this.autoPlay,
       level: level ?? this.level,
+      autoPlay: autoPlay ?? this.autoPlay,
     );
   }
 

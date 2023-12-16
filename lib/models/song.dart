@@ -1,6 +1,8 @@
 import 'package:json_annotation/json_annotation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:laji_music/resolving_audio_source.dart';
+import 'package:laji_music/utils/repo.dart';
 
 part 'song.g.dart';
 
@@ -49,7 +51,6 @@ class Song {
   final String album;
   final String picUrl;
   final bool isLike;
-  String? url;
 
   Song({
     required this.id,
@@ -58,13 +59,20 @@ class Song {
     required this.author,
     required this.album,
     required this.picUrl,
-    this.url,
     this.isLike = false,
   });
 
   AudioSource toAudioSource() {
-    return AudioSource.uri(
-      Uri.parse(url!),
+    return ResolvingAudioSource(
+      uniqueId: id.toString(),
+      headers: {
+        'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36'
+      },
+      resolveSoundUrl: (uniqueId) async {
+        final url = await (await repo.getPlayUrl(id)).asFuture;
+        return Uri.parse(url);
+      },
       tag: MediaItem(
         id: id.toString(),
         title: name,
