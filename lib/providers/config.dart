@@ -28,4 +28,9 @@ class Config extends _$Config {
     state = state.copyWith(themeMode: mode);
     _saveState();
   }
+
+  changeAutoPlay(bool value) {
+    state = state.copyWith(autoPlay: value);
+    _saveState();
+  }
 }

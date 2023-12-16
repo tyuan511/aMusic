@@ -96,7 +96,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     data: qrURL,
                     version: QrVersions.auto,
                     size: 300,
-                    backgroundColor: Theme.of(context).colorScheme.onBackground,
+                    backgroundColor: Theme.of(context).colorScheme.onPrimary,
                   )
                 : Container(
                     width: 300,

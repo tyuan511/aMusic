@@ -8,12 +8,15 @@ part 'config.g.dart';
 class ConfigModel {
   final ThemeMode themeMode;
   final SongLevel level;
+  final bool autoPlay;
 
-  const ConfigModel({required this.themeMode, this.level = SongLevel.standard});
+  const ConfigModel({required this.themeMode, this.level = SongLevel.standard, this.autoPlay = false});
 
-  ConfigModel copyWith({ThemeMode? themeMode, bool? autoPlay, SongLevel? level, double? volume}) {
+  ConfigModel copyWith({ThemeMode? themeMode, SongLevel? level, bool? autoPlay}) {
     return ConfigModel(
       themeMode: themeMode ?? this.themeMode,
+      level: level ?? this.level,
+      autoPlay: autoPlay ?? this.autoPlay,
     );
   }
 

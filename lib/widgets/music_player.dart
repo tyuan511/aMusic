@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:laji_music/extensions/duration.dart';
@@ -12,6 +13,11 @@ class MusicPlayer extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final player = ref.watch(playerProvider);
+
+    useEffect(() {
+      ref.read(playerProvider.notifier).resume();
+      return null;
+    }, []);
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -40,7 +46,7 @@ class MusicPlayer extends HookConsumerWidget {
           LyricList(
             key: ValueKey(player.currSong?.id),
             lyricList: player.lyric,
-            index: player.currentLyricIdx,
+            position: player.position,
           ),
           const SizedBox(height: 24),
           Padding(

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:async/async.dart' show Result, ErrorResult;
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:ncm_api/src/ao/play_recommend.dart';
 import 'package:netease_music_api/netease_cloud_music.dart' as api;
 
 import '../netease_api.dart';
@@ -231,6 +232,12 @@ class Repository {
   Future<Result<TopListDetail>> topListDetail() async {
     final response = await doRequest('/toplist/detail');
     return _map(response, (t) => TopListDetail.fromJson(t));
+  }
+
+  ///推荐歌曲，需要登陆
+  Future<Result<PlaylistRecommend>> recommendPlaylist() async {
+    final response = await doRequest('/recommend/resource');
+    return _map(response, (t) => PlaylistRecommend.fromJson(t));
   }
 
   ///推荐歌曲，需要登陆

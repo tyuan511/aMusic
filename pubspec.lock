@@ -563,10 +563,11 @@ packages:
   just_audio:
     dependency: "direct main"
     description:
-      name: just_audio
-      sha256: b607cd1a43bac03d85c3aaee00448ff4a589ef2a77104e3d409889ff079bf823
-      url: "https://pub.dev"
-    source: hosted
+      path: just_audio
+      ref: "feature/treadmill"
+      resolved-ref: "737f4a0a6e094a397ea6f0b03ce4312e53f9ec9a"
+      url: "https://github.com/ryanheise/just_audio.git"
+    source: git
     version: "0.9.36"
   just_audio_background:
     dependency: "direct main"

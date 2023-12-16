@@ -38,10 +38,10 @@ class _UserPlaylistScreenState extends ConsumerState<UserPlaylistScreen> {
   }
 
   Future<void> getRecommandList() async {
-    final res = await (await repo.personalizedPlaylist()).asFuture;
+    final res = await (await repo.recommendPlaylist()).asFuture;
 
     setState(() {
-      recommandPlaylist = res.result.map((e) => Playlist(id: e.id, name: e.name, picUrl: e.picUrl)).toList();
+      recommandPlaylist = res.recommend.map((e) => Playlist(id: e.id, name: e.name, picUrl: e.picUrl)).toList();
     });
   }
 
