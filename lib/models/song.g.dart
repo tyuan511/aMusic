@@ -13,7 +13,6 @@ Song _$SongFromJson(Map<String, dynamic> json) => Song(
       author: json['author'] as String,
       album: json['album'] as String,
       picUrl: json['picUrl'] as String,
-      url: json['url'] as String?,
       isLike: json['isLike'] as bool? ?? false,
     );
 
@@ -25,5 +24,4 @@ Map<String, dynamic> _$SongToJson(Song instance) => <String, dynamic>{
       'album': instance.album,
       'picUrl': instance.picUrl,
       'isLike': instance.isLike,
-      'url': instance.url,
     };

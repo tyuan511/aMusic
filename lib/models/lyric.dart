@@ -30,7 +30,7 @@ class LyricRow {
 
   static List<LyricRow> fromString(String rawContent) {
     final rows = rawContent.split('\n');
-    final res = <LyricRow>[];
+    List<LyricRow> res = [];
 
     for (var row in rows) {
       final regExp = RegExp(r'^(\[.*\])\s*(.*)$');
@@ -48,6 +48,7 @@ class LyricRow {
     }
 
     res.sort((a, b) => a.time.compareTo(b.time));
+    res = res.skipWhile((value) => value.text.isEmpty).toList();
 
     return res;
   }
