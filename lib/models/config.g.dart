@@ -8,16 +8,16 @@ part of 'config.dart';
 
 ConfigModel _$ConfigModelFromJson(Map<String, dynamic> json) => ConfigModel(
       themeMode: $enumDecode(_$ThemeModeEnumMap, json['themeMode']),
-      autoPlay: json['autoPlay'] as bool? ?? true,
       level: $enumDecodeNullable(_$SongLevelEnumMap, json['level']) ??
           SongLevel.standard,
+      autoPlay: json['autoPlay'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$ConfigModelToJson(ConfigModel instance) =>
     <String, dynamic>{
       'themeMode': _$ThemeModeEnumMap[instance.themeMode]!,
-      'autoPlay': instance.autoPlay,
       'level': _$SongLevelEnumMap[instance.level]!,
+      'autoPlay': instance.autoPlay,
     };
 
 const _$ThemeModeEnumMap = {

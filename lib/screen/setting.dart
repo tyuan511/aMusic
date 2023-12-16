@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:laji_music/extensions/theme_mode.dart';
-import 'package:laji_music/models/song.dart';
 import 'package:laji_music/providers/config.dart';
 import 'package:laji_music/widgets/setting_item.dart';
 
@@ -51,27 +50,6 @@ class SettingScreen extends HookConsumerWidget {
                   ref.read(configProvider.notifier).changeAutoPlay(v);
                 }),
           ),
-          SettingItem(
-              label: '默认音质',
-              value: DropdownMenu(
-                initialSelection: config.level,
-                onSelected: (SongLevel? value) {
-                  if (value != null) {
-                    ref.read(configProvider.notifier).changeSongLevel(value);
-                  }
-                },
-                dropdownMenuEntries: SongLevel.values
-                    .map<DropdownMenuEntry<SongLevel>>(
-                        (SongLevel value) => DropdownMenuEntry<SongLevel>(value: value, label: value.name))
-                    .toList(),
-                inputDecorationTheme: InputDecorationTheme(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  constraints: BoxConstraints.tight(const Size.fromHeight(48)),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              )),
         ],
       )),
     );

@@ -1,36 +1,36 @@
 import 'dart:convert';
 
-class PlaylistRecommandRes {
+class PlaylistRecommend {
   final int code;
   final bool featureFirst;
   final bool haveRcmdSongs;
   final List<Recommend> recommend;
 
-  PlaylistRecommandRes({
+  PlaylistRecommend({
     required this.code,
     required this.featureFirst,
     required this.haveRcmdSongs,
     required this.recommend,
   });
 
-  PlaylistRecommandRes copyWith({
+  PlaylistRecommend copyWith({
     int? code,
     bool? featureFirst,
     bool? haveRcmdSongs,
     List<Recommend>? recommend,
   }) =>
-      PlaylistRecommandRes(
+      PlaylistRecommend(
         code: code ?? this.code,
         featureFirst: featureFirst ?? this.featureFirst,
         haveRcmdSongs: haveRcmdSongs ?? this.haveRcmdSongs,
         recommend: recommend ?? this.recommend,
       );
 
-  factory PlaylistRecommandRes.fromRawJson(String str) => PlaylistRecommandRes.fromJson(json.decode(str));
+  factory PlaylistRecommend.fromRawJson(String str) => PlaylistRecommend.fromJson(json.decode(str));
 
   String toRawJson() => json.encode(toJson());
 
-  factory PlaylistRecommandRes.fromJson(Map<String, dynamic> json) => PlaylistRecommandRes(
+  factory PlaylistRecommend.fromJson(Map<String, dynamic> json) => PlaylistRecommend(
         code: json["code"],
         featureFirst: json["featureFirst"],
         haveRcmdSongs: json["haveRcmdSongs"],

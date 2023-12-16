@@ -8,13 +8,22 @@ environment:
   flutter: ">=1.17.0"
 
 dependencies:
+  convert: ^3.1.1
   cookie_jar: ^4.0.8
+  crypto: ^3.0.3
   dio: ^5.4.0
   dio_cookie_manager: ^3.1.1
+  encrypt: ^5.0.3
   flutter:
     sdk: flutter
   json_annotation: ^4.8.1
   path_provider: ^2.1.1
+  pointycastle: ^3.7.3
+  netease_music_api:
+    git:
+      url: https://github.com/tyuan511/NCMApi.git
+      ref: 47684bc
+  async: ^2.11.0
 
 dev_dependencies:
   flutter_test:

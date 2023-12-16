@@ -5,8 +5,8 @@ import 'package:laji_music/models/lyric.dart';
 import 'package:laji_music/models/player.dart';
 import 'package:laji_music/models/song.dart';
 import 'package:laji_music/providers/config.dart';
+import 'package:laji_music/utils/repo.dart';
 import 'package:laji_music/utils/storage.dart';
-import 'package:ncm_api/ncm_api.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -19,12 +19,14 @@ class Player extends _$Player {
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
   );
   ConcatenatingAudioSource? _currPlaylist;
+  PlayerModel? _cachedState;
 
   @override
   PlayerModel build() {
     final json = storage.read(playerStorageKey);
     if (json != null) {
-      return PlayerModel.fromJson(jsonDecode(json));
+      _cachedState = PlayerModel.fromJson(jsonDecode(json));
+      return _cachedState!;
     }
 
     return const PlayerModel(
@@ -42,8 +44,12 @@ class Player extends _$Player {
   Player() {
     _audioPlayer.playerStateStream.listen((e) {
       var isLoading = false;
-      if (e.processingState == ProcessingState.loading) {
+      if (e.processingState == ProcessingState.loading || e.processingState == ProcessingState.buffering) {
         isLoading = true;
+      }
+
+      if (e.processingState == ProcessingState.ready) {
+        isLoading = false;
       }
 
       state = state.copyWith(isPlaying: e.playing, songLoading: isLoading);
@@ -52,31 +58,18 @@ class Player extends _$Player {
 
     _audioPlayer.positionStream.listen((e) {
       state = state.copyWith(position: e);
-      _calcCurrLyric();
       _saveState();
     });
 
     _audioPlayer.currentIndexStream.listen((e) {
       state = state.copyWith(currentSongIdx: e);
 
-      _getLyric(state.currSong!);
+      if (state.currentSongIdx != null) {
+        _getLyric(state.currSong!);
+      }
 
       _saveState();
     });
-  }
-
-  Future<void> _setPlaylist(List<Song> songs) async {
-    final level = ref.read(configProvider.select((value) => value.level));
-    state.copyWith(songLoading: true);
-    final noURLSongs = songs.where((element) => element.url == null).toList();
-    if (noURLSongs.isNotEmpty) {
-      final res = await getSongURL(noURLSongs.map((e) => e.id).toList(), level: level.value);
-      for (var element in noURLSongs) {
-        element.url = res.data!.firstWhere((e) => e.id == element.id).url;
-      }
-      state = state.copyWith(songList: songs.where((value) => value.url != null).toList());
-    }
-    state.copyWith(songLoading: false);
   }
 
   _getLyric(Song song) async {
@@ -84,18 +77,11 @@ class Player extends _$Player {
       lyric: null,
       currentLyricIdx: null,
     );
-    final res = await getLyric(song.id);
+    final lyric = await repo.lyric(song.id);
     state = state.copyWith(
-      lyric: LyricRow.fromString(res.lrc.lyric),
+      lyric: LyricRow.fromString(lyric ?? ''),
       currentLyricIdx: 0,
     );
-  }
-
-  _calcCurrLyric() {
-    if (state.lyric == null) return;
-    var index = state.lyric!.indexWhere((element) => element.time > state.position);
-    if (index < 0) index = state.lyric!.length;
-    state = state.copyWith(currentLyricIdx: index - 1);
   }
 
   setVolume(double v) {
@@ -103,27 +89,43 @@ class Player extends _$Player {
   }
 
   resume() async {
-    if ((state.songList?.isEmpty ?? true)) return;
-    playSongs(state.songList!, index: state.currentSongIdx ?? 0);
+    if (_cachedState == null) return;
+    if ((_cachedState!.songList?.isEmpty ?? true)) return;
+    _currPlaylist = ConcatenatingAudioSource(
+      useLazyPreparation: true,
+      shuffleOrder: DefaultShuffleOrder(),
+      children: (_cachedState!.songList ?? []).map((e) => e.toAudioSource()).toList(),
+    );
+    await _audioPlayer.stop();
+    await _audioPlayer.setAudioSource(
+      _currPlaylist!,
+      initialIndex: _cachedState!.currentSongIdx,
+      initialPosition: _cachedState!.position,
+      preload: false,
+    );
+    state = state.copyWith(currentLyricIdx: _cachedState!.currentLyricIdx);
+    if (ref.read(configProvider).autoPlay) {
+      await _audioPlayer.play();
+    }
   }
 
-  playSongs(List<Song> songs, {int index = 0}) async {
-    await _setPlaylist(songs);
+  playSongs(List<Song> songs, {int index = 0, Duration position = Duration.zero}) async {
+    state = state.copyWith(songList: songs);
     _currPlaylist = ConcatenatingAudioSource(
-        useLazyPreparation: true,
-        shuffleOrder: DefaultShuffleOrder(),
-        children: (state.songList ?? []).map((e) => e.toAudioSource()).toList());
+      useLazyPreparation: true,
+      shuffleOrder: DefaultShuffleOrder(),
+      children: (state.songList ?? []).map((e) => e.toAudioSource()).toList(),
+    );
     state = state.copyWith(currentSongIdx: index);
     await _audioPlayer.stop();
     await _audioPlayer.setAudioSource(
       _currPlaylist!,
       initialIndex: index,
-      initialPosition: Duration.zero,
+      initialPosition: position,
       preload: false,
     );
     await _audioPlayer.play();
     _saveState();
-    _getLyric(state.currSong!);
   }
 
   playOrPause() {
