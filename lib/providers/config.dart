@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:laji_music/consts/key.dart';
 import 'package:laji_music/models/config.dart';
+import 'package:laji_music/providers/player.dart';
 import 'package:laji_music/utils/storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -43,6 +44,12 @@ class Config extends _$Config {
     }
 
     state = state.copyWith(fullscreen: value);
+    _saveState();
+  }
+
+  changeLoudness(double loudness) {
+    state = state.copyWith(loudness: loudness);
+    ref.read(playerProvider.notifier).changeLoudness(loudness);
     _saveState();
   }
 }

@@ -13,6 +13,7 @@ import 'package:laji_music/utils/storage.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+
   await dotenv.load();
   await Future.wait([initAudio(), initApi(), initStorage()]);
   runApp(const ProviderScope(child: MyApp()));
@@ -34,6 +35,7 @@ class MyApp extends HookConsumerWidget {
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
             overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom]);
       }
+
       return null;
     }, []);
 

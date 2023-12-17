@@ -12,7 +12,7 @@ class PlaylistCoverItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        context.go('/song_list', extra: data.id);
+        context.push('/song_list', extra: data.id);
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
