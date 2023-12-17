@@ -12,6 +12,7 @@ ConfigModel _$ConfigModelFromJson(Map<String, dynamic> json) => ConfigModel(
           SongLevel.standard,
       autoPlay: json['autoPlay'] as bool? ?? false,
       fullscreen: json['fullscreen'] as bool? ?? false,
+      loudness: (json['loudness'] as num?)?.toDouble() ?? 0,
     );
 
 Map<String, dynamic> _$ConfigModelToJson(ConfigModel instance) =>
@@ -20,6 +21,7 @@ Map<String, dynamic> _$ConfigModelToJson(ConfigModel instance) =>
       'level': _$SongLevelEnumMap[instance.level]!,
       'autoPlay': instance.autoPlay,
       'fullscreen': instance.fullscreen,
+      'loudness': instance.loudness,
     };
 
 const _$ThemeModeEnumMap = {

@@ -14,9 +14,18 @@ part 'player.g.dart';
 
 @Riverpod(keepAlive: true)
 class Player extends _$Player {
-  final _audioPlayer = AudioPlayer(
+  final _loudnessEnhancer = AndroidLoudnessEnhancer();
+  final _equalizer = AndroidEqualizer();
+
+  late final _audioPlayer = AudioPlayer(
     userAgent:
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    audioPipeline: AudioPipeline(
+      androidAudioEffects: [
+        _loudnessEnhancer,
+        _equalizer,
+      ],
+    ),
   );
   ConcatenatingAudioSource? _currPlaylist;
   PlayerModel? _cachedState;
@@ -42,6 +51,9 @@ class Player extends _$Player {
   }
 
   Player() {
+    // _loudnessEnhancer.setEnabled(true);
+    // _equalizer.setEnabled(true);
+
     _audioPlayer.playerStateStream.listen((e) {
       var isLoading = false;
       if (e.processingState == ProcessingState.loading || e.processingState == ProcessingState.buffering) {
@@ -142,5 +154,13 @@ class Player extends _$Player {
 
   next() {
     _audioPlayer.seekToNext();
+  }
+
+  changeLoudness(double loudness) {
+    _loudnessEnhancer.setTargetGain(loudness);
+  }
+
+  AndroidEqualizer getEqualizer() {
+    return _equalizer;
   }
 }

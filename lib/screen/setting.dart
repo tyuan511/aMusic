@@ -1,7 +1,11 @@
+// import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:laji_music/extensions/theme_mode.dart';
 import 'package:laji_music/providers/config.dart';
+// import 'package:laji_music/providers/player.dart';
+// import 'package:laji_music/widgets/equalizer_controls.dart';
 import 'package:laji_music/widgets/setting_item.dart';
 
 class SettingScreen extends HookConsumerWidget {
@@ -58,6 +62,37 @@ class SettingScreen extends HookConsumerWidget {
                   ref.read(configProvider.notifier).changeFullscreen(v);
                 }),
           ),
+          // if (Platform.isAndroid) ...[
+          //   const SizedBox(height: 24),
+          //   Text("音效设置", style: Theme.of(context).textTheme.titleLarge),
+          //   SettingItem(
+          //     label: '响度增强',
+          //     value: Row(
+          //       children: [
+          //         Slider(
+          //           min: -10,
+          //           max: 10,
+          //           value: config.loudness,
+          //           onChanged: (v) {
+          //             ref.read(configProvider.notifier).changeLoudness(v);
+          //           },
+          //         ),
+          //         SizedBox(
+          //           width: 48,
+          //           child: Text(
+          //             '${config.loudness.round()}分贝',
+          //             textAlign: TextAlign.right,
+          //           ),
+          //         )
+          //       ],
+          //     ),
+          //   ),
+          //   SettingItem(label: '均衡器', value: Container()),
+          //   SizedBox(
+          //     height: 300,
+          //     child: EqualizerControls(equalizer: ref.read(playerProvider.notifier).getEqualizer()),
+          //   )
+          // ]
         ],
       )),
     );
