@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:laji_music/consts/key.dart';
 import 'package:laji_music/models/config.dart';
 import 'package:laji_music/utils/storage.dart';
@@ -31,6 +32,17 @@ class Config extends _$Config {
 
   changeAutoPlay(bool value) {
     state = state.copyWith(autoPlay: value);
+    _saveState();
+  }
+
+  changeFullscreen(bool value) {
+    if (value) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom]);
+    }
+
+    state = state.copyWith(fullscreen: value);
     _saveState();
   }
 }

@@ -50,6 +50,14 @@ class SettingScreen extends HookConsumerWidget {
                   ref.read(configProvider.notifier).changeAutoPlay(v);
                 }),
           ),
+          SettingItem(
+            label: '全屏沉浸',
+            value: Switch(
+                value: config.fullscreen,
+                onChanged: (v) {
+                  ref.read(configProvider.notifier).changeFullscreen(v);
+                }),
+          ),
         ],
       )),
     );

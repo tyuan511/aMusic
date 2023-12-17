@@ -39,19 +39,22 @@ class _HomeLayoutState extends State<HomeLayout> {
                     NavigationRailDestination(icon: Icon(tab['icon'] as IconData), label: Text(tab['text'] as String)))
                 .toList(),
             trailing: Expanded(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                      border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
-                      borderRadius: BorderRadius.circular(40)),
-                  child: ClipRRect(
-                      borderRadius: BorderRadius.circular(40),
-                      child: const ImageCover(
-                        url: "http://p1.music.126.net/K6NkXfZiDmRI_utJPXZG2g==/18525671418102343.jpg",
-                      )),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1), width: 1),
+                        borderRadius: BorderRadius.circular(40)),
+                    child: ClipRRect(
+                        borderRadius: BorderRadius.circular(40),
+                        child: const ImageCover(
+                          url: "http://p1.music.126.net/K6NkXfZiDmRI_utJPXZG2g==/18525671418102343.jpg",
+                        )),
+                  ),
                 ),
               ),
             ),
