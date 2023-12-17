@@ -9,14 +9,17 @@ class ConfigModel {
   final ThemeMode themeMode;
   final SongLevel level;
   final bool autoPlay;
+  final bool fullscreen;
 
-  const ConfigModel({required this.themeMode, this.level = SongLevel.standard, this.autoPlay = false});
+  const ConfigModel(
+      {required this.themeMode, this.level = SongLevel.standard, this.autoPlay = false, this.fullscreen = false});
 
-  ConfigModel copyWith({ThemeMode? themeMode, SongLevel? level, bool? autoPlay}) {
+  ConfigModel copyWith({ThemeMode? themeMode, SongLevel? level, bool? autoPlay, bool? fullscreen}) {
     return ConfigModel(
       themeMode: themeMode ?? this.themeMode,
       level: level ?? this.level,
       autoPlay: autoPlay ?? this.autoPlay,
+      fullscreen: fullscreen ?? this.fullscreen,
     );
   }
 

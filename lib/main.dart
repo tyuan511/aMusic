@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:laji_music/init.dart';
 import 'package:laji_music/providers/config.dart';
@@ -23,7 +24,18 @@ class MyApp extends HookConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final config = ref.watch(configProvider);
     final themeMode = ref.watch(configProvider.select((data) => data.themeMode));
+
+    useEffect(() {
+      if (config.fullscreen) {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      } else {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
+            overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom]);
+      }
+      return null;
+    }, []);
 
     return MaterialApp.router(
       title: '辣鸡音乐',
