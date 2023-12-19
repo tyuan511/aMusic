@@ -15,7 +15,8 @@ class MusicPlayer extends HookConsumerWidget {
     final player = ref.watch(playerProvider);
 
     useEffect(() {
-      ref.read(playerProvider.notifier).resume();
+      ref.read(playerProvider.notifier).init();
+
       return null;
     }, []);
 

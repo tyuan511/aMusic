@@ -47,9 +47,9 @@ class Config extends _$Config {
     _saveState();
   }
 
-  changeLoudness(double loudness) {
-    state = state.copyWith(loudness: loudness);
-    ref.read(playerProvider.notifier).changeLoudness(loudness);
+  changeEqualizerEnabled(bool enabled) {
+    state = state.copyWith(equalizerEnabled: enabled);
+    ref.read(playerProvider.notifier).changeEqualizerEnabled(enabled);
     _saveState();
   }
 }

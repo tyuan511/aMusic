@@ -27,11 +27,15 @@ class VerticalSlider extends StatelessWidget {
           width: 400.0,
           height: 400.0,
           alignment: Alignment.center,
-          child: Slider(
-            value: value,
-            min: min,
-            max: max,
-            onChanged: onChanged,
+          child: SliderTheme(
+            data: const SliderThemeData(showValueIndicator: ShowValueIndicator.always),
+            child: Slider(
+              value: value,
+              min: min,
+              max: max,
+              label: value.toStringAsFixed(2),
+              onChanged: onChanged,
+            ),
           ),
         ),
       ),
