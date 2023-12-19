@@ -63,31 +63,15 @@ class SettingScreen extends HookConsumerWidget {
                 }),
           ),
           // if (Platform.isAndroid) ...[
-          //   const SizedBox(height: 24),
-          //   Text("音效设置", style: Theme.of(context).textTheme.titleLarge),
           //   SettingItem(
-          //     label: '响度增强',
-          //     value: Row(
-          //       children: [
-          //         Slider(
-          //           min: -10,
-          //           max: 10,
-          //           value: config.loudness,
-          //           onChanged: (v) {
-          //             ref.read(configProvider.notifier).changeLoudness(v);
-          //           },
-          //         ),
-          //         SizedBox(
-          //           width: 48,
-          //           child: Text(
-          //             '${config.loudness.round()}分贝',
-          //             textAlign: TextAlign.right,
-          //           ),
-          //         )
-          //       ],
+          //     label: '均衡器',
+          //     value: Switch(
+          //       value: config.equalizerEnabled,
+          //       onChanged: (v) {
+          //         ref.read(configProvider.notifier).changeEqualizerEnabled(v);
+          //       },
           //     ),
           //   ),
-          //   SettingItem(label: '均衡器', value: Container()),
           //   SizedBox(
           //     height: 300,
           //     child: EqualizerControls(equalizer: ref.read(playerProvider.notifier).getEqualizer()),

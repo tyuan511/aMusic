@@ -14,7 +14,6 @@ part 'player.g.dart';
 
 @Riverpod(keepAlive: true)
 class Player extends _$Player {
-  final _loudnessEnhancer = AndroidLoudnessEnhancer();
   final _equalizer = AndroidEqualizer();
 
   late final _audioPlayer = AudioPlayer(
@@ -22,7 +21,6 @@ class Player extends _$Player {
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
     audioPipeline: AudioPipeline(
       androidAudioEffects: [
-        _loudnessEnhancer,
         _equalizer,
       ],
     ),
@@ -51,9 +49,6 @@ class Player extends _$Player {
   }
 
   Player() {
-    // _loudnessEnhancer.setEnabled(true);
-    // _equalizer.setEnabled(true);
-
     _audioPlayer.playerStateStream.listen((e) {
       var isLoading = false;
       if (e.processingState == ProcessingState.loading || e.processingState == ProcessingState.buffering) {
@@ -100,7 +95,9 @@ class Player extends _$Player {
     _audioPlayer.setVolume(v);
   }
 
-  resume() async {
+  init() async {
+    final config = ref.read(configProvider);
+
     if (_cachedState == null) return;
     if ((_cachedState!.songList?.isEmpty ?? true)) return;
     _currPlaylist = ConcatenatingAudioSource(
@@ -116,7 +113,7 @@ class Player extends _$Player {
       preload: false,
     );
     state = state.copyWith(currentLyricIdx: _cachedState!.currentLyricIdx);
-    if (ref.read(configProvider).autoPlay) {
+    if (config.autoPlay) {
       await _audioPlayer.play();
     }
   }
@@ -156,8 +153,8 @@ class Player extends _$Player {
     _audioPlayer.seekToNext();
   }
 
-  changeLoudness(double loudness) {
-    _loudnessEnhancer.setTargetGain(loudness);
+  changeEqualizerEnabled(bool enabled) {
+    _equalizer.setEnabled(enabled);
   }
 
   AndroidEqualizer getEqualizer() {
