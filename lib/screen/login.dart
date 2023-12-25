@@ -96,12 +96,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     data: qrURL,
                     version: QrVersions.auto,
                     size: 300,
-                    backgroundColor: Theme.of(context).colorScheme.onPrimary,
+                    backgroundColor: Colors.white,
                   )
                 : Container(
                     width: 300,
                     height: 300,
-                    color: Theme.of(context).colorScheme.onPrimary,
+                    color: Colors.white,
                     child: SizedBox(
                       width: 32,
                       height: 32,
