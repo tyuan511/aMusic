@@ -37,13 +37,6 @@ class SettingScreen extends HookConsumerWidget {
                   .map<DropdownMenuEntry<ThemeMode>>(
                       (ThemeMode value) => DropdownMenuEntry<ThemeMode>(value: value, label: value.label))
                   .toList(),
-              inputDecorationTheme: InputDecorationTheme(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                constraints: BoxConstraints.tight(const Size.fromHeight(48)),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
             ),
           ),
           SettingItem(
