@@ -16,6 +16,7 @@ class _HomeLayoutState extends State<HomeLayout> {
   int _idx = 0;
   final tabs = [
     {"text": "歌单", "icon": Icons.headphones_rounded, "location": "/user_playlist"},
+    {"text": "搜索", "icon": Icons.search_rounded, "location": "/search"},
     {"text": "设置", "icon": Icons.settings_rounded, "location": "/setting"},
   ];
 

@@ -25,14 +25,24 @@ PageTransitionsTheme _getPageTransitions() {
   );
 }
 
+final inputDecorationTheme = InputDecorationTheme(
+  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+  constraints: BoxConstraints.tight(const Size.fromHeight(44)),
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(8),
+  ),
+);
+
 final theme = ThemeData(
   colorScheme: ColorScheme.fromSeed(seedColor: seedColor),
   useMaterial3: true,
   pageTransitionsTheme: _getPageTransitions(),
+  inputDecorationTheme: inputDecorationTheme,
 );
 
 final darkTheme = ThemeData(
   colorScheme: ColorScheme.fromSeed(seedColor: seedColor, brightness: Brightness.dark),
   useMaterial3: true,
   pageTransitionsTheme: _getPageTransitions(),
+  inputDecorationTheme: inputDecorationTheme,
 );

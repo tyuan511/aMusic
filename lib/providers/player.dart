@@ -14,16 +14,16 @@ part 'player.g.dart';
 
 @Riverpod(keepAlive: true)
 class Player extends _$Player {
-  final _equalizer = AndroidEqualizer();
+  // final _equalizer = AndroidEqualizer();
 
   late final _audioPlayer = AudioPlayer(
     userAgent:
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-    audioPipeline: AudioPipeline(
-      androidAudioEffects: [
-        _equalizer,
-      ],
-    ),
+    // audioPipeline: AudioPipeline(
+    //   androidAudioEffects: [
+    //     _equalizer,
+    //   ],
+    // ),
   );
   ConcatenatingAudioSource? _currPlaylist;
   PlayerModel? _cachedState;
@@ -153,11 +153,11 @@ class Player extends _$Player {
     _audioPlayer.seekToNext();
   }
 
-  changeEqualizerEnabled(bool enabled) {
-    _equalizer.setEnabled(enabled);
-  }
+  // changeEqualizerEnabled(bool enabled) {
+  //   _equalizer.setEnabled(enabled);
+  // }
 
-  AndroidEqualizer getEqualizer() {
-    return _equalizer;
-  }
+  // AndroidEqualizer getEqualizer() {
+  //   return _equalizer;
+  // }
 }

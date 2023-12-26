@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:laji_music/consts/key.dart';
 import 'package:laji_music/models/config.dart';
-import 'package:laji_music/providers/player.dart';
 import 'package:laji_music/utils/storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -47,9 +46,9 @@ class Config extends _$Config {
     _saveState();
   }
 
-  changeEqualizerEnabled(bool enabled) {
-    state = state.copyWith(equalizerEnabled: enabled);
-    ref.read(playerProvider.notifier).changeEqualizerEnabled(enabled);
-    _saveState();
-  }
+  // changeEqualizerEnabled(bool enabled) {
+  //   state = state.copyWith(equalizerEnabled: enabled);
+  //   ref.read(playerProvider.notifier).changeEqualizerEnabled(enabled);
+  //   _saveState();
+  // }
 }
