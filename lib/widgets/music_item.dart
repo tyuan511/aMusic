@@ -32,7 +32,9 @@ class MusicItem extends HookConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             IconButton(
-              onPressed: () {},
+              onPressed: () {
+                ref.read(userProvider.notifier).likeSong(data.id, !likeList.contains(data.id));
+              },
               icon: Icon(Icons.favorite_rounded,
                   size: 20,
                   color: likeList.contains(data.id)
