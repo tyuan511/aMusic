@@ -44,4 +44,9 @@ class User extends _$User {
     final res = await (await repo.likedList(state.id!)).asFuture;
     state = state.copyWith(likeSongs: res);
   }
+
+  Future<void> likeSong(int id, bool like) async {
+    await repo.like(id, like: like);
+    await getLikeList();
+  }
 }

@@ -57,6 +57,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
@@ -78,14 +79,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             Wrap(
               children: hotWords
                   .map(
-                    (e) => InkWell(
-                      onTap: () {
-                        _controller.text = e;
-                        search(e);
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(e),
+                    (e) => Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: InkWell(
+                        onTap: () {
+                          _controller.text = e;
+                          search(e);
+                        },
+                        child: Chip(
+                          label: Text(e),
+                        ),
                       ),
                     ),
                   )

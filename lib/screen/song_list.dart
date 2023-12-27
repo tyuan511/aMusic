@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:laji_music/extensions/datetime.dart';
@@ -19,7 +21,9 @@ class SongListScreen extends StatefulHookConsumerWidget {
 
 class _SongListScreenState extends ConsumerState<SongListScreen> {
   List<Song> songs = [];
+  List<GlobalKey> keys = [];
   Playlist? playlist;
+  final scrollController = ScrollController();
 
   @override
   void initState() {
@@ -47,6 +51,7 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
             ),
           )
           .toList();
+      keys = List.generate(songs.length, (index) => GlobalKey());
     });
   }
 
@@ -59,6 +64,12 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
     }
 
     final currSong = ref.watch(playerProvider.select((value) => value.currSong));
+
+    if (currSong != null && scrollController.hasClients) {
+      final idx = songs.indexWhere((element) => element.id == currSong.id);
+      final pos = min(idx * 56, scrollController.position.maxScrollExtent).toDouble();
+      scrollController.animateTo(pos, curve: Curves.linear, duration: const Duration(milliseconds: 500));
+    }
 
     return playlist == null
         ? const Center(
@@ -140,9 +151,11 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
             const SizedBox(height: 12),
             Expanded(
               child: ListView.builder(
+                controller: scrollController,
                 padding: const EdgeInsets.only(left: 24, right: 24, bottom: 32),
                 itemCount: songs.length,
                 itemBuilder: (context, index) => MusicItem(
+                    key: keys[index],
                     data: songs[index],
                     isActive: currSong?.id == songs[index].id,
                     onPressed: () {
