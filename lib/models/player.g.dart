@@ -18,6 +18,9 @@ PlayerModel _$PlayerModelFromJson(Map<String, dynamic> json) => PlayerModel(
           .toList(),
       currentLyricIdx: json['currentLyricIdx'] as int?,
       songLoading: json['songLoading'] as bool? ?? false,
+      loopMode: $enumDecodeNullable(_$LoopModeEnumMap, json['loopMode']) ??
+          LoopMode.all,
+      shuffle: json['shuffle'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$PlayerModelToJson(PlayerModel instance) =>
@@ -29,4 +32,12 @@ Map<String, dynamic> _$PlayerModelToJson(PlayerModel instance) =>
       'lyric': instance.lyric,
       'currentLyricIdx': instance.currentLyricIdx,
       'songLoading': instance.songLoading,
+      'loopMode': _$LoopModeEnumMap[instance.loopMode]!,
+      'shuffle': instance.shuffle,
     };
+
+const _$LoopModeEnumMap = {
+  LoopMode.off: 'off',
+  LoopMode.one: 'one',
+  LoopMode.all: 'all',
+};

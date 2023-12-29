@@ -21,7 +21,6 @@ class SongListScreen extends StatefulHookConsumerWidget {
 
 class _SongListScreenState extends ConsumerState<SongListScreen> {
   List<Song> songs = [];
-  List<GlobalKey> keys = [];
   Playlist? playlist;
   final scrollController = ScrollController();
 
@@ -51,7 +50,6 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
             ),
           )
           .toList();
-      keys = List.generate(songs.length, (index) => GlobalKey());
     });
   }
 
@@ -67,8 +65,10 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
 
     if (currSong != null && scrollController.hasClients) {
       final idx = songs.indexWhere((element) => element.id == currSong.id);
-      final pos = min(idx * 56, scrollController.position.maxScrollExtent).toDouble();
-      scrollController.animateTo(pos, curve: Curves.linear, duration: const Duration(milliseconds: 500));
+      if (idx >= 0) {
+        final pos = min(idx * 56, scrollController.position.maxScrollExtent).toDouble();
+        scrollController.animateTo(pos, curve: Curves.linear, duration: const Duration(milliseconds: 500));
+      }
     }
 
     return playlist == null
@@ -155,7 +155,6 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
                 padding: const EdgeInsets.only(left: 24, right: 24, bottom: 32),
                 itemCount: songs.length,
                 itemBuilder: (context, index) => MusicItem(
-                    key: keys[index],
                     data: songs[index],
                     isActive: currSong?.id == songs[index].id,
                     onPressed: () {

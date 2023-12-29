@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:laji_music/consts/key.dart';
 import 'package:laji_music/layout/home.dart';
 import 'package:laji_music/providers/user.dart';
+import 'package:laji_music/screen/current_list.dart';
 import 'package:laji_music/screen/login.dart';
 import 'package:laji_music/screen/search.dart';
 import 'package:laji_music/screen/setting.dart';
@@ -68,6 +69,12 @@ GoRouter router(RouterRef ref) {
             GoRoute(
               path: '/search',
               builder: (context, state) => const SearchScreen(),
+            )
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/current_list',
+              builder: (context, state) => const CurrentList(),
             )
           ]),
         ],

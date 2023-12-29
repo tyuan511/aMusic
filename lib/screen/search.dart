@@ -17,6 +17,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   List<String> hotWords = [];
   final _controller = TextEditingController();
   List<Song> songs = [];
+  bool loading = false;
 
   @override
   void initState() {
@@ -32,8 +33,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   search(String keyword) async {
+    setState(() {
+      loading = true;
+    });
     final res = await (await repo.search(keyword, SearchType.song)).asFuture;
     setState(() {
+      loading = false;
       songs = (res['result']['songs'] as List)
           .map(
             (e) => Song(
@@ -96,17 +101,20 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
             const SizedBox(height: 12),
             Expanded(
-                child: ListView.builder(
-              padding: const EdgeInsets.only(bottom: 32),
-              itemCount: songs.length,
-              itemBuilder: (context, index) => MusicItem(
-                data: songs[index],
-                isActive: currSong?.id == songs[index].id,
-                onPressed: () {
-                  ref.read(playerProvider.notifier).playSongs(songs, index: index);
-                },
-              ),
-            ))
+              child: loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      padding: const EdgeInsets.only(bottom: 32),
+                      itemCount: songs.length,
+                      itemBuilder: (context, index) => MusicItem(
+                        data: songs[index],
+                        isActive: currSong?.id == songs[index].id,
+                        onPressed: () {
+                          ref.read(playerProvider.notifier).playSongs(songs, index: index);
+                        },
+                      ),
+                    ),
+            )
           ],
         ),
       ),

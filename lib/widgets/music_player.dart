@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:laji_music/extensions/duration.dart';
 import 'package:laji_music/providers/player.dart';
+import 'package:laji_music/providers/router.dart';
 import 'package:laji_music/widgets/image_cover.dart';
 import 'package:laji_music/widgets/lyric_list.dart';
 
@@ -69,45 +72,74 @@ class MusicPlayer extends HookConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                    onPressed: () {
+                      final router = GoRouter.of(context);
+                      if (router.location != '/current_list') {
+                        context.push('/current_list');
+                      }
+                    },
+                    icon: const Icon(
+                      Icons.queue_music_rounded,
+                      size: 32,
+                    )),
+                IconButton(
+                    onPressed: () {
+                      ref.read(playerProvider.notifier).prev();
+                    },
+                    icon: const Icon(
+                      Icons.skip_previous_rounded,
+                      size: 32,
+                    )),
+                IconButton(
                   onPressed: () {
-                    ref.read(playerProvider.notifier).prev();
+                    ref.read(playerProvider.notifier).playOrPause();
                   },
-                  icon: const Icon(
-                    Icons.skip_previous_rounded,
-                    size: 32,
-                  )),
-              const SizedBox(width: 24),
-              IconButton(
-                onPressed: () {
-                  ref.read(playerProvider.notifier).playOrPause();
-                },
-                icon: player.songLoading
-                    ? const SizedBox(
-                        height: 48,
-                        width: 48,
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    : player.isPlaying
-                        ? const Icon(Icons.pause_rounded, size: 48)
-                        : const Icon(
-                            Icons.play_arrow_rounded,
-                            size: 48,
-                          ),
-              ),
-              const SizedBox(width: 24),
-              IconButton(
-                  onPressed: () {
-                    ref.read(playerProvider.notifier).next();
-                  },
-                  icon: const Icon(
-                    Icons.skip_next_rounded,
-                    size: 32,
-                  ))
-            ],
+                  icon: player.songLoading
+                      ? const SizedBox(
+                          height: 60,
+                          width: 60,
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      : player.isPlaying
+                          ? Icon(
+                              Icons.pause_circle_filled_rounded,
+                              size: 60,
+                              color: Theme.of(context).colorScheme.primary,
+                            )
+                          : Icon(
+                              Icons.play_circle_fill_rounded,
+                              size: 60,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                ),
+                IconButton(
+                    onPressed: () {
+                      ref.read(playerProvider.notifier).next();
+                    },
+                    icon: const Icon(
+                      Icons.skip_next_rounded,
+                      size: 32,
+                    )),
+                IconButton(
+                    onPressed: () {
+                      ref.read(playerProvider.notifier).toggleRepeatMode();
+                    },
+                    icon: Icon(
+                      player.shuffle
+                          ? Icons.shuffle
+                          : player.loopMode == LoopMode.all
+                              ? Icons.repeat_rounded
+                              : Icons.repeat_one_rounded,
+                      size: 28,
+                    )),
+              ],
+            ),
           ),
           const SizedBox(height: 12)
         ],
