@@ -105,6 +105,8 @@ class Player extends _$Player {
       shuffleOrder: DefaultShuffleOrder(),
       children: (_cachedState!.songList ?? []).map((e) => e.toAudioSource()).toList(),
     );
+    await _audioPlayer.setLoopMode(state.loopMode);
+    await _audioPlayer.setShuffleModeEnabled(state.shuffle);
     await _audioPlayer.stop();
     await _audioPlayer.setAudioSource(
       _currPlaylist!,
@@ -151,6 +153,19 @@ class Player extends _$Player {
 
   next() {
     _audioPlayer.seekToNext();
+  }
+
+  toggleRepeatMode() async {
+    // repeat -> shuffle -> repeatOne
+    if (state.loopMode == LoopMode.all && !state.shuffle) {
+      state = state.copyWith(shuffle: true, loopMode: LoopMode.all);
+    } else if (state.shuffle) {
+      state = state.copyWith(shuffle: false, loopMode: LoopMode.one);
+    } else if (state.loopMode == LoopMode.one && !state.shuffle) {
+      state = state.copyWith(shuffle: false, loopMode: LoopMode.all);
+    }
+    await _audioPlayer.setLoopMode(state.loopMode);
+    await _audioPlayer.setShuffleModeEnabled(state.shuffle);
   }
 
   // changeEqualizerEnabled(bool enabled) {

@@ -1,4 +1,5 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:laji_music/models/lyric.dart';
 import 'package:laji_music/models/song.dart';
 
@@ -13,26 +14,34 @@ class PlayerModel {
   final List<LyricRow>? lyric;
   final int? currentLyricIdx;
   final bool songLoading;
+  final LoopMode loopMode;
+  final bool shuffle;
 
-  const PlayerModel(
-      {required this.isPlaying,
-      required this.position,
-      required this.currentSongIdx,
-      required this.songList,
-      this.lyric,
-      this.currentLyricIdx,
-      this.songLoading = false});
+  const PlayerModel({
+    required this.isPlaying,
+    required this.position,
+    required this.currentSongIdx,
+    required this.songList,
+    this.lyric,
+    this.currentLyricIdx,
+    this.songLoading = false,
+    this.loopMode = LoopMode.all,
+    this.shuffle = false,
+  });
 
   Song? get currSong => (songList?.isEmpty ?? true) ? null : songList![currentSongIdx ?? 0];
 
-  PlayerModel copyWith(
-      {bool? isPlaying,
-      Duration? position,
-      int? currentSongIdx,
-      List<Song>? songList,
-      List<LyricRow>? lyric,
-      int? currentLyricIdx,
-      bool? songLoading}) {
+  PlayerModel copyWith({
+    bool? isPlaying,
+    Duration? position,
+    int? currentSongIdx,
+    List<Song>? songList,
+    List<LyricRow>? lyric,
+    int? currentLyricIdx,
+    bool? songLoading,
+    LoopMode? loopMode,
+    bool? shuffle,
+  }) {
     return PlayerModel(
       isPlaying: isPlaying ?? this.isPlaying,
       position: position ?? this.position,
@@ -41,6 +50,8 @@ class PlayerModel {
       lyric: lyric ?? this.lyric,
       currentLyricIdx: currentLyricIdx ?? this.currentLyricIdx,
       songLoading: songLoading ?? this.songLoading,
+      loopMode: loopMode ?? this.loopMode,
+      shuffle: shuffle ?? this.shuffle,
     );
   }
 
