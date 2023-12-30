@@ -1,16 +1,17 @@
-# laji_music
+# iMusic
 
-A new Flutter project.
+## 简介
 
-## Getting Started
+第三方网易云音乐平板客户端
 
-This project is a starting point for a Flutter application.
+主要为安卓平板设计，可安装在各品牌安卓平板以及安卓大屏车机上，直接连接网易云音乐接口，不缓存任何私人数据
 
-A few resources to get you started if this is your first Flutter project:
+## 界面预览
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+![歌单](./screenshots/playlist.png)
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+![搜索](./screenshots/search.png)
+
+![设置](./screenshots/setting.png)
+
+![歌曲列表](./screenshots/songs.png)
