@@ -1,7 +1,7 @@
 import 'package:json_annotation/json_annotation.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:laji_music/models/lyric.dart';
-import 'package:laji_music/models/song.dart';
+import 'package:amusic/models/lyric.dart';
+import 'package:amusic/models/song.dart';
 
 part 'player.g.dart';
 

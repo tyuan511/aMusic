@@ -4,11 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:laji_music/extensions/duration.dart';
-import 'package:laji_music/providers/player.dart';
-import 'package:laji_music/providers/router.dart';
-import 'package:laji_music/widgets/image_cover.dart';
-import 'package:laji_music/widgets/lyric_list.dart';
+import 'package:amusic/extensions/duration.dart';
+import 'package:amusic/providers/player.dart';
+import 'package:amusic/providers/router.dart';
+import 'package:amusic/widgets/image_cover.dart';
+import 'package:amusic/widgets/lyric_list.dart';
 
 class MusicPlayer extends HookConsumerWidget {
   const MusicPlayer({Key? key}) : super(key: key);

@@ -2,11 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:laji_music/extensions/theme_mode.dart';
-import 'package:laji_music/providers/config.dart';
-// import 'package:laji_music/providers/player.dart';
-// import 'package:laji_music/widgets/equalizer_controls.dart';
-import 'package:laji_music/widgets/setting_item.dart';
+import 'package:amusic/extensions/theme_mode.dart';
+import 'package:amusic/providers/config.dart';
+// import 'package:amusic/providers/player.dart';
+// import 'package:amusic/widgets/equalizer_controls.dart';
+import 'package:amusic/widgets/setting_item.dart';
 
 class SettingScreen extends HookConsumerWidget {
   SettingScreen({Key? key}) : super(key: key);

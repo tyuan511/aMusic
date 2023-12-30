@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:laji_music/providers/user.dart';
+import 'package:amusic/providers/user.dart';
 
 class SplashScreen extends StatefulHookConsumerWidget {
   const SplashScreen({Key? key}) : super(key: key);

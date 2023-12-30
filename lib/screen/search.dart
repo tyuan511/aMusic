@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:laji_music/models/song.dart';
-import 'package:laji_music/providers/player.dart';
-import 'package:laji_music/utils/repo.dart';
-import 'package:laji_music/widgets/music_item.dart';
+import 'package:amusic/models/song.dart';
+import 'package:amusic/providers/player.dart';
+import 'package:amusic/utils/repo.dart';
+import 'package:amusic/widgets/music_item.dart';
 import 'package:ncm_api/netease_api.dart';
 
 class SearchScreen extends StatefulHookConsumerWidget {

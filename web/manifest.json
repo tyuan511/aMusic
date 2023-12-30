@@ -1,6 +1,6 @@
 {
-    "name": "laji_music",
-    "short_name": "laji_music",
+    "name": "amusic",
+    "short_name": "amusic",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

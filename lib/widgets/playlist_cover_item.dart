@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:laji_music/models/playlist.dart';
-import 'package:laji_music/widgets/image_cover.dart';
+import 'package:amusic/models/playlist.dart';
+import 'package:amusic/widgets/image_cover.dart';
 
 class PlaylistCoverItem extends StatelessWidget {
   final Playlist data;

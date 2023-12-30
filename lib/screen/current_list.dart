@@ -3,8 +3,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:laji_music/providers/player.dart';
-import 'package:laji_music/widgets/music_item.dart';
+import 'package:amusic/providers/player.dart';
+import 'package:amusic/widgets/music_item.dart';
 
 class CurrentList extends HookConsumerWidget {
   const CurrentList({Key? key}) : super(key: key);

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:laji_music/widgets/image_cover.dart';
-import 'package:laji_music/widgets/music_player.dart';
+import 'package:amusic/widgets/image_cover.dart';
+import 'package:amusic/widgets/music_player.dart';
 
 class HomeLayout extends StatefulWidget {
   final Widget child;

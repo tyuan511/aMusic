@@ -1,4 +1,4 @@
-package com.tangge.imusic
+package com.tangge.amusic
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:laji_music/models/playlist.dart';
-import 'package:laji_music/providers/user.dart';
-import 'package:laji_music/utils/repo.dart';
-import 'package:laji_music/widgets/playlist_cover_item.dart';
+import 'package:amusic/models/playlist.dart';
+import 'package:amusic/providers/user.dart';
+import 'package:amusic/utils/repo.dart';
+import 'package:amusic/widgets/playlist_cover_item.dart';
 
 class UserPlaylistScreen extends StatefulHookConsumerWidget {
   const UserPlaylistScreen({Key? key}) : super(key: key);
