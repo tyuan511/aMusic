@@ -16,3 +16,8 @@ jobs:
         channel: 'stable'
     - run: flutter pub get
     - run: flutter build apk --split-per-abi
+    - uses: actions/upload-artifact@v4
+      with:
+        name: apk
+        path: |
+          build/app/outputs/flutter-apk
