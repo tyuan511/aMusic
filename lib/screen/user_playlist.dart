@@ -41,7 +41,11 @@ class _UserPlaylistScreenState extends ConsumerState<UserPlaylistScreen> {
     final res = await (await repo.recommendPlaylist()).asFuture;
 
     setState(() {
-      recommandPlaylist = res.recommend.map((e) => Playlist(id: e.id, name: e.name, picUrl: e.picUrl)).toList();
+      final list = res.recommend.map((e) => Playlist(id: e.id, name: e.name, picUrl: e.picUrl)).toList();
+      recommandPlaylist = [
+        Playlist(id: -1, name: '每日推荐歌曲', picUrl: 'https://s11.ax1x.com/2023/12/30/piO3P9H.jpg'),
+        ...list
+      ];
     });
   }
 
