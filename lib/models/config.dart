@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:json_annotation/json_annotation.dart';
-import 'package:laji_music/models/song.dart';
+import 'package:amusic/models/song.dart';
 
 part 'config.g.dart';
 

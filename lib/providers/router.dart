@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:laji_music/consts/key.dart';
-import 'package:laji_music/layout/home.dart';
-import 'package:laji_music/providers/user.dart';
-import 'package:laji_music/screen/current_list.dart';
-import 'package:laji_music/screen/login.dart';
-import 'package:laji_music/screen/search.dart';
-import 'package:laji_music/screen/setting.dart';
-import 'package:laji_music/screen/song_list.dart';
-import 'package:laji_music/screen/splash.dart';
-import 'package:laji_music/screen/user_playlist.dart';
+import 'package:amusic/consts/key.dart';
+import 'package:amusic/layout/home.dart';
+import 'package:amusic/providers/user.dart';
+import 'package:amusic/screen/current_list.dart';
+import 'package:amusic/screen/login.dart';
+import 'package:amusic/screen/search.dart';
+import 'package:amusic/screen/setting.dart';
+import 'package:amusic/screen/song_list.dart';
+import 'package:amusic/screen/splash.dart';
+import 'package:amusic/screen/user_playlist.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'router.g.dart';

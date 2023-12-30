@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:laji_music/utils/repo.dart';
+import 'package:amusic/utils/repo.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'user.g.dart';

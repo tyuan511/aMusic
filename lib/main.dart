@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:laji_music/init.dart';
-import 'package:laji_music/providers/config.dart';
-import 'package:laji_music/providers/router.dart';
-import 'package:laji_music/theme.dart';
-import 'package:laji_music/utils/repo.dart';
-import 'package:laji_music/utils/storage.dart';
+import 'package:amusic/init.dart';
+import 'package:amusic/providers/config.dart';
+import 'package:amusic/providers/router.dart';
+import 'package:amusic/theme.dart';
+import 'package:amusic/utils/repo.dart';
+import 'package:amusic/utils/storage.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,7 +38,7 @@ class MyApp extends HookConsumerWidget {
     }, []);
 
     return MaterialApp.router(
-      title: 'iMusic',
+      title: 'aMusic',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
       theme: theme,

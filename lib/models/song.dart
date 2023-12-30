@@ -1,8 +1,8 @@
 import 'package:json_annotation/json_annotation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-import 'package:laji_music/resolving_audio_source.dart';
-import 'package:laji_music/utils/repo.dart';
+import 'package:amusic/resolving_audio_source.dart';
+import 'package:amusic/utils/repo.dart';
 
 part 'song.g.dart';
 

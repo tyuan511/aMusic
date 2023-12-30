@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "laji_music" "\0"
+            VALUE "FileDescription", "amusic" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "laji_music" "\0"
+            VALUE "InternalName", "amusic" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2023 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "laji_music.exe" "\0"
-            VALUE "ProductName", "laji_music" "\0"
+            VALUE "OriginalFilename", "amusic.exe" "\0"
+            VALUE "ProductName", "amusic" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

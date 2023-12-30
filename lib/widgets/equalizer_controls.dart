@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:laji_music/widgets/vertical_slider.dart';
+import 'package:amusic/widgets/vertical_slider.dart';
 
 class EqualizerControls extends StatelessWidget {
   final AndroidEqualizer equalizer;

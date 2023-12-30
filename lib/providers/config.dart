@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:laji_music/consts/key.dart';
-import 'package:laji_music/models/config.dart';
-import 'package:laji_music/utils/storage.dart';
+import 'package:amusic/consts/key.dart';
+import 'package:amusic/models/config.dart';
+import 'package:amusic/utils/storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'config.g.dart';

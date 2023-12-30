@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:laji_music/models/song.dart';
-import "package:laji_music/extensions/duration.dart";
-import 'package:laji_music/providers/user.dart';
+import 'package:amusic/models/song.dart';
+import "package:amusic/extensions/duration.dart";
+import 'package:amusic/providers/user.dart';
 
 class MusicItem extends HookConsumerWidget {
   final Song data;

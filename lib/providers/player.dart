@@ -1,12 +1,12 @@
 import 'dart:convert';
 
-import 'package:laji_music/consts/key.dart';
-import 'package:laji_music/models/lyric.dart';
-import 'package:laji_music/models/player.dart';
-import 'package:laji_music/models/song.dart';
-import 'package:laji_music/providers/config.dart';
-import 'package:laji_music/utils/repo.dart';
-import 'package:laji_music/utils/storage.dart';
+import 'package:amusic/consts/key.dart';
+import 'package:amusic/models/lyric.dart';
+import 'package:amusic/models/player.dart';
+import 'package:amusic/models/song.dart';
+import 'package:amusic/providers/config.dart';
+import 'package:amusic/utils/repo.dart';
+import 'package:amusic/utils/storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:just_audio/just_audio.dart';
 
