@@ -1,4 +1,4 @@
-package com.example.laji_music
+package com.tangge.imusic
 
 import io.flutter.embedding.android.FlutterActivity
 

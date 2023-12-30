@@ -38,7 +38,7 @@ class MyApp extends HookConsumerWidget {
     }, []);
 
     return MaterialApp.router(
-      title: '辣鸡音乐',
+      title: 'iMusic',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
       theme: theme,
