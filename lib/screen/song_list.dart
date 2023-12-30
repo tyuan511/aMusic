@@ -33,24 +33,52 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
   getDetail() async {
     if (widget.playlistID == null) return;
 
-    final res = await (await repo.playlistDetail(widget.playlistID!)).asFuture;
+    if (widget.playlistID == -1) {
+      final res = await (await repo.recommendSongs()).asFuture;
 
-    setState(() {
-      playlist = res.playlist;
+      setState(() {
+        playlist = Playlist(
+          tags: [],
+          subscribers: [],
+          creator: Creator(nickname: 'iMusic', avatarUrl: 'https://s11.ax1x.com/2023/12/30/piO3u4g.jpg'),
+          tracks: [],
+          trackIds: [],
+          name: '每日歌曲推荐',
+          coverImgUrl: 'https://s11.ax1x.com/2023/12/30/piO3P9H.jpg',
+          createTime: DateTime.now().millisecondsSinceEpoch,
+        );
+        songs = res.dailySongs
+            .map(
+              (s) => Song(
+                id: s.id,
+                name: s.name,
+                duration: Duration(milliseconds: s.duration),
+                author: (s.artists).map((e) => e.name).join(' '),
+                album: s.album.name,
+                picUrl: s.album.picUrl,
+              ),
+            )
+            .toList();
+      });
+    } else {
+      final res = await (await repo.playlistDetail(widget.playlistID!)).asFuture;
+      setState(() {
+        playlist = res.playlist;
 
-      songs = res.playlist.tracks
-          .map(
-            (s) => Song(
-              id: s.id,
-              name: s.name,
-              duration: Duration(milliseconds: s.dt),
-              author: (s.ar).map((e) => e.name).join(' '),
-              album: s.al.name,
-              picUrl: s.al.picUrl,
-            ),
-          )
-          .toList();
-    });
+        songs = res.playlist.tracks
+            .map(
+              (s) => Song(
+                id: s.id,
+                name: s.name,
+                duration: Duration(milliseconds: s.dt),
+                author: (s.ar).map((e) => e.name).join(' '),
+                album: s.al.name,
+                picUrl: s.al.picUrl,
+              ),
+            )
+            .toList();
+      });
+    }
   }
 
   @override
@@ -138,7 +166,7 @@ class _SongListScreenState extends ConsumerState<SongListScreen> {
                                     ],
                                   )),
                               const SizedBox(width: 12),
-                              Text("共${playlist!.trackCount}首歌", style: Theme.of(context).textTheme.bodyMedium),
+                              Text("共${songs.length}首歌", style: Theme.of(context).textTheme.bodyMedium),
                             ],
                           )
                         ],
