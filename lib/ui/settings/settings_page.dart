@@ -1006,9 +1006,7 @@ class _AboutGroupState extends State<_AboutGroup> {
           future: _info,
           builder: (context, snapshot) {
             final info = snapshot.data;
-            final version = info == null
-                ? '…'
-                : 'v${info.version}${info.buildNumber.isEmpty ? '' : ' (${info.buildNumber})'}';
+            final version = info == null ? '…' : 'v${info.version}';
             return SettingsTile(
               label: AppConfig.appName,
               subtitle: '网易云音乐第三方客户端 · $version',
