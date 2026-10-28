@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
@@ -57,7 +59,9 @@ class CollapsingHeaderBar extends StatelessWidget {
         final t = collapseProgress(offset, threshold);
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: context.scaffoldBackground,
+            // Transparent over the hero backdrop, solid once content scrolls
+            // under the bar.
+            color: context.scaffoldBackground.withValues(alpha: t),
             border: Border(
               bottom: BorderSide(
                 color: s.hairline.withValues(alpha: s.hairline.a * t),
@@ -203,6 +207,7 @@ class DetailHero extends StatelessWidget {
     final top = headerBarTopInset(context) + kHeaderBarHeight;
     return Stack(
       children: [
+        Positioned.fill(child: _HeroBackdrop(url: coverUrl)),
         ContentBox(
           padding: EdgeInsets.fromLTRB(
             AppMetrics.gutter,
@@ -289,6 +294,72 @@ class DetailHero extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Blurred cover that tints the top of a detail page and fades into the page
+/// background towards the bottom.
+///
+/// Only a tiny version of the cover is decoded. Normally it is blurred once
+/// (the layer is cached, scrolling does not re-run the filter); in low
+/// performance mode the blur filter is skipped and the upscaled thumbnail,
+/// which is soft by itself, stands in for it.
+class _HeroBackdrop extends StatelessWidget {
+  const _HeroBackdrop({required this.url});
+
+  final String? url;
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = CoverImage.providerFor(
+      url,
+      size: context.lowPerformance ? 16 : 96,
+    );
+    if (provider == null) return const SizedBox.shrink();
+    final background = context.scaffoldBackground;
+    Widget image = Image(
+      image: provider,
+      fit: BoxFit.cover,
+      filterQuality: FilterQuality.medium,
+      gaplessPlayback: true,
+      errorBuilder: (context, error, _) => const SizedBox.shrink(),
+    );
+    if (!context.lowPerformance) {
+      image = ImageFiltered(
+        imageFilter: ui.ImageFilter.blur(
+          sigmaX: 36,
+          sigmaY: 36,
+          tileMode: TileMode.clamp,
+        ),
+        child: image,
+      );
+    }
+    return IgnorePointer(
+      child: RepaintBoundary(
+        child: ClipRect(
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Opacity(opacity: context.isDark ? 0.5 : 0.62, child: image),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      background.withValues(alpha: 0),
+                      background.withValues(alpha: 0.55),
+                      background,
+                    ],
+                    stops: const [0, 0.55, 1],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
