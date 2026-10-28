@@ -11,7 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
 
   # routing
   go_router: ^18.1.1
@@ -43,10 +43,15 @@ dependencies:
   package_info_plus: ^10.2.2
   collection: ^1.19.0
   file_selector: 1.1.0
-  permission_handler: 12.0.1
-  url_launcher: 6.3.2
-  open_filex: ^4.7.0
-  gal: 2.3.2
+  # 13.x pulls permission_handler_android 14.x, which compiles against
+  # compileSdk 37. Google only ships that platform as "android-37.0" (SDK XML
+  # v4) and the AGP these plugin subprojects resolve with cannot read it, so
+  # `flutter build apk` dies with "Failed to find target with hash string
+  # 'android-37'". Stay on the newest 12.x until that is fixable.
+  permission_handler: ^12.0.3
+  url_launcher: ^6.3.3
+  open_filex: ^5.0.0
+  gal: ^2.3.3
 
 dev_dependencies:
   flutter_test:
