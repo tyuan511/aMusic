@@ -80,8 +80,6 @@ fn main() {
         ("LiveHouse", Effect::LiveHouse),
         ("exciter", Effect::Exciter),
         ("chorus", Effect::Chorus),
-        ("flanger", Effect::Flanger),
-        ("phaser", Effect::Phaser),
         ("echo", Effect::Echo),
         ("dream", Effect::Dream),
     ] {

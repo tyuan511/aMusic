@@ -47,7 +47,7 @@
 **音效**
 
 - 10 段参数均衡器（±12 dB），22 个预设，支持自定义预设保存与实时频响曲线
-- 15 种音效：3D 环绕、360° 环绕基于 MIT KEMAR 实测头部脉冲响应（HRTF）做双耳卷积，LiveHouse、合唱、镶边、相位、回声、梦幻由引擎 DSP 生成，其余以频段曲线实现；EQ 与音效互斥
+- 13 种音效：3D 环绕、360° 环绕基于 MIT KEMAR 实测头部脉冲响应（HRTF）做双耳卷积，LiveHouse、合唱、回声、梦幻由引擎 DSP 生成，其余以频段曲线实现；EQ 与音效互斥
 
 **本地音乐**
 
@@ -90,7 +90,7 @@ Rust 引擎  packages/amusic_engine/rust · ~4.7k 行
 | 解码 | Symphonia（mp3 / aac / flac / isomp4 / alac / ogg·vorbis / wav / pcm / mkv / adpcm） |
 | 网络流 | 可 seek 的 HTTP Range 字节源，配合本地代理边下边播、边播边缓存 |
 | 信号链 | 级联 RBJ peaking EQ → 音效 → 软件增益 → 前瞻式砖墙限幅 |
-| 音效 DSP | Freeverb 混响、KEMAR HRTF 双耳卷积（3D 环绕 / 8 秒一圈的 360°）、合唱、镶边、相位、乒乓回声、谐波激励 |
+| 音效 DSP | Freeverb 混响、KEMAR HRTF 双耳卷积（3D 环绕 / 8 秒一圈的 360°）、合唱、乒乓回声、谐波激励 |
 | 变速 | WSOLA，0.5–2.0 倍速保持音高 |
 | 输出 | cpal（ALSA / WASAPI / CoreAudio / AAudio 等平台后端），rtrb 无锁环形缓冲，支持 gapless 连播 |
 | 附加 | 中位切分封面取色驱动界面强调色、离线 FFT 进度条包络、EBU R128 响度 |

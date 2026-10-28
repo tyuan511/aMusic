@@ -154,8 +154,7 @@ pub extern "C" fn amusic_player_set_speed(p: *mut Player, speed: f64) {
 
 /// Applies the equalizer and sound effect: `count` peaking bands, a software
 /// gain in dB, the limiter switch and a DSP effect (0 none, 1 3D surround,
-/// 2 360 rotation, 3 LiveHouse, 4 exciter, 5 chorus, 6 flanger, 7 phaser,
-/// 8 echo, 9 dream). `bands` may be null when `count`
+/// 2 360 rotation, 3 LiveHouse, 4 exciter, 5 chorus, 8 echo, 9 dream). `bands` may be null when `count`
 /// is 0.
 ///
 /// # Safety

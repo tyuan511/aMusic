@@ -23,10 +23,6 @@ pub enum Effect {
     Exciter = 4,
     /// Three detuned voices per side for a wide, ensemble sound.
     Chorus = 5,
-    /// A short swept comb filter with feedback: the jet-plane sweep.
-    Flanger = 6,
-    /// Six swept allpass stages: a softer, vocal sweep.
-    Phaser = 7,
     /// Ping-pong echo with darkening repeats.
     Echo = 8,
     /// Slow chorus into a long, bright reverb.
@@ -41,8 +37,6 @@ impl Effect {
             3 => Self::LiveHouse,
             4 => Self::Exciter,
             5 => Self::Chorus,
-            6 => Self::Flanger,
-            7 => Self::Phaser,
             8 => Self::Echo,
             9 => Self::Dream,
             _ => Self::None,
@@ -575,7 +569,7 @@ impl Exciter {
 
 // ------------------------------------------------------------ modulation
 
-/// Delay line read at a fractional position, for chorus / flanger.
+/// Delay line read at a fractional position, for the chorus.
 struct ModDelay {
     buf: Vec<f32>,
     pos: usize,
@@ -683,113 +677,6 @@ impl Chorus {
     }
 }
 
-struct Flanger {
-    line: [ModDelay; 2],
-    lfo: [Lfo; 2],
-    fb: [f32; 2],
-    base: f32,
-    depth: f32,
-}
-
-impl Flanger {
-    fn new(fs: u32) -> Self {
-        let f = fs as f32;
-        let (min_ms, max_ms) = (0.4, 5.0);
-        let max = (max_ms * f / 1000.0) as usize + 4;
-        Self {
-            line: [ModDelay::new(max), ModDelay::new(max)],
-            lfo: [Lfo::new(fs, 0.22, 0.0), Lfo::new(fs, 0.22, 0.25)],
-            fb: [0.0; 2],
-            base: min_ms * f / 1000.0,
-            depth: (max_ms - min_ms) * f / 1000.0,
-        }
-    }
-
-    #[inline]
-    fn process(&mut self, l: f32, r: f32) -> (f32, f32) {
-        let mut out = [l, r];
-        for ch in 0..2 {
-            let x = out[ch];
-            self.line[ch].write(x + self.fb[ch] * 0.55);
-            let d = self.base + self.depth * (1.0 + self.lfo[ch].next()) * 0.5;
-            let wet = self.line[ch].read(d.max(1.0));
-            self.fb[ch] = wet;
-            out[ch] = x * 0.7 + wet * 0.7;
-        }
-        (out[0], out[1])
-    }
-}
-
-/// First order allpass with a variable coefficient.
-#[derive(Clone, Copy, Default)]
-struct Ap1 {
-    z: f32,
-}
-
-impl Ap1 {
-    #[inline]
-    fn process(&mut self, x: f32, a: f32) -> f32 {
-        let y = -a * x + self.z;
-        self.z = x + a * y;
-        y
-    }
-}
-
-const PHASER_STAGES: usize = 6;
-
-struct Phaser {
-    stages: [[Ap1; PHASER_STAGES]; 2],
-    lfo: [Lfo; 2],
-    fb: [f32; 2],
-    fs: f32,
-    /// Frames until the tangent below is recomputed.
-    countdown: u32,
-    coeff: [f32; 2],
-}
-
-impl Phaser {
-    fn new(fs: u32) -> Self {
-        Self {
-            stages: [[Ap1::default(); PHASER_STAGES]; 2],
-            lfo: [Lfo::new(fs, 0.3, 0.0), Lfo::new(fs, 0.3, 0.2)],
-            fb: [0.0; 2],
-            fs: fs as f32,
-            countdown: 0,
-            coeff: [0.0; 2],
-        }
-    }
-
-    fn update(&mut self) {
-        for ch in 0..2 {
-            // Notch centre swept exponentially between 300 Hz and 3.5 kHz.
-            let lfo = self.lfo[ch].next();
-            let fc = 300.0 * (3500.0f32 / 300.0).powf((lfo + 1.0) * 0.5);
-            let t = (std::f32::consts::PI * fc / self.fs).tan();
-            self.coeff[ch] = (t - 1.0) / (t + 1.0);
-        }
-    }
-
-    #[inline]
-    fn process(&mut self, l: f32, r: f32) -> (f32, f32) {
-        if self.countdown == 0 {
-            self.update();
-            self.countdown = 32;
-        }
-        self.countdown -= 1;
-        let mut out = [l, r];
-        for ch in 0..2 {
-            let x = out[ch];
-            let mut y = x + self.fb[ch] * 0.6;
-            for st in self.stages[ch].iter_mut() {
-                y = st.process(y, self.coeff[ch]);
-            }
-            self.fb[ch] = y;
-            out[ch] = (x + y) * 0.6;
-        }
-        (out[0], out[1])
-    }
-}
-
 struct Echo {
     delay: [Delay; 2],
     damp: [Biquad; 2],
@@ -860,8 +747,6 @@ pub struct EffectChain {
     live: Option<LiveHouse>,
     exciter: Option<Exciter>,
     chorus: Option<Chorus>,
-    flanger: Option<Flanger>,
-    phaser: Option<Phaser>,
     echo: Option<Echo>,
     dream: Option<Dream>,
 }
@@ -876,8 +761,6 @@ impl EffectChain {
             live: None,
             exciter: None,
             chorus: None,
-            flanger: None,
-            phaser: None,
             echo: None,
             dream: None,
         }
@@ -898,8 +781,6 @@ impl EffectChain {
         self.live = (kind == Effect::LiveHouse).then(|| LiveHouse::new(self.fs));
         self.exciter = (kind == Effect::Exciter).then(|| Exciter::new(self.fs));
         self.chorus = (kind == Effect::Chorus).then(|| Chorus::new(self.fs, 18.0, 8.0, 0.35, 1.0));
-        self.flanger = (kind == Effect::Flanger).then(|| Flanger::new(self.fs));
-        self.phaser = (kind == Effect::Phaser).then(|| Phaser::new(self.fs));
         self.echo = (kind == Effect::Echo).then(|| Echo::new(self.fs));
         self.dream = (kind == Effect::Dream).then(|| Dream::new(self.fs));
     }
@@ -924,8 +805,6 @@ impl EffectChain {
             Effect::LiveHouse => run!(self.live),
             Effect::Exciter => run!(self.exciter),
             Effect::Chorus => run!(self.chorus),
-            Effect::Flanger => run!(self.flanger),
-            Effect::Phaser => run!(self.phaser),
             Effect::Echo => run!(self.echo),
             Effect::Dream => run!(self.dream),
         }
@@ -1004,8 +883,6 @@ mod tests {
             Effect::LiveHouse,
             Effect::Exciter,
             Effect::Chorus,
-            Effect::Flanger,
-            Effect::Phaser,
             Effect::Echo,
             Effect::Dream,
         ] {
@@ -1130,7 +1007,7 @@ mod tests {
     #[test]
     fn modulation_effects_change_the_signal_but_not_the_level_much() {
         let input = noise(2.0, 1.0, 1.0);
-        for e in [Effect::Chorus, Effect::Flanger, Effect::Phaser, Effect::Dream] {
+        for e in [Effect::Chorus, Effect::Dream] {
             let out = run(e, &input);
             let diff: f64 = input
                 .iter()
