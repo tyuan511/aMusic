@@ -236,7 +236,15 @@ class _NowPlayingPageState extends State<NowPlayingPage>
           PlayerEntrance(
             delay: 0,
             offset: const Offset(0, -16),
-            child: _Header(song: song),
+            child: _Header(
+              song: song,
+              title: lyrics && song != null
+                  ? _CompactTrackInfo(
+                      song: song,
+                      onTap: () => _select(PlayerPanel.cover),
+                    )
+                  : null,
+            ),
           ),
         ),
         Expanded(
@@ -254,13 +262,10 @@ class _NowPlayingPageState extends State<NowPlayingPage>
             child: song == null
                 ? const _NothingPlaying(key: ValueKey('empty'))
                 : lyrics
-                ? PlayerEntrance(
-                    key: const ValueKey('lyrics'),
+                ? const PlayerEntrance(
+                    key: ValueKey('lyrics'),
                     delay: 0.1,
-                    child: _CompactLyrics(
-                      song: song,
-                      onBack: () => _select(PlayerPanel.cover),
-                    ),
+                    child: LyricsPanel(),
                   )
                 : _pullRegion(
                     _CompactCover(
@@ -397,9 +402,12 @@ class _NowPlayingPageState extends State<NowPlayingPage>
 // ------------------------------------------------------------------ header
 
 class _Header extends StatelessWidget {
-  const _Header({required this.song});
+  const _Header({required this.song, this.title});
 
   final Song? song;
+
+  /// Shown between the two buttons, e.g. the track on the compact lyrics page.
+  final Widget? title;
 
   @override
   Widget build(BuildContext context) {
@@ -416,7 +424,14 @@ class _Header extends StatelessWidget {
               iconColor: context.playerInk,
               onPressed: () => Navigator.of(context).maybePop(),
             ),
-            const Spacer(),
+            title == null
+                ? const Spacer()
+                : Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: title,
+                    ),
+                  ),
             _LikeRoundButton(song: song),
           ],
         ),
@@ -503,38 +518,32 @@ class _CompactCover extends StatelessWidget {
   }
 }
 
-class _CompactLyrics extends StatelessWidget {
-  const _CompactLyrics({required this.song, required this.onBack});
+/// Cover thumbnail and title for the header of the compact lyrics page; tapping
+/// it goes back to the cover.
+class _CompactTrackInfo extends StatelessWidget {
+  const _CompactTrackInfo({required this.song, required this.onTap});
 
   final Song song;
-  final VoidCallback onBack;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 6, 24, 6),
-          child: Pressable(
-            onTap: onBack,
-            pressedScale: 0.98,
-            child: Row(
-              children: [
-                CoverImage(
-                  url: song.album.picUrl,
-                  size: 160,
-                  width: 48,
-                  height: 48,
-                  radius: AppMetrics.radiusSm,
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: _TitleBlock(song: song, compact: true)),
-              ],
-            ),
+    return Pressable(
+      onTap: onTap,
+      pressedScale: 0.98,
+      child: Row(
+        children: [
+          CoverImage(
+            url: song.album.picUrl,
+            size: 120,
+            width: 40,
+            height: 40,
+            radius: AppMetrics.radiusSm,
           ),
-        ),
-        const Expanded(child: LyricsPanel()),
-      ],
+          const SizedBox(width: 10),
+          Expanded(child: _TitleBlock(song: song, compact: true)),
+        ],
+      ),
     );
   }
 }
@@ -739,6 +748,12 @@ class _TitleBlock extends StatelessWidget {
       duration: AppMotion.standard,
       switchInCurve: AppMotion.enter,
       switchOutCurve: AppMotion.exit,
+      // The default stack centres its children, which pushed the compact
+      // (left-aligned) title away from the cover thumbnail.
+      layoutBuilder: (current, previous) => Stack(
+        alignment: compact ? Alignment.centerLeft : Alignment.center,
+        children: [...previous, ?current],
+      ),
       transitionBuilder: (child, animation) => FadeTransition(
         opacity: animation,
         child: SlideTransition(

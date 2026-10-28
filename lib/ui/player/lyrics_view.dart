@@ -3,15 +3,14 @@ import 'package:flutter/material.dart';
 import '../../models/lyric.dart';
 import '../../services/app.dart';
 import '../../theme/app_theme.dart';
-import '../browse_widgets/sheets.dart';
 import '../widgets/kit.dart';
 import 'lyric_share.dart';
 import 'lyric_source.dart';
 import 'lyrics_viewport.dart';
 
 /// The full lyrics panel of the current song: spring scrolled viewport,
-/// selection (copy / share as image), import / remove a local `.lrc` and
-/// the translation / romaji toggles.
+/// selection (copy / share as image) and an import action when a song has no
+/// lyrics.
 class LyricsPanel extends StatelessWidget {
   const LyricsPanel({super.key, this.textAlign = TextAlign.start});
 
@@ -55,11 +54,15 @@ class LyricsPanel extends StatelessWidget {
             textAlign: textAlign,
           );
         }
-        return AnimatedSwitcher(
-          duration: AppMotion.emphasized,
-          switchInCurve: AppMotion.enter,
-          switchOutCurve: AppMotion.exit,
-          child: child,
+        // The line scrolling out at the top is painted beyond the viewport;
+        // clip it so it never shows through the header above.
+        return ClipRect(
+          child: AnimatedSwitcher(
+            duration: AppMotion.emphasized,
+            switchInCurve: AppMotion.enter,
+            switchOutCurve: AppMotion.exit,
+            child: child,
+          ),
         );
       },
     );
@@ -74,113 +77,31 @@ class _LyricsBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: LyricsViewport(
-            lyric: lyric,
-            textAlign: textAlign,
-            selectionToolbarBuilder: (context, selected, clear) =>
-                LyricSelectionToolbar(
-                  count: selected.length,
-                  onClose: clear,
-                  onCopy: () async {
-                    await copyLyricLines(context, lyric, selected);
-                    clear();
-                  },
-                  onShare: () async {
-                    final song = app.player.currentSong;
-                    if (song == null) return;
-                    await showLyricShareSheet(
-                      context,
-                      song: song,
-                      lyric: lyric,
-                      indices: selected,
-                    );
-                    clear();
-                  },
-                ),
+    return LyricsViewport(
+      lyric: lyric,
+      textAlign: textAlign,
+      selectionToolbarBuilder: (context, selected, clear) =>
+          LyricSelectionToolbar(
+            count: selected.length,
+            onClose: clear,
+            onCopy: () async {
+              await copyLyricLines(context, lyric, selected);
+              clear();
+            },
+            onShare: () async {
+              final song = app.player.currentSong;
+              if (song == null) return;
+              await showLyricShareSheet(
+                context,
+                song: song,
+                lyric: lyric,
+                indices: selected,
+              );
+              clear();
+            },
           ),
-        ),
-        Positioned(top: 4, right: 8, child: _LyricMenuButton(lyric: lyric)),
-      ],
     );
   }
-}
-
-class _LyricMenuButton extends StatelessWidget {
-  const _LyricMenuButton({required this.lyric});
-
-  final Lyric lyric;
-
-  @override
-  Widget build(BuildContext context) {
-    return RoundIconButton(
-      icon: Icons.more_horiz_rounded,
-      tooltip: '歌词选项',
-      size: 36,
-      color: context.playerInk.withValues(alpha: 0.1),
-      iconColor: context.playerInk.withValues(alpha: 0.85),
-      onPressed: () => showLyricOptions(context, lyric),
-    );
-  }
-}
-
-/// Bottom sheet with lyric options for the current song.
-Future<void> showLyricOptions(BuildContext context, Lyric lyric) {
-  final song = app.player.currentSong;
-  return showAppSheet<void>(
-    context,
-    builder: (sheetContext) => ValueListenableBuilder(
-      valueListenable: app.settings,
-      builder: (context, settings, _) => SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (lyric.hasTranslation)
-              SwitchListTile(
-                title: const Text('显示翻译'),
-                value: settings.showTranslation,
-                onChanged: app.settings.setShowTranslation,
-              ),
-            if (lyric.hasRomaji)
-              SwitchListTile(
-                title: const Text('显示音译'),
-                value: settings.showRomaji,
-                onChanged: app.settings.setShowRomaji,
-              ),
-            SwitchListTile(
-              title: const Text('远处歌词模糊'),
-              value: settings.lyricBlur,
-              onChanged: (value) =>
-                  app.settings.update((s) => s.copyWith(lyricBlur: value)),
-            ),
-            if (song != null)
-              ListTile(
-                leading: const Icon(Icons.file_open_outlined),
-                title: const Text('导入本地歌词 (.lrc)'),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  importLyricFile(context, song);
-                },
-              ),
-            if (song != null && lyric.imported)
-              ListTile(
-                leading: const Icon(Icons.restore_rounded),
-                title: const Text('移除导入的歌词'),
-                subtitle: const Text('恢复使用云端歌词'),
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  app.lyrics.removeImported(song.id);
-                },
-              ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 /// Three centred lines under the cover; tap opens the lyrics panel.
@@ -192,37 +113,41 @@ class LyricsPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
-      child: CurrentLyricBuilder(
-        builder: (context, songId, lyric) {
-          final Widget child;
-          if (lyric == null || lyric.isEmpty) {
-            child = GestureDetector(
-              key: ValueKey('msg-${lyric?.pureMusic}-$songId'),
-              behavior: HitTestBehavior.opaque,
-              onTap: onTap,
-              child: Center(
-                child: Text(
-                  lyric == null ? '' : (lyric.pureMusic ? '纯音乐，请欣赏' : '暂无歌词'),
-                  style: TextStyle(
-                    color: context.playerInk.withValues(alpha: 0.5),
-                    fontSize: 14,
+    // The lyric column paints neighbouring lines beyond its bounds; clip so
+    // they never bleed into the seek bar below.
+    return ClipRect(
+      child: SizedBox(
+        height: height,
+        child: CurrentLyricBuilder(
+          builder: (context, songId, lyric) {
+            final Widget child;
+            if (lyric == null || lyric.isEmpty) {
+              child = GestureDetector(
+                key: ValueKey('msg-${lyric?.pureMusic}-$songId'),
+                behavior: HitTestBehavior.opaque,
+                onTap: onTap,
+                child: Center(
+                  child: Text(
+                    lyric == null ? '' : (lyric.pureMusic ? '纯音乐，请欣赏' : '暂无歌词'),
+                    style: TextStyle(
+                      color: context.playerInk.withValues(alpha: 0.5),
+                      fontSize: 14,
+                    ),
                   ),
                 ),
-              ),
-            );
-          } else {
-            child = LyricsViewport(
-              key: ValueKey(lyric),
-              lyric: lyric,
-              layout: LyricsLayout.preview,
-              textAlign: TextAlign.center,
-              onTap: onTap,
-            );
-          }
-          return AnimatedSwitcher(duration: AppMotion.standard, child: child);
-        },
+              );
+            } else {
+              child = LyricsViewport(
+                key: ValueKey(lyric),
+                lyric: lyric,
+                layout: LyricsLayout.preview,
+                textAlign: TextAlign.center,
+                onTap: onTap,
+              );
+            }
+            return AnimatedSwitcher(duration: AppMotion.standard, child: child);
+          },
+        ),
       ),
     );
   }
