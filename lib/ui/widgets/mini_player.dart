@@ -545,12 +545,18 @@ class _ProgressLine extends StatefulWidget {
   State<_ProgressLine> createState() => _ProgressLineState();
 }
 
-class _ProgressLineState extends State<_ProgressLine>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ticker = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 1),
-  );
+class _ProgressLineState extends State<_ProgressLine> {
+  late final ProgressPulse _pulse = ProgressPulse(() {
+    final player = app.player;
+    final known = player.position.value.duration;
+    final duration = known > Duration.zero
+        ? known
+        : (player.currentSong?.duration ?? Duration.zero);
+    return ProgressPulse.intervalFor(duration, _pixels);
+  });
+
+  double _pixels = 0;
+  bool _visible = true;
 
   @override
   void initState() {
@@ -560,32 +566,48 @@ class _ProgressLineState extends State<_ProgressLine>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = TickerMode.valuesOf(context).enabled;
+    if (visible != _visible) {
+      _visible = visible;
+      _sync();
+    }
+  }
+
+  @override
   void dispose() {
     app.player.playback.removeListener(_sync);
-    _ticker.dispose();
+    _pulse.dispose();
     super.dispose();
   }
 
   void _sync() {
-    final playing = app.player.playback.value.playing;
-    if (playing && !_ticker.isAnimating) {
-      _ticker.repeat();
-    } else if (!playing && _ticker.isAnimating) {
-      _ticker.stop();
+    final playing = app.player.playback.value.playing && _visible;
+    if (playing && !_pulse.isActive) {
+      _pulse.start();
+    } else if (!playing && _pulse.isActive) {
+      _pulse.stop();
       setState(() {});
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: CustomPaint(
-        painter: _LinePainter(
-          repaint: _ticker,
-          color: widget.color,
-          track: context.surfaces.textTertiary.withValues(alpha: 0.2),
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _pixels = constraints.maxWidth * MediaQuery.devicePixelRatioOf(context);
+        return RepaintBoundary(
+          child: CustomPaint(
+            size: constraints.biggest,
+            painter: _LinePainter(
+              repaint: _pulse,
+              color: widget.color,
+              track: context.surfaces.textTertiary.withValues(alpha: 0.2),
+            ),
+          ),
+        );
+      },
     );
   }
 }

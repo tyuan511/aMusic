@@ -67,6 +67,10 @@ class SettingsService extends ValueNotifier<SettingsState> {
       (v) => _prefs.setBool(PrefsKeys.dynamicBackground, v),
     );
     put(
+      (s) => s.lowPerformance,
+      (v) => _prefs.setBool(PrefsKeys.lowPerformance, v),
+    );
+    put(
       (s) => s.layoutMode.name,
       (v) => _prefs.setString(PrefsKeys.layoutMode, v),
     );

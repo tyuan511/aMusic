@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
@@ -6,6 +8,86 @@ import '../../theme/app_theme.dart';
 ///
 /// Everything here is built on implicit/explicit Flutter animations only, so
 /// no extra dependency is pulled in and each effect stays local to its widget.
+
+/// One ~30 fps clock for slow ambient motion: the player backdrop, the
+/// breathing cover, the playing bars.
+///
+/// A vsync ticker asks for a frame, and with it a full composite of the scene
+/// (glass and lyric blurs included), at the display rate. Motion this slow
+/// looks the same at 30 fps, and one shared timer lands every subscriber on
+/// the same frames instead of interleaving theirs. It runs only while someone
+/// listens; widgets subscribe through [AmbientMotion].
+class AmbientClock extends ChangeNotifier {
+  AmbientClock._();
+
+  static final AmbientClock instance = AmbientClock._();
+
+  static const Duration interval = Duration(milliseconds: 33);
+
+  final Stopwatch _elapsed = Stopwatch()..start();
+  Timer? _timer;
+
+  /// Monotonic time since start, for stateless waves.
+  Duration get elapsed => _elapsed.elapsed;
+
+  @override
+  void addListener(VoidCallback listener) {
+    super.addListener(listener);
+    _timer ??= Timer.periodic(interval, (_) => notifyListeners());
+  }
+
+  @override
+  void removeListener(VoidCallback listener) {
+    super.removeListener(listener);
+    if (!hasListeners) {
+      _timer?.cancel();
+      _timer = null;
+    }
+  }
+}
+
+/// Subscribes a state to [AmbientClock] while [runAmbient] asked for it and
+/// the subtree is not covered by an opaque route (its [TickerMode] is on).
+mixin AmbientMotion<T extends StatefulWidget> on State<T> {
+  bool _ambientWanted = false;
+  bool _ambientVisible = true;
+  bool _ambientSubscribed = false;
+
+  /// Called on every ambient tick while running.
+  void onAmbientTick();
+
+  bool get ambientRunning => _ambientWanted;
+
+  void runAmbient(bool run) {
+    _ambientWanted = run;
+    _syncAmbient();
+  }
+
+  void _syncAmbient() {
+    final subscribe = _ambientWanted && _ambientVisible;
+    if (subscribe == _ambientSubscribed) return;
+    _ambientSubscribed = subscribe;
+    if (subscribe) {
+      AmbientClock.instance.addListener(onAmbientTick);
+    } else {
+      AmbientClock.instance.removeListener(onAmbientTick);
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _ambientVisible = TickerMode.valuesOf(context).enabled;
+    _syncAmbient();
+  }
+
+  @override
+  void dispose() {
+    _ambientWanted = false;
+    _syncAmbient();
+    super.dispose();
+  }
+}
 
 /// Paints [child] (usually text or an icon) with the brand gradient.
 class GradientText extends StatelessWidget {

@@ -18,6 +18,7 @@ import '../shared/playlist_picker.dart';
 import '../shortcuts.dart';
 import '../widgets/cover_image.dart';
 import '../widgets/kit.dart';
+import '../widgets/motion.dart';
 import '../widgets/seek_bar.dart';
 import '../widgets/song_menu.dart';
 import 'lyrics_view.dart';
@@ -653,7 +654,8 @@ class _Disc extends StatelessWidget {
 }
 
 /// 1.0 while playing, 0.92 when paused, moved by a spring. While playing the
-/// cover also breathes by a subtle ~2%.
+/// cover also breathes by a subtle ~2% on the shared ~30 fps [AmbientClock]
+/// (not at all in low performance mode).
 class _PlayingSpring extends StatefulWidget {
   const _PlayingSpring({required this.child});
 
@@ -664,7 +666,7 @@ class _PlayingSpring extends StatefulWidget {
 }
 
 class _PlayingSpringState extends State<_PlayingSpring>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, AmbientMotion {
   static final SpringDescription _spring = SpringDescription.withDampingRatio(
     mass: 1,
     stiffness: 180,
@@ -676,23 +678,30 @@ class _PlayingSpringState extends State<_PlayingSpring>
     value: _target,
   );
 
-  late final AnimationController _breath = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 3200),
-  );
+  /// 0 - 1 breath; driven by [onAmbientTick], eased out by itself.
+  late final AnimationController _breath = AnimationController(vsync: this);
+
+  /// One way of the breath (in, then out over as long again).
+  static const int _breathMs = 3200;
+  final Stopwatch _breathClock = Stopwatch();
+  int _breathOffsetMs = 0;
 
   double get _target => app.player.playback.value.playing ? 1.0 : 0.92;
+
+  bool _breathing = false;
 
   @override
   void initState() {
     super.initState();
     app.player.playback.addListener(_onPlayback);
-    if (app.player.playback.value.playing) _breath.repeat(reverse: true);
+    app.settings.addListener(_syncBreath);
+    _syncBreath();
   }
 
   @override
   void dispose() {
     app.player.playback.removeListener(_onPlayback);
+    app.settings.removeListener(_syncBreath);
     _breath.dispose();
     _scale.dispose();
     super.dispose();
@@ -704,20 +713,41 @@ class _PlayingSpringState extends State<_PlayingSpring>
   @override
   void reassemble() {
     super.reassemble();
-    if (app.player.playback.value.playing && !_breath.isAnimating) {
-      _breath.repeat(reverse: true);
+    _breathing = false;
+    _syncBreath();
+  }
+
+  void _syncBreath() {
+    final breathe =
+        app.player.playback.value.playing && !app.settings.value.lowPerformance;
+    if (breathe == _breathing) return;
+    _breathing = breathe;
+    if (breathe) {
+      // Continue from wherever the ease out left the cover.
+      _breath.stop();
+      _breathOffsetMs = (_breath.value * _breathMs).round();
+      _breathClock
+        ..reset()
+        ..start();
+    } else {
+      _breathClock.stop();
+      _breath.animateTo(0, duration: AppMotion.standard, curve: Curves.easeOut);
     }
+    runAmbient(breathe);
+  }
+
+  @override
+  void onAmbientTick() {
+    final ms =
+        (_breathClock.elapsedMilliseconds + _breathOffsetMs) % (_breathMs * 2);
+    _breath.value = ms < _breathMs ? ms / _breathMs : 2 - ms / _breathMs;
   }
 
   void _onPlayback() {
     final target = _target;
     if (target == _last) return;
     _last = target;
-    if (target == 1.0) {
-      _breath.repeat(reverse: true);
-    } else {
-      _breath.animateTo(0, duration: AppMotion.standard, curve: Curves.easeOut);
-    }
+    _syncBreath();
     _scale.animateWith(
       SpringSimulation(_spring, _scale.value, target, _scale.velocity),
     );

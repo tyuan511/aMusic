@@ -13,6 +13,9 @@ import '../../models/lyric.dart';
 ///
 /// The render object is a repaint boundary that listens to [clock] directly,
 /// so playback only repaints this one line: no widget rebuilds, no layout.
+///
+/// [lite] drops the glow and the soft sweep edge, both offscreen layers per
+/// frame, for weak GPUs.
 class KaraokeText extends LeafRenderObjectWidget {
   const KaraokeText({
     super.key,
@@ -23,6 +26,7 @@ class KaraokeText extends LeafRenderObjectWidget {
     this.dimColor = const Color(0x80FFFFFF),
     this.brightColor = const Color(0xFFFFFFFF),
     this.maxLines,
+    this.lite = false,
   });
 
   final LyricLine line;
@@ -32,6 +36,7 @@ class KaraokeText extends LeafRenderObjectWidget {
   final Color dimColor;
   final Color brightColor;
   final int? maxLines;
+  final bool lite;
 
   @override
   RenderKaraokeText createRenderObject(BuildContext context) =>
@@ -43,6 +48,7 @@ class KaraokeText extends LeafRenderObjectWidget {
         dimColor: dimColor,
         brightColor: brightColor,
         maxLines: maxLines,
+        lite: lite,
         textScaler: MediaQuery.textScalerOf(context),
         textDirection: Directionality.of(context),
       );
@@ -60,6 +66,7 @@ class KaraokeText extends LeafRenderObjectWidget {
       ..dimColor = dimColor
       ..brightColor = brightColor
       ..maxLines = maxLines
+      ..lite = lite
       ..textScaler = MediaQuery.textScalerOf(context)
       ..textDirection = Directionality.of(context);
   }
@@ -92,6 +99,7 @@ class RenderKaraokeText extends RenderBox {
     required this._dimColor,
     required this._brightColor,
     required this._maxLines,
+    required this._lite,
     required this._textScaler,
     required this._textDirection,
   });
@@ -147,6 +155,13 @@ class RenderKaraokeText extends RenderBox {
     if (value == _maxLines) return;
     _maxLines = value;
     _invalidate();
+  }
+
+  bool _lite;
+  set lite(bool value) {
+    if (value == _lite) return;
+    _lite = value;
+    markNeedsPaint();
   }
 
   TextScaler _textScaler;
@@ -296,7 +311,7 @@ class RenderKaraokeText extends RenderBox {
     final words = _line.words;
     final fontSize = _textScaler.scale(_style.fontSize ?? 16);
     final maxLift = fontSize * 0.07;
-    final feather = math.min(fontSize * 0.9, 22.0);
+    final feather = _lite ? 0.0 : math.min(fontSize * 0.9, 22.0);
 
     // Words that need their own pass: lifted or mid-fill.
     final special = <int>[];
@@ -372,7 +387,7 @@ class RenderKaraokeText extends RenderBox {
         (sum, box) => sum + box.right - box.left,
       );
       final filled = total * progress;
-      final glow = emphasis * 0.55;
+      final glow = _lite ? 0.0 : emphasis * 0.55;
       if (glow > 0.01 && filled > 0) {
         final sigma = fontSize * 0.22;
         canvas.saveLayer(
@@ -414,6 +429,28 @@ class RenderKaraokeText extends RenderBox {
         rect.bottom + bleed,
       );
       final rtl = box.direction == TextDirection.rtl;
+      if (local < width && feather <= 0) {
+        // Hard edge: a clip instead of a gradient masked layer.
+        canvas.save();
+        canvas.clipRect(
+          rtl
+              ? Rect.fromLTRB(
+                  rect.right - local,
+                  clip.top,
+                  clip.right,
+                  clip.bottom,
+                )
+              : Rect.fromLTRB(
+                  clip.left,
+                  clip.top,
+                  rect.left + local,
+                  clip.bottom,
+                ),
+        );
+        bright.paint(canvas, offset);
+        canvas.restore();
+        continue;
+      }
       if (local >= width) {
         canvas.save();
         canvas.clipRect(clip);

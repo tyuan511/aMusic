@@ -24,6 +24,7 @@ class PrefsKeys {
   static const lyricBlur = 'settings.lyric_blur';
   static const lyricResumeSeconds = 'settings.lyric_resume_seconds';
   static const dynamicBackground = 'settings.dynamic_background';
+  static const lowPerformance = 'settings.low_performance';
   static const layoutMode = 'settings.layout_mode';
   static const uiScale = 'settings.ui_scale';
   static const autoUiScale = 'settings.auto_ui_scale';
@@ -77,6 +78,7 @@ class SettingsState {
     this.lyricBlur = true,
     this.lyricResumeSeconds = 2.5,
     this.dynamicBackground = true,
+    this.lowPerformance = false,
     this.layoutMode = LayoutMode.auto,
     this.uiScale = 1.0,
     this.autoUiScale = true,
@@ -118,6 +120,16 @@ class SettingsState {
 
   /// Flowing album colour backdrop on the now playing screen.
   final bool dynamicBackground;
+
+  /// Drops the GPU heavy effects (glass blur, lyric blur, glows, the moving
+  /// backdrop, the breathing cover) for weak GPUs such as car head units.
+  final bool lowPerformance;
+
+  /// [lyricBlur] as actually drawn.
+  bool get useLyricBlur => lyricBlur && !lowPerformance;
+
+  /// [dynamicBackground] as actually drawn.
+  bool get useDynamicBackground => dynamicBackground && !lowPerformance;
   final LayoutMode layoutMode;
 
   /// Global UI scale, 0.8 - 1.75. Ignored while [autoUiScale] is on.
@@ -149,6 +161,7 @@ class SettingsState {
     bool? lyricBlur,
     double? lyricResumeSeconds,
     bool? dynamicBackground,
+    bool? lowPerformance,
     LayoutMode? layoutMode,
     double? uiScale,
     bool? autoUiScale,
@@ -170,6 +183,7 @@ class SettingsState {
     lyricBlur: lyricBlur ?? this.lyricBlur,
     lyricResumeSeconds: lyricResumeSeconds ?? this.lyricResumeSeconds,
     dynamicBackground: dynamicBackground ?? this.dynamicBackground,
+    lowPerformance: lowPerformance ?? this.lowPerformance,
     layoutMode: layoutMode ?? this.layoutMode,
     uiScale: uiScale ?? this.uiScale,
     autoUiScale: autoUiScale ?? this.autoUiScale,
@@ -219,6 +233,8 @@ SettingsState readSettings(SharedPreferences prefs) {
     dynamicBackground:
         prefs.getBool(PrefsKeys.dynamicBackground) ??
         defaults.dynamicBackground,
+    lowPerformance:
+        prefs.getBool(PrefsKeys.lowPerformance) ?? defaults.lowPerformance,
     layoutMode: LayoutMode.fromName(prefs.getString(PrefsKeys.layoutMode)),
     uiScale: clampDouble(PrefsKeys.uiScale, 1.0, 0.8, 1.75),
     autoUiScale: prefs.getBool(PrefsKeys.autoUiScale) ?? defaults.autoUiScale,

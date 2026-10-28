@@ -61,6 +61,11 @@ class _LineConfig {
 /// when the line changes (a `setState` that rebuilds two line widgets) and
 /// advances the per-line springs (paint only). The active YRC line repaints
 /// itself from a clock notifier; other lines never repaint while static.
+///
+/// The ticker only runs while something moves: springs, a fling, or an active
+/// line that follows the clock (word timed text, interlude dots). Between the
+/// lines of a plain LRC lyric it sleeps until a timer wakes it for the next
+/// line, so a still screen produces no frames at all.
 class LyricsViewport extends StatefulWidget {
   const LyricsViewport({
     super.key,
@@ -101,7 +106,8 @@ class _LyricsViewportState extends State<LyricsViewport>
   late final Ticker _ticker = createTicker(_onTick);
   final Stopwatch _time = Stopwatch()..start();
   final ValueNotifier<Duration> _karaokeClock = ValueNotifier(Duration.zero);
-  late _ViewportModel _model = _ViewportModel(anchor: _anchor);
+  late _ViewportModel _model = _ViewportModel(anchor: _anchor)
+    ..onRetarget = _wake;
 
   int _active = -1;
   late _LineConfig _config = _readConfig();
@@ -111,6 +117,9 @@ class _LyricsViewportState extends State<LyricsViewport>
   Simulation? _fling;
   double _flingStart = 0;
   Timer? _resumeTimer;
+
+  /// Wakes the idle ticker when the next line is due.
+  Timer? _lineTimer;
 
   final Set<int> _selected = {};
   List<Widget?> _cache = const [];
@@ -137,11 +146,12 @@ class _LyricsViewportState extends State<LyricsViewport>
     super.didUpdateWidget(oldWidget);
     if (!identical(oldWidget.lyric, widget.lyric) ||
         oldWidget.layout != widget.layout) {
-      _model = _ViewportModel(anchor: _anchor);
+      _model = _ViewportModel(anchor: _anchor)..onRetarget = _wake;
       _selected.clear();
       _manual = false;
       _fling = null;
       _resetForLyric();
+      _wake();
     }
     if (oldWidget.textAlign != widget.textAlign) _invalidateAll();
   }
@@ -152,6 +162,7 @@ class _LyricsViewportState extends State<LyricsViewport>
     app.player.playback.removeListener(_onPlayback);
     app.player.position.removeListener(_onPosition);
     _resumeTimer?.cancel();
+    _lineTimer?.cancel();
     _ticker.dispose();
     _karaokeClock.dispose();
     super.dispose();
@@ -165,7 +176,7 @@ class _LyricsViewportState extends State<LyricsViewport>
       weight: _weight(s.lyricFontWeight),
       translation: !preview && s.showTranslation,
       romaji: !preview && s.showRomaji,
-      blur: !preview && s.lyricBlur,
+      blur: !preview && s.useLyricBlur,
     );
   }
 
@@ -198,13 +209,43 @@ class _LyricsViewportState extends State<LyricsViewport>
 
   void _onPlayback() => _wake();
 
-  /// Seeks while paused: the ticker is idle, so sync from the 5 Hz stream.
+  /// Seeks (and timer drift) while the ticker is idle: sync from the 5 Hz
+  /// stream, but only wake when that changes what is shown.
   void _onPosition() {
-    if (!_ticker.isActive) _wake();
+    if (_ticker.isActive) return;
+    final position = app.player.clock.now();
+    if (widget.lyric.lineIndexAt(position + _lead) != _active ||
+        _activeFollowsClock) {
+      _wake();
+    }
   }
 
   void _wake() {
+    _lineTimer?.cancel();
+    _lineTimer = null;
     if (!_ticker.isActive && mounted) _ticker.start();
+  }
+
+  /// The active line repaints from the clock while it plays.
+  bool get _activeFollowsClock {
+    final lines = widget.lyric.lines;
+    if (_active < 0 || _active >= lines.length) return false;
+    final line = lines[_active];
+    return line.isEmpty || line.hasWords;
+  }
+
+  /// Puts the ticker to sleep until the line after [_active] is due.
+  void _sleepUntilNextLine(Duration position) {
+    _lineTimer?.cancel();
+    _lineTimer = null;
+    final lines = widget.lyric.lines;
+    final next = _active + 1;
+    if (next >= lines.length) return;
+    final speed = math.max(app.player.clock.speed, 0.1);
+    final wait = (lines[next].time - _lead - position) * (1 / speed);
+    // The floor keeps an out of order line from waking it every frame.
+    const floor = Duration(milliseconds: 20);
+    _lineTimer = Timer(wait < floor ? floor : wait, _wake);
   }
 
   void _onTick(Duration _) {
@@ -232,7 +273,9 @@ class _LyricsViewportState extends State<LyricsViewport>
       _model.notify();
     }
     final playing = app.player.playback.value.playing;
-    if (!moving && !playing) _ticker.stop();
+    if (moving || (playing && _activeFollowsClock)) return;
+    _ticker.stop();
+    if (playing) _sleepUntilNextLine(position);
   }
 
   void _setActive(int index) {
@@ -384,34 +427,19 @@ class _LyricsViewportState extends State<LyricsViewport>
     final footer = _full && lyric.credits.isNotEmpty
         ? _CreditsFooter(lyric: lyric, textAlign: widget.textAlign)
         : null;
-    Widget column = _LyricColumn(
+    final column = _LyricColumn(
       model: _model,
       textAlign: widget.textAlign,
       blur: _config.blur && !_manual,
       padding: widget.padding,
       footer: footer != null,
       gap: _full ? _config.fontSize * 0.9 : 10,
+      edgeFade: _full ? const (0.12, 0.82) : const (0.22, 0.78),
       children: [
         for (var i = 0; i < lyric.lines.length; i++) _line(i),
         ?footer,
       ],
     );
-    column = ShaderMask(
-      blendMode: BlendMode.dstIn,
-      shaderCallback: (rect) => LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: const [
-          Color(0x00FFFFFF),
-          Color(0xFFFFFFFF),
-          Color(0xFFFFFFFF),
-          Color(0x00FFFFFF),
-        ],
-        stops: _full ? const [0, 0.12, 0.82, 1] : const [0, 0.22, 0.78, 1],
-      ).createShader(rect),
-      child: RepaintBoundary(child: column),
-    );
-
     if (!_full) {
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
@@ -489,6 +517,10 @@ class _ViewportModel extends ChangeNotifier {
 
   double time = 0;
 
+  /// Called when a relayout starts springs moving while the ticker may be
+  /// asleep (font size, translation toggled mid line).
+  VoidCallback? onRetarget;
+
   int get count => _tops.length;
 
   void notify() => notifyListeners();
@@ -528,11 +560,14 @@ class _ViewportModel extends ChangeNotifier {
       return;
     }
     // Heights changed (font size, translation): glide to the new place.
+    var moved = false;
     for (final spring in _springs) {
       if ((spring.target - target).abs() > 0.5) {
         spring.retarget(target, time: time);
+        moved = true;
       }
     }
+    if (moved) onRetarget?.call();
   }
 
   void setFocus(int index, {required double time, bool animate = true}) {
@@ -637,6 +672,7 @@ class _LyricColumn extends MultiChildRenderObjectWidget {
     required this.padding,
     required this.footer,
     required this.gap,
+    required this.edgeFade,
     required super.children,
   });
 
@@ -647,6 +683,10 @@ class _LyricColumn extends MultiChildRenderObjectWidget {
   final bool footer;
   final double gap;
 
+  /// Fractions of the height where lines finish fading in at the top and
+  /// start fading out at the bottom.
+  final (double, double) edgeFade;
+
   @override
   _RenderLyricColumn createRenderObject(BuildContext context) =>
       _RenderLyricColumn(
@@ -656,6 +696,7 @@ class _LyricColumn extends MultiChildRenderObjectWidget {
         padding: padding,
         footer: footer,
         gap: gap,
+        edgeFade: edgeFade,
       );
 
   @override
@@ -669,7 +710,8 @@ class _LyricColumn extends MultiChildRenderObjectWidget {
       ..blur = blur
       ..padding = padding
       ..footer = footer
-      ..gap = gap;
+      ..gap = gap
+      ..edgeFade = edgeFade;
   }
 }
 
@@ -688,6 +730,7 @@ class _RenderLyricColumn extends RenderBox
     required this._padding,
     required this._footer,
     required this._gap,
+    required this._edgeFade,
   });
 
   _ViewportModel _model;
@@ -736,7 +779,30 @@ class _RenderLyricColumn extends RenderBox
     markNeedsLayout();
   }
 
-  /// One layer handle per (blur level, opacity) group, reused across frames.
+  (double, double) _edgeFade;
+  set edgeFade((double, double) value) {
+    if (value == _edgeFade) return;
+    _edgeFade = value;
+    markNeedsPaint();
+  }
+
+  /// Top / bottom fade of a line centred at [y]. Folded into the line's own
+  /// opacity, so the edges cost no full size mask layer every frame.
+  double _edgeOpacity(double y) {
+    final height = size.height;
+    if (height <= 0) return 1;
+    final t = y / height;
+    final (top, bottom) = _edgeFade;
+    if (t <= 0 || t >= 1) return 0;
+    if (t < top) return t / top;
+    if (t > bottom) return (1 - t) / (1 - bottom);
+    return 1;
+  }
+
+  final LayerHandle<ClipRectLayer> _clipLayer = LayerHandle<ClipRectLayer>();
+
+  /// Layer handles reused across frames: opacity per (blur level, alpha)
+  /// group, blur per level.
   final Map<int, LayerHandle<OpacityLayer>> _opacityLayers = {};
   final Map<int, LayerHandle<ImageFilterLayer>> _blurLayers = {};
 
@@ -767,6 +833,7 @@ class _RenderLyricColumn extends RenderBox
 
   @override
   void dispose() {
+    _clipLayer.layer = null;
     for (final handle in _opacityLayers.values) {
       handle.layer = null;
     }
@@ -812,10 +879,23 @@ class _RenderLyricColumn extends RenderBox
 
   @override
   void paint(PaintingContext context, Offset offset) {
+    // Lines slide past the edges; the fade used to clip them as a side effect.
+    _clipLayer.layer = context.pushClipRect(
+      needsCompositing,
+      offset,
+      Offset.zero & size,
+      _paintLines,
+      oldLayer: _clipLayer.layer,
+    );
+  }
+
+  void _paintLines(PaintingContext context, Offset offset) {
     final now = _model.time;
     final lines = _model.count;
-    // Groups of children that share blur and opacity.
-    final groups = <int, List<(RenderBox, int)>>{};
+    // Children grouped by blur level, then by opacity. Each blur level is one
+    // offscreen blur pass for all of its lines, whatever their opacity, so at
+    // most [LyricMotion.blurLevels] of them run per frame.
+    final groups = <int, Map<int, List<(RenderBox, int)>>>{};
     var child = firstChild;
     var index = 0;
     while (child != null) {
@@ -824,13 +904,18 @@ class _RenderLyricColumn extends RenderBox
       final y = data.top - _model.offsetOf(lineIndex, now);
       data.offset = Offset(data.offset.dx, y);
       final visible = y + child.size.height > -40 && y < size.height + 40;
-      if (visible) {
+      final edge = visible ? _edgeOpacity(y + child.size.height / 2) : 0.0;
+      if (edge > 0) {
         final level = _blur ? _model.blurLevelOf(lineIndex, now) : 0;
-        final alpha = index >= lines
-            ? 140
-            : (_model.opacityOf(lineIndex, now) * 255 / 8).round() * 8;
-        final key = level * 1000 + alpha.clamp(0, 255);
-        (groups[key] ??= []).add((child, index));
+        final opacity = index >= lines
+            ? 140 / 255
+            : _model.opacityOf(lineIndex, now);
+        // 16 steps: every distinct value is its own layer, so mid animation
+        // fine steps would mean a layer per line.
+        final alpha = ((opacity * edge * 255 / 16).round() * 16).clamp(0, 255);
+        if (alpha > 0) {
+          ((groups[level] ??= {})[alpha] ??= []).add((child, index));
+        }
       }
       child = data.nextSibling;
       index++;
@@ -838,41 +923,34 @@ class _RenderLyricColumn extends RenderBox
 
     final usedOpacity = <int>{};
     final usedBlur = <int>{};
-    for (final entry in groups.entries) {
-      final key = entry.key;
-      final level = key ~/ 1000;
-      final alpha = key % 1000;
-      void paintGroup(PaintingContext context, Offset origin) {
-        for (final (child, index) in entry.value) {
-          _paintLine(context, origin, child, index, now);
+    for (final MapEntry(key: level, value: byAlpha) in groups.entries) {
+      void paintLevel(PaintingContext context, Offset origin) {
+        for (final MapEntry(key: alpha, value: members) in byAlpha.entries) {
+          final key = level * 1000 + alpha;
+          usedOpacity.add(key);
+          final handle = _opacityLayers[key] ??= LayerHandle<OpacityLayer>();
+          handle.layer = context.pushOpacity(origin, alpha, (context, origin) {
+            for (final (child, index) in members) {
+              _paintLine(context, origin, child, index, now);
+            }
+          }, oldLayer: handle.layer);
         }
       }
 
-      void paintWithOpacity(PaintingContext context, Offset origin) {
-        usedOpacity.add(key);
-        final handle = _opacityLayers[key] ??= LayerHandle<OpacityLayer>();
-        handle.layer = context.pushOpacity(
-          origin,
-          alpha,
-          paintGroup,
-          oldLayer: handle.layer,
-        );
-      }
-
       if (level == 0) {
-        paintWithOpacity(context, offset);
-      } else {
-        usedBlur.add(key);
-        final sigma = LyricMotion.sigmaForLevel(level);
-        final handle = _blurLayers[key] ??= LayerHandle<ImageFilterLayer>();
-        final layer = handle.layer ??= ImageFilterLayer();
-        layer.imageFilter = ui.ImageFilter.blur(
-          sigmaX: sigma,
-          sigmaY: sigma,
-          tileMode: TileMode.decal,
-        );
-        context.pushLayer(layer, paintWithOpacity, offset);
+        paintLevel(context, offset);
+        continue;
       }
+      usedBlur.add(level);
+      final sigma = LyricMotion.sigmaForLevel(level);
+      final handle = _blurLayers[level] ??= LayerHandle<ImageFilterLayer>();
+      final layer = handle.layer ??= ImageFilterLayer();
+      layer.imageFilter = ui.ImageFilter.blur(
+        sigmaX: sigma,
+        sigmaY: sigma,
+        tileMode: TileMode.decal,
+      );
+      context.pushLayer(layer, paintLevel, offset);
     }
     _opacityLayers.removeWhere((key, handle) {
       if (usedOpacity.contains(key)) return false;
@@ -986,6 +1064,7 @@ class _LyricLineView extends StatelessWidget {
         textAlign: textAlign,
         maxLines: maxLines,
         dimColor: context.playerInk.withValues(alpha: 0.42),
+        lite: context.lowPerformance,
       );
     } else {
       main = Text(

@@ -780,6 +780,24 @@ class GlassPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = context.surfaces;
+    if (context.lowPerformance) {
+      // A backdrop blur re-blurs everything behind the panel on every frame
+      // anything on screen changes; a near opaque fill reads the same.
+      final fill = color ?? s.glass;
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: fill.withValues(alpha: math.max(fill.a, 0.94)),
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: context.isDark ? 0.08 : 0.5),
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: Padding(padding: padding, child: child),
+        ),
+      );
+    }
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),

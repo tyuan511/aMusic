@@ -415,11 +415,21 @@ class _AppearanceGroupState extends State<_AppearanceGroup> {
           },
         ),
         SettingsTile(
-          label: '动态背景',
-          subtitle: '播放页根据封面颜色流动',
+          label: '低性能模式',
+          subtitle: '关闭毛玻璃、模糊、发光和背景动画，适合车机等性能较弱的设备',
           trailing: Switch(
-            value: settings.dynamicBackground,
-            onChanged: (v) => _update((s) => s.copyWith(dynamicBackground: v)),
+            value: settings.lowPerformance,
+            onChanged: (v) => _update((s) => s.copyWith(lowPerformance: v)),
+          ),
+        ),
+        SettingsTile(
+          label: '动态背景',
+          subtitle: settings.lowPerformance ? '低性能模式下不可用' : '播放页根据封面颜色流动',
+          trailing: Switch(
+            value: settings.useDynamicBackground,
+            onChanged: settings.lowPerformance
+                ? null
+                : (v) => _update((s) => s.copyWith(dynamicBackground: v)),
           ),
         ),
       ],
@@ -595,7 +605,7 @@ class _LyricsGroupState extends State<_LyricsGroup> {
           footer: _LyricPreview(
             size: size,
             weight: settings.lyricFontWeight,
-            blur: settings.lyricBlur,
+            blur: settings.useLyricBlur,
             translation: settings.showTranslation,
           ),
         ),
@@ -616,10 +626,12 @@ class _LyricsGroupState extends State<_LyricsGroup> {
         ),
         SettingsTile(
           label: '景深模糊',
-          subtitle: '远离当前行的歌词逐渐模糊',
+          subtitle: settings.lowPerformance ? '低性能模式下不可用' : '远离当前行的歌词逐渐模糊',
           trailing: Switch(
-            value: settings.lyricBlur,
-            onChanged: (v) => _update((s) => s.copyWith(lyricBlur: v)),
+            value: settings.useLyricBlur,
+            onChanged: settings.lowPerformance
+                ? null
+                : (v) => _update((s) => s.copyWith(lyricBlur: v)),
           ),
         ),
         SettingsTile(

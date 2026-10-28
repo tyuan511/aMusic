@@ -1,18 +1,19 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
 import '../../services/app.dart';
 import '../../theme/app_theme.dart';
+import '../widgets/motion.dart';
 
 /// Flowing album colour backdrop of the now playing screen.
 ///
 /// Five soft colour fields from [AccentService.palette] drift on closed
 /// Lissajous paths (one loop every [loop]) over a near black base, under a
-/// darkening vignette so white text stays legible. The painter repaints at
-/// most ~30 fps and only while music plays; a track change cross-fades the
-/// palette over 650 ms. `settings.dynamicBackground == false` keeps it still.
+/// darkening vignette so white text stays legible. The painter repaints on
+/// the shared ~30 fps [AmbientClock] and only while music plays; a track
+/// change cross-fades the palette over 650 ms. It keeps still while
+/// `settings.useDynamicBackground` is false (also in low performance mode).
 class PlayerBackdrop extends StatefulWidget {
   const PlayerBackdrop({super.key});
 
@@ -23,8 +24,8 @@ class PlayerBackdrop extends StatefulWidget {
 }
 
 class _PlayerBackdropState extends State<PlayerBackdrop>
-    with TickerProviderStateMixin {
-  late final Ticker _ticker = createTicker(_onTick);
+    with SingleTickerProviderStateMixin, AmbientMotion {
+  final Stopwatch _clock = Stopwatch();
   late final AnimationController _fade = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 650),
@@ -34,8 +35,6 @@ class _PlayerBackdropState extends State<PlayerBackdrop>
 
   List<Color> _from = const [];
   List<Color> _to = const [];
-  Duration _phaseOffset = Duration.zero;
-  Duration _lastPaint = Duration.zero;
 
   @override
   void initState() {
@@ -52,7 +51,6 @@ class _PlayerBackdropState extends State<PlayerBackdrop>
     app.accent.palette.removeListener(_onPalette);
     app.settings.removeListener(_syncTicker);
     app.player.playback.removeListener(_syncTicker);
-    _ticker.dispose();
     _fade.dispose();
     _phase.dispose();
     super.dispose();
@@ -70,24 +68,21 @@ class _PlayerBackdropState extends State<PlayerBackdrop>
 
   void _syncTicker() {
     final animate =
-        app.settings.value.dynamicBackground &&
+        app.settings.value.useDynamicBackground &&
         app.player.playback.value.playing;
-    if (animate && !_ticker.isActive) {
-      _ticker.start();
-    } else if (!animate && _ticker.isActive) {
-      _phaseOffset += _lastPaint;
-      _lastPaint = Duration.zero;
-      _ticker.stop();
+    if (animate == ambientRunning) return;
+    if (animate) {
+      _clock.start();
+    } else {
+      _clock.stop();
     }
+    runAmbient(animate);
   }
 
-  void _onTick(Duration elapsed) {
-    // ~30 fps is plenty for colour fields that move a few pixels a second.
-    if (elapsed - _lastPaint < const Duration(milliseconds: 33)) return;
-    _lastPaint = elapsed;
-    final total = _phaseOffset + elapsed;
+  @override
+  void onAmbientTick() {
     _phase.value =
-        (total.inMilliseconds % PlayerBackdrop.loop.inMilliseconds) /
+        (_clock.elapsedMilliseconds % PlayerBackdrop.loop.inMilliseconds) /
         PlayerBackdrop.loop.inMilliseconds;
   }
 
@@ -181,31 +176,33 @@ class _MeshPainter extends CustomPainter {
           ).createShader(Rect.fromCircle(center: center, radius: radius)),
       );
     }
+    // The washes below are single colour layers stacked on each other, so a
+    // flat one folds exactly into the gradient over it: alpha a over alpha b
+    // is 1 - (1 - a)(1 - b), linear in b. One full screen fill fewer.
     if (!dark) {
-      // Light theme: wash the colour fields out so dark text stays legible.
-      canvas.drawRect(rect, Paint()..color = const Color(0x8CFFFFFF));
+      // Light theme: wash the colour fields out so dark text stays legible
+      // (a flat 0x8C white under a 0 -> 0x99 white bottom gradient).
       canvas.drawRect(
         rect,
         Paint()
           ..shader = const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0x00FFFFFF), Color(0x00FFFFFF), Color(0x99FFFFFF)],
+            colors: [Color(0x8CFFFFFF), Color(0x8CFFFFFF), Color(0xD1FFFFFF)],
             stops: [0, 0.55, 1],
           ).createShader(rect),
       );
       return;
     }
-    // Legibility: an overall dim, a vignette and a darker bottom for the
-    // controls.
-    canvas.drawRect(rect, Paint()..color = const Color(0x52000000));
+    // Legibility: an overall dim (0x52) folded into the vignette (0 -> 0x8C),
+    // then a darker bottom for the controls.
     canvas.drawRect(
       rect,
       Paint()
         ..shader = const RadialGradient(
           center: Alignment(0, -0.2),
           radius: 1.1,
-          colors: [Color(0x00000000), Color(0x8C000000)],
+          colors: [Color(0x52000000), Color(0xB1000000)],
           stops: [0.45, 1],
         ).createShader(rect),
     );

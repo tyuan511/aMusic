@@ -639,7 +639,32 @@ class AccentScope extends InheritedNotifier<ValueNotifier<Color?>> {
       ?.value;
 }
 
+/// Publishes `settings.lowPerformance` to widgets that do not listen to the
+/// settings themselves (glass panels, glows), so they rebuild when it flips.
+class LowPerformanceScope extends InheritedWidget {
+  const LowPerformanceScope({
+    super.key,
+    required this.enabled,
+    required super.child,
+  });
+
+  final bool enabled;
+
+  static bool of(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<LowPerformanceScope>()
+          ?.enabled ??
+      false;
+
+  @override
+  bool updateShouldNotify(LowPerformanceScope oldWidget) =>
+      oldWidget.enabled != enabled;
+}
+
 extension AppThemeContext on BuildContext {
+  /// Whether GPU heavy effects should be skipped, see [LowPerformanceScope].
+  bool get lowPerformance => LowPerformanceScope.of(this);
+
   AppSurfaces get surfaces => Theme.of(this).extension<AppSurfaces>()!;
   ColorScheme get colors => Theme.of(this).colorScheme;
   TextTheme get text => Theme.of(this).textTheme;

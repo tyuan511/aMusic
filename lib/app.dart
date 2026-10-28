@@ -107,9 +107,12 @@ class _AmusicAppState extends State<AmusicApp> with WidgetsBindingObserver {
           darkTheme: _dark,
           themeMode: settings.themeMode,
           routerConfig: _router,
-          builder: (context, child) => UiScale(
-            settings: settings,
-            child: _MacTitleInset(child: child ?? const SizedBox.shrink()),
+          builder: (context, child) => LowPerformanceScope(
+            enabled: settings.lowPerformance,
+            child: UiScale(
+              settings: settings,
+              child: _MacTitleInset(child: child ?? const SizedBox.shrink()),
+            ),
           ),
         );
       },

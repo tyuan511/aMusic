@@ -1,4 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+import '../../theme/app_theme.dart';
+import 'motion.dart';
 
 /// Three animated bars shown on the cover of the currently playing track.
 ///
@@ -20,44 +24,50 @@ class PlayingIndicator extends StatefulWidget {
 }
 
 class _PlayingIndicatorState extends State<PlayingIndicator>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
+    with AmbientMotion {
+  /// 0 - 1 - 0 every 1.8 s, sampled from the shared [AmbientClock]: a vsync
+  /// ticker here would keep the whole list page compositing at 60 fps for
+  /// three tiny bars.
+  final ValueNotifier<double> _t = ValueNotifier(0.35);
 
-  @override
-  void initState() {
-    super.initState();
-    if (widget.playing) _controller.repeat(reverse: true);
-  }
+  static const int _halfMs = 900;
+
+  // Low performance mode keeps the bars still.
+  void _sync() => runAmbient(widget.playing && !context.lowPerformance);
 
   @override
   void didUpdateWidget(PlayingIndicator oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.playing == oldWidget.playing) return;
-    if (widget.playing) {
-      _controller.repeat(reverse: true);
-    } else {
-      _controller.stop();
-    }
+    _sync();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _t.dispose();
     super.dispose();
   }
 
   @override
+  void onAmbientTick() {
+    final ms = AmbientClock.instance.elapsed.inMilliseconds % (_halfMs * 2);
+    _t.value = ms < _halfMs ? ms / _halfMs : 2 - ms / _halfMs;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // The painter listens to the controller: only this layer repaints.
+    // The painter listens to the wave: only this layer repaints.
     return RepaintBoundary(
       child: CustomPaint(
         size: Size(widget.size, widget.size),
         painter: _BarsPainter(
           color: widget.color,
-          animation: _controller,
+          animation: _t,
           playing: widget.playing,
         ),
       ),
@@ -73,7 +83,7 @@ class _BarsPainter extends CustomPainter {
   }) : super(repaint: animation);
 
   final Color color;
-  final Animation<double> animation;
+  final ValueListenable<double> animation;
   final bool playing;
 
   @override

@@ -7,7 +7,55 @@ import '../../core/format.dart';
 import '../../services/app.dart';
 import '../../theme/app_theme.dart';
 
-/// Seek bar that repaints on every frame without rebuilding any widget.
+/// Repaint signal for progress painters while a song plays.
+///
+/// Fires about once per physical pixel of progress (between 30 Hz and 1 Hz)
+/// instead of every frame: a vsync ticker would make the engine composite the
+/// whole scene, glass blurs included, 60 times a second for a bar that moves a
+/// few pixels. A plain timer only asks for a frame when the bar actually moved.
+class ProgressPulse extends ChangeNotifier {
+  ProgressPulse(this._interval);
+
+  final Duration Function() _interval;
+  Timer? _timer;
+
+  bool get isActive => _timer != null;
+
+  void start() {
+    if (_timer != null) return;
+    _timer = Timer(_interval(), _fire);
+  }
+
+  void stop() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  void _fire() {
+    notifyListeners();
+    // A listener may have stopped the pulse.
+    if (_timer != null) _timer = Timer(_interval(), _fire);
+  }
+
+  /// Time the playhead needs to cross one of [pixels] across a track of
+  /// [duration].
+  static Duration intervalFor(Duration duration, double pixels) {
+    if (duration <= Duration.zero || pixels <= 0) {
+      return const Duration(milliseconds: 250);
+    }
+    final speed = app.player.clock.speed;
+    final micros = duration.inMicroseconds / pixels / math.max(speed, 0.1);
+    return Duration(microseconds: micros.clamp(33000, 1000000).round());
+  }
+
+  @override
+  void dispose() {
+    stop();
+    super.dispose();
+  }
+}
+
+/// Seek bar that repaints with [ProgressPulse] without rebuilding any widget.
 ///
 /// Playback position is read from [PlaybackClock] (interpolated between the
 /// 5 Hz stream events) inside the painter, so the bar is smooth and the rest of
@@ -44,14 +92,19 @@ class SeekBar extends StatefulWidget {
   State<SeekBar> createState() => _SeekBarState();
 }
 
-class _SeekBarState extends State<SeekBar> with SingleTickerProviderStateMixin {
-  late final AnimationController _ticker = AnimationController(
-    vsync: this,
-    duration: const Duration(hours: 1),
+class _SeekBarState extends State<SeekBar> {
+  late final ProgressPulse _pulse = ProgressPulse(
+    () => ProgressPulse.intervalFor(_duration, _pixels),
   );
   late final Listenable _repaint = widget.spectrum
-      ? Listenable.merge([_ticker, app.player.spectrum])
-      : _ticker;
+      ? Listenable.merge([_pulse, app.player.spectrum])
+      : _pulse;
+
+  /// Track width in physical pixels, from the last layout.
+  double _pixels = 0;
+
+  /// False while an opaque route covers this bar (its [TickerMode] is off).
+  bool _visible = true;
 
   bool _dragging = false;
   bool _hovering = false;
@@ -68,6 +121,16 @@ class _SeekBarState extends State<SeekBar> with SingleTickerProviderStateMixin {
     _syncTicker();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = TickerMode.valuesOf(context).enabled;
+    if (visible != _visible) {
+      _visible = visible;
+      _syncTicker();
+    }
+  }
+
   void _ensureSpectrum() {
     if (!widget.spectrum) return;
     final song = app.player.currentSong;
@@ -75,11 +138,12 @@ class _SeekBarState extends State<SeekBar> with SingleTickerProviderStateMixin {
   }
 
   void _syncTicker() {
-    final shouldTick = app.player.playback.value.playing && !_dragging;
-    if (shouldTick && !_ticker.isAnimating) {
-      _ticker.repeat();
-    } else if (!shouldTick && _ticker.isAnimating) {
-      _ticker.stop();
+    final shouldTick =
+        app.player.playback.value.playing && !_dragging && _visible;
+    if (shouldTick && !_pulse.isActive) {
+      _pulse.start();
+    } else if (!shouldTick && _pulse.isActive) {
+      _pulse.stop();
       // One last repaint so the paused position is exact.
       setState(() {});
     }
@@ -91,7 +155,7 @@ class _SeekBarState extends State<SeekBar> with SingleTickerProviderStateMixin {
     if (widget.spectrum) {
       app.player.currentSongId.removeListener(_ensureSpectrum);
     }
-    _ticker.dispose();
+    _pulse.dispose();
     super.dispose();
   }
 
@@ -145,9 +209,11 @@ class _SeekBarState extends State<SeekBar> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final accent = widget.color ?? AccentScope.of(context);
+    final lowPerformance = context.lowPerformance;
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
+        _pixels = width * MediaQuery.devicePixelRatioOf(context);
         final gesture = GestureDetector(
           behavior: HitTestBehavior.opaque,
           onHorizontalDragStart: (details) => _onDragStart(details, width),
@@ -181,6 +247,7 @@ class _SeekBarState extends State<SeekBar> with SingleTickerProviderStateMixin {
                       spectrumValues: widget.spectrum
                           ? app.player.spectrum.value
                           : null,
+                      glow: !lowPerformance,
                     ),
                   );
                 },
@@ -265,6 +332,7 @@ class _SeekBarPainter extends CustomPainter {
     required this.thumbColor,
     required this.spectrum,
     required this.spectrumValues,
+    required this.glow,
   });
 
   final bool hovering;
@@ -277,6 +345,9 @@ class _SeekBarPainter extends CustomPainter {
   final Color thumbColor;
   final bool spectrum;
   final List<int>? spectrumValues;
+
+  /// Blurred bloom under the played spectrum (off in low performance mode).
+  final bool glow;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -397,7 +468,10 @@ class _SeekBarPainter extends CustomPainter {
     final glowPath = Path();
     for (var i = 0; i < count; i++) {
       // Taper both ends so the waveform reads as a lens-shaped envelope.
-      final edge = (math.min(i, count - 1 - i) / (count * 0.08)).clamp(0.0, 1.0);
+      final edge = (math.min(i, count - 1 - i) / (count * 0.08)).clamp(
+        0.0,
+        1.0,
+      );
       final taper = 0.35 + 0.65 * edge * edge * (3 - 2 * edge);
       final half = math.max(
         barWidth / 2,
@@ -418,13 +492,13 @@ class _SeekBarPainter extends CustomPainter {
         ),
         Radius.circular(barWidth / 2),
       );
-      if (played) glowPath.addRRect(bar);
+      if (played && glow) glowPath.addRRect(bar);
       canvas.drawRRect(bar, paint);
     }
 
     // Soft bloom under the played part. Drawn after the bars with a low alpha
     // so it only lifts the colour instead of smearing the shape.
-    if (playedX > 0) {
+    if (glow && playedX > 0) {
       canvas.drawPath(
         glowPath,
         Paint()
@@ -472,7 +546,8 @@ class _SeekBarPainter extends CustomPainter {
       old.hovering != hovering ||
       old.trackColor != trackColor ||
       old.spectrum != spectrum ||
-      old.spectrumValues != spectrumValues;
+      old.spectrumValues != spectrumValues ||
+      old.glow != glow;
 }
 
 /// `-2:15`; clamps negative remainders to `-0:00`.

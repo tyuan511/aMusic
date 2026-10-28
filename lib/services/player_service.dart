@@ -181,6 +181,7 @@ class PlaybackClock {
 
   Duration get duration => _duration;
   bool get running => _running;
+  double get speed => _speed;
 
   Duration now() {
     if (!_running) return _position;
