@@ -2,7 +2,7 @@ name: amusic
 description: "aMusic - a cross-platform NetEase Cloud Music client."
 publish_to: 'none'
 
-version: 2.0.6+26
+version: 2.0.7+27
 
 environment:
   sdk: ^3.13.0
