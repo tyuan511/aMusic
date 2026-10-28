@@ -36,6 +36,7 @@ for abi in "$@"; do
   upper="$(echo "$target" | tr 'a-z-' 'A-Z_')"
   export "CARGO_TARGET_${upper}_LINKER=$BIN/$clang"
   export "CC_$(echo "$target" | tr '-' '_')=$BIN/$clang"
+  export "CXX_$(echo "$target" | tr '-' '_')=$BIN/$clang++"
   export "AR_$(echo "$target" | tr '-' '_')=$BIN/llvm-ar"
   cargo build --release --manifest-path "$CRATE/Cargo.toml" --target "$target"
   mkdir -p "$HERE/src/main/jniLibs/$abi"

@@ -3,8 +3,6 @@
 //! One Rust implementation for every platform; the Flutter app talks to it
 //! through the C ABI in [`ffi`].
 
-#[cfg(target_os = "android")]
-mod android;
 pub mod crypto;
 pub mod decode;
 pub mod dsp;

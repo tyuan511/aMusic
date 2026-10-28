@@ -12,8 +12,10 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+#[cfg(not(target_os = "android"))]
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{BufferSize, FromSample, SizedSample, Stream, StreamConfig, SupportedBufferSize};
+#[cfg(not(target_os = "android"))]
+use cpal::{BufferSize, FromSample, SizedSample, StreamConfig, SupportedBufferSize};
 
 use crate::decode::Decoder;
 use crate::pipeline::{EqConfig, Pipeline};
@@ -127,7 +129,7 @@ impl Player {
         let (init_tx, init_rx) = mpsc::channel::<Init>();
         let (ctl_tx, ctl_rx) = mpsc::channel::<Ctl>();
 
-        // The audio thread owns the cpal stream (it is not Send everywhere).
+        // The audio thread owns the output stream (it is not Send everywhere).
         let audio = thread::Builder::new()
             .name("amusic-audio".into())
             .spawn(move || audio_thread(init_tx, ctl_tx, ctl_rx))
@@ -337,39 +339,189 @@ fn audio_thread(init: Sender<Init>, ctl_tx: Sender<Ctl>, ctl_rx: Receiver<Ctl>) 
     }
 }
 
-type Opened = (
-    Stream,
-    Arc<Shared>,
-    rtrb::Producer<f32>,
-    rtrb::Producer<Boundary>,
-);
+/// A device sample format the renderer can write.
+trait OutSample {
+    fn from_f32(v: f32) -> Self;
+}
 
-fn open_stream(ctl: Sender<Ctl>) -> Result<Opened, String> {
-    let host = cpal::default_host();
-    let device = host.default_output_device().ok_or("no output device")?;
-    let supported = device.default_output_config().map_err(|e| e.to_string())?;
-    let format = supported.sample_format();
-    let buffer = supported.buffer_size().clone();
-    let base: StreamConfig = supported.into();
-    let rate = base.sample_rate;
-
-    // Bigger device buffers. Some hosts (AAudio) cannot tell the range up
-    // front, so ask anyway: if the device refuses, the default config below is
-    // the fallback.
-    let mut configs = Vec::new();
-    let frames = match buffer {
-        SupportedBufferSize::Range { min, max } => DEVICE_BUFFER_FRAMES.clamp(min, max),
-        SupportedBufferSize::Unknown => DEVICE_BUFFER_FRAMES,
-    };
-    if frames > 0 {
-        configs.push(StreamConfig {
-            buffer_size: BufferSize::Fixed(frames),
-            ..base.clone()
-        });
+#[cfg(not(target_os = "android"))]
+impl<T: FromSample<f32>> OutSample for T {
+    fn from_f32(v: f32) -> Self {
+        <T as FromSample<f32>>::from_sample_(v)
     }
-    configs.push(base);
+}
 
-    let shared = Arc::new(Shared {
+#[cfg(target_os = "android")]
+impl OutSample for f32 {
+    fn from_f32(v: f32) -> Self {
+        v
+    }
+}
+
+/// Everything the audio callback owns: pops the ring buffer, runs the DSP
+/// chain and writes the device buffer. Backend-independent; cpal (desktop, iOS)
+/// and Oboe (Android) both just call [`Renderer::render`].
+struct Renderer {
+    channels: usize,
+    rate: f64,
+    shared: Arc<Shared>,
+    consumer: rtrb::Consumer<f32>,
+    boundaries: rtrb::Consumer<Boundary>,
+    pipeline: Pipeline,
+    scratch: Vec<f32>,
+    vol: f32,
+    norm: f32,
+    // `playing` is the transport request exposed to the UI. `output_active`
+    // stays true for the short pause fade, allowing the callback to drain the
+    // already-decoded frames while the output gain reaches zero.
+    output_active: bool,
+    fade_step: f32,
+    transport_gain: f32,
+    // Frames popped since the last flush (the clock `Boundary::at` refers to).
+    consumed: u64,
+}
+
+impl Renderer {
+    fn new(
+        channels: usize,
+        rate: u32,
+        consumer: rtrb::Consumer<f32>,
+        boundaries: rtrb::Consumer<Boundary>,
+        shared: Arc<Shared>,
+    ) -> Self {
+        Self {
+            channels,
+            rate: rate as f64,
+            shared,
+            consumer,
+            boundaries,
+            pipeline: Pipeline::new(rate),
+            scratch: Vec::new(),
+            vol: 1.0,
+            norm: 1.0,
+            output_active: false,
+            fade_step: 1.0 / (rate as f32 * TRANSPORT_FADE.as_secs_f32()),
+            transport_gain: 0.0,
+            consumed: 0,
+        }
+    }
+
+    /// Fills one device buffer of interleaved samples.
+    fn render<T>(&mut self, data: &mut [T])
+    where
+        T: OutSample,
+    {
+        let channels = self.channels;
+        let frames = data.len() / channels;
+
+        // A seek / load asked for the queued audio to be dropped.
+        let req = self.shared.flush_req.load(Ordering::Acquire);
+        if req != self.shared.flush_ack.load(Ordering::Relaxed) {
+            while self.consumer.pop().is_ok() {}
+            while self.boundaries.pop().is_ok() {}
+            self.consumed = 0;
+            let base = self.shared.base_secs.load(Ordering::Acquire);
+            self.shared.pos_secs.store(base, Ordering::Release);
+            self.shared.flush_ack.store(req, Ordering::Release);
+        }
+
+        if let Ok(mut pending) = self.shared.pending_cfg.try_lock() {
+            if let Some(cfg) = pending.take() {
+                self.pipeline.set_config(&cfg);
+            }
+        }
+
+        self.scratch.clear();
+        self.scratch.resize(frames * 2, 0.0);
+        let mut gain_switch: Option<(usize, f32)> = None;
+        let norm_target = f32::from_bits(self.shared.gain.load(Ordering::Relaxed));
+        let mut got = 0;
+        let requested_playing = self.shared.playing.load(Ordering::Acquire);
+        if requested_playing {
+            self.output_active = true;
+        }
+        if self.output_active && self.shared.state.load(Ordering::Acquire) == STATE_READY {
+            // Whole frames only, taken in one go.
+            let take = self.consumer.slots().min(frames * 2) & !1;
+            if take > 0 {
+                if let Ok(chunk) = self.consumer.read_chunk(take) {
+                    let (a, b) = chunk.as_slices();
+                    self.scratch[..a.len()].copy_from_slice(a);
+                    self.scratch[a.len()..a.len() + b.len()].copy_from_slice(b);
+                    chunk.commit_all();
+                    got = take / 2;
+                }
+            }
+            if got < frames && self.shared.eof.load(Ordering::Acquire) && self.consumer.is_empty() {
+                self.shared.state.store(STATE_ENDED, Ordering::Release);
+                self.shared.playing.store(false, Ordering::Release);
+            }
+            self.pipeline.process(&mut self.scratch[..got * 2]);
+
+            // Position: frames played, scaled by the playback speed.
+            let speed = f64::from_bits(self.shared.speed.load(Ordering::Relaxed));
+            let consumed_before = self.consumed;
+            self.consumed += got as u64;
+            let mut pos = f64::from_bits(self.shared.pos_secs.load(Ordering::Acquire))
+                + got as f64 * speed / self.rate;
+            if let Ok(b) = self.boundaries.peek() {
+                if b.at <= self.consumed {
+                    let at = b.at;
+                    // The queued track began `consumed - at` frames ago.
+                    pos = (self.consumed - b.at) as f64 * speed / self.rate;
+                    self.shared
+                        .duration
+                        .store(b.duration.to_bits(), Ordering::Release);
+                    self.shared.advance_seq.fetch_add(1, Ordering::AcqRel);
+                    let _ = self.boundaries.pop();
+                    // The queued track's own gain, from its first frame.
+                    let next = f32::from_bits(self.shared.next_gain.load(Ordering::Relaxed));
+                    if !next.is_nan() {
+                        gain_switch =
+                            Some((at.saturating_sub(consumed_before) as usize, next));
+                        self.shared
+                            .next_gain
+                            .store(f32::NAN.to_bits(), Ordering::Relaxed);
+                        self.shared.gain.store(next.to_bits(), Ordering::Relaxed);
+                    }
+                }
+            }
+            self.shared.pos_secs.store(pos.to_bits(), Ordering::Release);
+        }
+
+        // Volume with a short ramp so changes do not click.
+        let target = f32::from_bits(self.shared.volume.load(Ordering::Relaxed));
+        let transport_target = if requested_playing { 1.0 } else { 0.0 };
+        for (i, frame) in data.chunks_mut(channels).enumerate() {
+            self.vol += (target - self.vol) * 0.002;
+            // The previous track's gain holds until the new one begins.
+            let wanted = match gain_switch {
+                Some((at, g)) if i >= at => g,
+                _ => norm_target,
+            };
+            self.norm += (wanted - self.norm) * 0.002;
+            self.transport_gain = move_towards(self.transport_gain, transport_target, self.fade_step);
+            let gain = self.vol * self.norm * self.transport_gain;
+            let (l, r) = (self.scratch[i * 2] * gain, self.scratch[i * 2 + 1] * gain);
+            match self.channels {
+                1 => frame[0] = T::from_f32((l + r) * 0.5),
+                _ => {
+                    frame[0] = T::from_f32(l);
+                    frame[1] = T::from_f32(r);
+                    for s in frame.iter_mut().skip(2) {
+                        *s = T::from_f32(0.0);
+                    }
+                }
+            }
+        }
+        if !requested_playing && self.transport_gain <= f32::EPSILON {
+            self.output_active = false;
+        }
+    }
+}
+
+fn new_shared(rate: u32, ctl: Sender<Ctl>) -> Arc<Shared> {
+    Arc::new(Shared {
         rate,
         playing: AtomicBool::new(false),
         state: AtomicU32::new(STATE_IDLE),
@@ -388,171 +540,199 @@ fn open_stream(ctl: Sender<Ctl>) -> Result<Opened, String> {
         pending_cfg: Mutex::new(None),
         error: Mutex::new(String::new()),
         ctl,
-    });
-
-    let mut last_err = String::from("no usable stream config");
-    for config in configs {
-        let capacity = (rate as f64 * RING_SECONDS) as usize * 2;
-        let (producer, consumer) = rtrb::RingBuffer::new(capacity);
-        let (b_prod, b_cons) = rtrb::RingBuffer::new(16);
-
-        use cpal::SampleFormat::*;
-        let built = match format {
-            F32 => build::<f32>(&device, config, consumer, b_cons, shared.clone()),
-            I16 => build::<i16>(&device, config, consumer, b_cons, shared.clone()),
-            I32 => build::<i32>(&device, config, consumer, b_cons, shared.clone()),
-            other => return Err(format!("unsupported sample format {other}")),
-        };
-        match built {
-            Ok(stream) => {
-                stream.play().map_err(|e| e.to_string())?;
-                return Ok((stream, shared, producer, b_prod));
-            }
-            Err(e) => last_err = e,
-        }
-    }
-    Err(last_err)
+    })
 }
 
-fn build<T>(
-    device: &cpal::Device,
-    config: StreamConfig,
-    mut consumer: rtrb::Consumer<f32>,
-    mut boundaries: rtrb::Consumer<Boundary>,
-    shared: Arc<Shared>,
-) -> Result<Stream, String>
-where
-    T: SizedSample + FromSample<f32>,
-{
-    let channels = config.channels as usize;
-    let rate = config.sample_rate as f64;
-    let mut pipeline = Pipeline::new(config.sample_rate);
-    let mut scratch: Vec<f32> = Vec::new();
-    let mut vol = 1.0f32;
-    let mut norm = 1.0f32;
-    // `playing` is the transport request exposed to the UI. `output_active`
-    // stays true for the short pause fade, allowing the callback to drain the
-    // already-decoded frames while the output gain reaches zero.
-    let mut output_active = false;
-    let fade_step = 1.0 / (config.sample_rate as f32 * TRANSPORT_FADE.as_secs_f32());
-    let mut transport_gain = 0.0f32;
-    // Frames popped since the last flush (the clock `Boundary::at` refers to).
-    let mut consumed: u64 = 0;
+type Opened = (
+    Output,
+    Arc<Shared>,
+    rtrb::Producer<f32>,
+    rtrb::Producer<Boundary>,
+);
 
-    device
-        .build_output_stream(
-            config,
-            move |data: &mut [T], _| {
-                let frames = data.len() / channels;
+fn ring(rate: u32) -> (rtrb::Producer<f32>, rtrb::Consumer<f32>) {
+    rtrb::RingBuffer::new((rate as f64 * RING_SECONDS) as usize * 2)
+}
 
-                // A seek / load asked for the queued audio to be dropped.
-                let req = shared.flush_req.load(Ordering::Acquire);
-                if req != shared.flush_ack.load(Ordering::Relaxed) {
-                    while consumer.pop().is_ok() {}
-                    while boundaries.pop().is_ok() {}
-                    consumed = 0;
-                    let base = shared.base_secs.load(Ordering::Acquire);
-                    shared.pos_secs.store(base, Ordering::Release);
-                    shared.flush_ack.store(req, Ordering::Release);
-                }
+#[cfg(not(target_os = "android"))]
+use self::cpal_out::{open_stream, Output};
+#[cfg(target_os = "android")]
+use self::oboe_out::{open_stream, Output};
 
-                if let Ok(mut pending) = shared.pending_cfg.try_lock() {
-                    if let Some(cfg) = pending.take() {
-                        pipeline.set_config(&cfg);
-                    }
-                }
+#[cfg(not(target_os = "android"))]
+mod cpal_out {
+    use super::*;
 
-                scratch.clear();
-                scratch.resize(frames * 2, 0.0);
-                let mut gain_switch: Option<(usize, f32)> = None;
-                let norm_target = f32::from_bits(shared.gain.load(Ordering::Relaxed));
-                let mut got = 0;
-                let requested_playing = shared.playing.load(Ordering::Acquire);
-                if requested_playing {
-                    output_active = true;
-                }
-                if output_active && shared.state.load(Ordering::Acquire) == STATE_READY {
-                    // Whole frames only, taken in one go.
-                    let take = consumer.slots().min(frames * 2) & !1;
-                    if take > 0 {
-                        if let Ok(chunk) = consumer.read_chunk(take) {
-                            let (a, b) = chunk.as_slices();
-                            scratch[..a.len()].copy_from_slice(a);
-                            scratch[a.len()..a.len() + b.len()].copy_from_slice(b);
-                            chunk.commit_all();
-                            got = take / 2;
-                        }
-                    }
-                    if got < frames && shared.eof.load(Ordering::Acquire) && consumer.is_empty() {
-                        shared.state.store(STATE_ENDED, Ordering::Release);
-                        shared.playing.store(false, Ordering::Release);
-                    }
-                    pipeline.process(&mut scratch[..got * 2]);
+    pub struct Output(cpal::Stream);
 
-                    // Position: frames played, scaled by the playback speed.
-                    let speed = f64::from_bits(shared.speed.load(Ordering::Relaxed));
-                    let consumed_before = consumed;
-                    consumed += got as u64;
-                    let mut pos = f64::from_bits(shared.pos_secs.load(Ordering::Acquire))
-                        + got as f64 * speed / rate;
-                    if let Ok(b) = boundaries.peek() {
-                        if b.at <= consumed {
-                            let at = b.at;
-                            // The queued track began `consumed - at` frames ago.
-                            pos = (consumed - b.at) as f64 * speed / rate;
-                            shared
-                                .duration
-                                .store(b.duration.to_bits(), Ordering::Release);
-                            shared.advance_seq.fetch_add(1, Ordering::AcqRel);
-                            let _ = boundaries.pop();
-                            // The queued track's own gain, from its first frame.
-                            let next = f32::from_bits(shared.next_gain.load(Ordering::Relaxed));
-                            if !next.is_nan() {
-                                gain_switch =
-                                    Some((at.saturating_sub(consumed_before) as usize, next));
-                                shared
-                                    .next_gain
-                                    .store(f32::NAN.to_bits(), Ordering::Relaxed);
-                                shared.gain.store(next.to_bits(), Ordering::Relaxed);
-                            }
-                        }
-                    }
-                    shared.pos_secs.store(pos.to_bits(), Ordering::Release);
-                }
+    impl Output {
+        pub fn play(&self) -> Result<(), String> {
+            self.0.play().map_err(|e| e.to_string())
+        }
 
-                // Volume with a short ramp so changes do not click.
-                let target = f32::from_bits(shared.volume.load(Ordering::Relaxed));
-                let transport_target = if requested_playing { 1.0 } else { 0.0 };
-                for (i, frame) in data.chunks_mut(channels).enumerate() {
-                    vol += (target - vol) * 0.002;
-                    // The previous track's gain holds until the new one begins.
-                    let wanted = match gain_switch {
-                        Some((at, g)) if i >= at => g,
-                        _ => norm_target,
-                    };
-                    norm += (wanted - norm) * 0.002;
-                    transport_gain = move_towards(transport_gain, transport_target, fade_step);
-                    let gain = vol * norm * transport_gain;
-                    let (l, r) = (scratch[i * 2] * gain, scratch[i * 2 + 1] * gain);
-                    match channels {
-                        1 => frame[0] = T::from_sample((l + r) * 0.5),
-                        _ => {
-                            frame[0] = T::from_sample(l);
-                            frame[1] = T::from_sample(r);
-                            for s in frame.iter_mut().skip(2) {
-                                *s = T::from_sample(0.0);
-                            }
-                        }
-                    }
+        pub fn pause(&self) -> Result<(), String> {
+            self.0.pause().map_err(|e| e.to_string())
+        }
+    }
+
+    pub fn open_stream(ctl: Sender<Ctl>) -> Result<Opened, String> {
+        let host = cpal::default_host();
+        let device = host.default_output_device().ok_or("no output device")?;
+        let supported = device.default_output_config().map_err(|e| e.to_string())?;
+        let format = supported.sample_format();
+        let buffer = supported.buffer_size().clone();
+        let base: StreamConfig = supported.into();
+        let rate = base.sample_rate;
+
+        // Bigger device buffers. Some hosts cannot tell the range up front, so
+        // ask anyway: if the device refuses, the default config below is the
+        // fallback.
+        let mut configs = Vec::new();
+        let frames = match buffer {
+            SupportedBufferSize::Range { min, max } => DEVICE_BUFFER_FRAMES.clamp(min, max),
+            SupportedBufferSize::Unknown => DEVICE_BUFFER_FRAMES,
+        };
+        if frames > 0 {
+            configs.push(StreamConfig {
+                buffer_size: BufferSize::Fixed(frames),
+                ..base.clone()
+            });
+        }
+        configs.push(base);
+
+        let shared = new_shared(rate, ctl);
+
+        let mut last_err = String::from("no usable stream config");
+        for config in configs {
+            let (producer, consumer) = ring(rate);
+            let (b_prod, b_cons) = rtrb::RingBuffer::new(16);
+
+            use cpal::SampleFormat::*;
+            let built = match format {
+                F32 => build::<f32>(&device, config, consumer, b_cons, shared.clone()),
+                I16 => build::<i16>(&device, config, consumer, b_cons, shared.clone()),
+                I32 => build::<i32>(&device, config, consumer, b_cons, shared.clone()),
+                other => return Err(format!("unsupported sample format {other}")),
+            };
+            match built {
+                Ok(stream) => {
+                    stream.play().map_err(|e| e.to_string())?;
+                    return Ok((Output(stream), shared, producer, b_prod));
                 }
-                if !requested_playing && transport_gain <= f32::EPSILON {
-                    output_active = false;
-                }
-            },
-            |e| eprintln!("audio stream error: {e}"),
-            None,
-        )
-        .map_err(|e| e.to_string())
+                Err(e) => last_err = e,
+            }
+        }
+        Err(last_err)
+    }
+
+    fn build<T>(
+        device: &cpal::Device,
+        config: StreamConfig,
+        consumer: rtrb::Consumer<f32>,
+        boundaries: rtrb::Consumer<Boundary>,
+        shared: Arc<Shared>,
+    ) -> Result<cpal::Stream, String>
+    where
+        T: SizedSample + FromSample<f32>,
+    {
+        let mut renderer = Renderer::new(
+            config.channels as usize,
+            config.sample_rate,
+            consumer,
+            boundaries,
+            shared,
+        );
+        device
+            .build_output_stream(
+                config,
+                move |data: &mut [T], _| renderer.render(data),
+                |e| eprintln!("audio stream error: {e}"),
+                None,
+            )
+            .map_err(|e| e.to_string())
+    }
+}
+
+/// Android plays through Oboe: it uses AAudio where the system has it (8.0+)
+/// and OpenSL ES on older systems, so the app still installs on Android 7.
+#[cfg(target_os = "android")]
+mod oboe_out {
+    use super::*;
+    use oboe::{
+        AudioOutputCallback, AudioOutputStreamSafe, AudioStream, AudioStreamAsync,
+        AudioStreamBuilder, DataCallbackResult, Output as OboeOutput, PerformanceMode,
+        SampleRateConversionQuality, Stereo,
+    };
+
+    /// Oboe converts to the device rate itself, so the engine always runs at a
+    /// fixed rate and the rest of the pipeline never has to care.
+    const RATE: u32 = 48_000;
+
+    pub struct Output(std::cell::RefCell<AudioStreamAsync<OboeOutput, Callback>>);
+
+    impl Output {
+        pub fn play(&self) -> Result<(), String> {
+            self.0.borrow_mut().request_start().map_err(|e| e.to_string())
+        }
+
+        pub fn pause(&self) -> Result<(), String> {
+            self.0.borrow_mut().request_pause().map_err(|e| e.to_string())
+        }
+    }
+
+    pub struct Callback {
+        renderer: Renderer,
+        interleaved: Vec<f32>,
+    }
+
+    impl AudioOutputCallback for Callback {
+        type FrameType = (f32, Stereo);
+
+        fn on_audio_ready(
+            &mut self,
+            _stream: &mut dyn AudioOutputStreamSafe,
+            frames: &mut [(f32, f32)],
+        ) -> DataCallbackResult {
+            self.interleaved.resize(frames.len() * 2, 0.0);
+            self.renderer.render(&mut self.interleaved);
+            for (frame, lr) in frames.iter_mut().zip(self.interleaved.chunks_exact(2)) {
+                *frame = (lr[0], lr[1]);
+            }
+            DataCallbackResult::Continue
+        }
+
+        fn on_error_after_close(
+            &mut self,
+            _stream: &mut dyn AudioOutputStreamSafe,
+            error: oboe::Error,
+        ) {
+            eprintln!("audio stream error: {error}");
+        }
+    }
+
+    pub fn open_stream(ctl: Sender<Ctl>) -> Result<Opened, String> {
+        let shared = new_shared(RATE, ctl);
+        let (producer, consumer) = ring(RATE);
+        let (b_prod, b_cons) = rtrb::RingBuffer::new(16);
+        let renderer = Renderer::new(2, RATE, consumer, b_cons, shared.clone());
+
+        let mut stream = AudioStreamBuilder::default()
+            .set_output()
+            .set_stereo()
+            .set_f32()
+            .set_sample_rate(RATE as i32)
+            .set_sample_rate_conversion_quality(SampleRateConversionQuality::Medium)
+            .set_performance_mode(PerformanceMode::PowerSaving)
+            .set_frames_per_callback(DEVICE_BUFFER_FRAMES as i32)
+            .set_callback(Callback {
+                renderer,
+                interleaved: Vec::new(),
+            })
+            .open_stream()
+            .map_err(|e| e.to_string())?;
+        stream.request_start().map_err(|e| e.to_string())?;
+        Ok((Output(std::cell::RefCell::new(stream)), shared, producer, b_prod))
+    }
 }
 
 // ----------------------------------------------------------- decode thread

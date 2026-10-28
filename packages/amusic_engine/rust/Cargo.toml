@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 aes = "0.8"
 cbc = { version = "0.1", features = ["alloc"] }
-cpal = "0.18.2"
 ebur128 = "0.1"
 ecb = { version = "0.1", features = ["alloc"] }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
@@ -16,9 +15,13 @@ rtrb = "0.4.1"
 symphonia = { version = "0.6.1", default-features = false, features = ["id3v1", "id3v2", "ape", "mp3", "aac", "flac", "isomp4", "ogg", "vorbis", "wav", "alac", "pcm", "mkv", "adpcm"] }
 ureq = { version = "3.5.0", default-features = false }
 
+# Not on Android: cpal's only Android backend is AAudio (API 26+), so Android
+# plays through Oboe, which falls back to OpenSL ES on older systems.
+[target.'cfg(not(target_os = "android"))'.dependencies]
+cpal = "0.18.2"
+
 [target.'cfg(target_os = "android")'.dependencies]
-jni-sys = "0.4"
-ndk-context = "0.1"
+oboe = "0.6"
 
 [dev-dependencies]
 hound = "3.5.1"
