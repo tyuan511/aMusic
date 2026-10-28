@@ -23,13 +23,71 @@
 
 ## 界面预览
 
-![首页：每日推荐与私人漫游轮播、最近播放、底部播放条](screenshots/home.png)
+### 桌面端
 
-*首页：轮播推荐、最近播放与常驻播放条*
+<table>
+  <tr>
+    <td width="50%"><img src="screenshots/desktop_home.jpg" alt="首页" /></td>
+    <td width="50%"><img src="screenshots/desktop_now_playing.jpg" alt="正在播放" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>首页：轮播推荐、最近播放与常驻播放条</sub></td>
+    <td align="center"><sub>正在播放：带景深的歌词面板，以及队列与评论</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="screenshots/desktop_charts.jpg" alt="排行榜" /></td>
+    <td width="50%"><img src="screenshots/desktop_playlist.jpg" alt="歌单详情" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>排行榜：官方榜与全球榜</sub></td>
+    <td align="center"><sub>歌单详情：曲目、音质标识与列表内搜索</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="screenshots/desktop_search.jpg" alt="搜索" /></td>
+    <td width="50%"><img src="screenshots/desktop_library.jpg" alt="我的音乐" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>搜索：联想、历史与热搜榜</sub></td>
+    <td align="center"><sub>我的音乐：红心、本地音乐、创建与收藏的歌单</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="screenshots/desktop_settings.jpg" alt="设置" /></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>设置：主题、布局、界面缩放与播放选项</sub></td>
+    <td></td>
+  </tr>
+</table>
 
-![正在播放：封面、逐字歌词与歌词 / 队列 / 评论面板](screenshots/now_playing.jpg)
+### 移动端
 
-*正在播放：封面、带景深的歌词面板，以及队列与评论*
+<table>
+  <tr>
+    <td width="25%"><img src="screenshots/mobile_home.jpg" alt="移动端首页" /></td>
+    <td width="25%"><img src="screenshots/mobile_now_playing.jpg" alt="移动端正在播放" /></td>
+    <td width="25%"><img src="screenshots/mobile_playlist.jpg" alt="移动端歌单详情" /></td>
+    <td width="25%"><img src="screenshots/mobile_library.jpg" alt="移动端我的音乐" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>首页</sub></td>
+    <td align="center"><sub>正在播放</sub></td>
+    <td align="center"><sub>歌单详情</sub></td>
+    <td align="center"><sub>我的音乐</sub></td>
+  </tr>
+  <tr>
+    <td width="25%"><img src="screenshots/mobile_charts.jpg" alt="移动端排行榜" /></td>
+    <td width="25%"><img src="screenshots/mobile_search.jpg" alt="移动端搜索" /></td>
+    <td width="25%"><img src="screenshots/mobile_settings.jpg" alt="移动端设置" /></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>排行榜</sub></td>
+    <td align="center"><sub>搜索</sub></td>
+    <td align="center"><sub>设置</sub></td>
+    <td></td>
+  </tr>
+</table>
 
 ## 功能
 
