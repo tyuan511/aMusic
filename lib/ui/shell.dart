@@ -57,6 +57,21 @@ class AppShell extends StatelessWidget {
 
   final StatefulNavigationShell navigationShell;
 
+  /// The shell is the bottom of the root navigator, so a back press that
+  /// reaches this scope has nothing left to pop. On Android that sends the app
+  /// to the background like Home does and the music keeps playing.
+  static const _appChannel = MethodChannel('amusic/app');
+
+  static Future<void> _moveToBack() async {
+    try {
+      await _appChannel.invokeMethod<void>('moveToBack');
+    } on PlatformException {
+      await SystemNavigator.pop();
+    } on MissingPluginException {
+      await SystemNavigator.pop();
+    }
+  }
+
   void _select(int index) => navigationShell.goBranch(
     index,
     initialLocation: index == navigationShell.currentIndex,
@@ -90,6 +105,15 @@ class AppShell extends StatelessWidget {
         body: body,
       ),
     );
+    if (Platforms.isAndroid) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) _moveToBack();
+        },
+        child: themed,
+      );
+    }
     if (!Platforms.isDesktop) return themed;
     return Focus(
       canRequestFocus: false,

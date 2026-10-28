@@ -23,10 +23,11 @@
         android:enableOnBackInvokedCallback="true"
         android:usesCleartextTraffic="true"
         android:requestLegacyExternalStorage="true">
-        <!-- AudioServiceActivity keeps the media notification and the media
-             button receiver wired to the Flutter engine (just_audio_background). -->
+        <!-- MainActivity extends AudioServiceActivity, which keeps the media
+             notification and the media button receiver wired to the Flutter
+             engine (just_audio_background). -->
         <activity
-            android:name="com.ryanheise.audioservice.AudioServiceActivity"
+            android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
