@@ -79,6 +79,11 @@ fn main() {
         ("360 rotate", Effect::Rotate360),
         ("LiveHouse", Effect::LiveHouse),
         ("exciter", Effect::Exciter),
+        ("chorus", Effect::Chorus),
+        ("flanger", Effect::Flanger),
+        ("phaser", Effect::Phaser),
+        ("echo", Effect::Echo),
+        ("dream", Effect::Dream),
     ] {
         bench_pipeline(
             name,

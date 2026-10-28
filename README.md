@@ -47,7 +47,7 @@
 **音效**
 
 - 10 段参数均衡器（±12 dB），22 个预设，支持自定义预设保存与实时频响曲线
-- 10 种音效：3D 环绕、360° 环绕、LiveHouse 现场由引擎 DSP 生成空间感与混响，其余以频段曲线实现；EQ 与音效互斥
+- 15 种音效：3D 环绕、360° 环绕基于 MIT KEMAR 实测头部脉冲响应（HRTF）做双耳卷积，LiveHouse、合唱、镶边、相位、回声、梦幻由引擎 DSP 生成，其余以频段曲线实现；EQ 与音效互斥
 
 **本地音乐**
 
@@ -90,10 +90,12 @@ Rust 引擎  packages/amusic_engine/rust · ~4.7k 行
 | 解码 | Symphonia（mp3 / aac / flac / isomp4 / alac / ogg·vorbis / wav / pcm / mkv / adpcm） |
 | 网络流 | 可 seek 的 HTTP Range 字节源，配合本地代理边下边播、边播边缓存 |
 | 信号链 | 级联 RBJ peaking EQ → 音效 → 软件增益 → 前瞻式砖墙限幅 |
-| 音效 DSP | Freeverb 混响、串扰式耳机空间化、8 秒环绕旋转、谐波激励 |
+| 音效 DSP | Freeverb 混响、KEMAR HRTF 双耳卷积（3D 环绕 / 8 秒一圈的 360°）、合唱、镶边、相位、乒乓回声、谐波激励 |
 | 变速 | WSOLA，0.5–2.0 倍速保持音高 |
 | 输出 | cpal（ALSA / WASAPI / CoreAudio / AAudio 等平台后端），rtrb 无锁环形缓冲，支持 gapless 连播 |
 | 附加 | 中位切分封面取色驱动界面强调色、离线 FFT 进度条包络、EBU R128 响度 |
+
+3D 环绕与 360° 使用的头部脉冲响应来自 MIT Media Lab 的 [KEMAR HRTF 测量数据](https://sound.media.mit.edu/resources/KEMAR.html)（Bill Gardner & Keith Martin, 1994），数据与署名见 `rust/src/hrir_data.rs`。
 
 格式探测按文件头嗅探而非扩展名；标签读取覆盖 ID3v1、ID3v2、FLAC / Ogg 的 Vorbis comment，并补读了 Symphonia 会丢掉的 WAV `LIST/INFO`。
 
@@ -109,7 +111,7 @@ Rust 引擎  packages/amusic_engine/rust · ~4.7k 行
 
 - Flutter stable（Dart SDK `^3.13.0`）
 - Rust 工具链 —— 引擎由各平台自己的构建（Gradle / CocoaPods / CMake）调用 `cargo build`，不需要单独编译
-- 对应平台原生链：Android SDK + NDK、Xcode、Visual Studio 或 `clang/cmake/ninja` + ALSA 与 GTK 开发包
+- 对应平台原生链：Android SDK + NDK（minSdk 26，引擎走 AAudio）、Xcode、Visual Studio 或 `clang/cmake/ninja` + ALSA 与 GTK 开发包
 
 ```bash
 git clone https://github.com/tyuan511/aMusic.git
@@ -134,7 +136,7 @@ flutter run -d macos   # 或 android / ios / windows / linux
 ## 开发与测试
 
 ```bash
-flutter test                                    # 33 个测试文件，254 个用例
+flutter test                                    # 33 个测试文件，297 个用例
 flutter test integration_test/engine_in_app_test.dart -d macos
 cd packages/amusic_engine/rust && cargo test    # 40 个引擎单测
 cargo run --release --example bench             # 各 DSP 阶段 CPU 占用
@@ -148,7 +150,7 @@ cargo run --release --example bench             # 各 DSP 阶段 CPU 占用
 
 | 平台 | 产物 | 说明 |
 | --- | --- | --- |
-| Android | `app-arm64-v8a-release.apk` | 仅 arm64，使用 debug 签名 |
+| Android | `app-arm64-v8a-release.apk` | 仅 arm64；CI 用仓库 secrets 里的 keystore 签名，本地没有 keystore 时回落 debug 签名 |
 | macOS | `aMusic-macos.zip` | 未签名未公证，首次运行需手动放行 |
 | iOS | `aMusic-ios-unsigned.ipa` | 未签名，需自行重签名后安装 |
 | Windows | `aMusic-windows-x64.zip` | release 目录压缩包，非安装器 |

@@ -22,7 +22,7 @@ class AmusicEq {
   final bool limiter;
 
   /// A DSP sound effect: 0 none, 1 3D surround, 2 360 rotation, 3 LiveHouse,
-  /// 4 harmonic exciter.
+  /// 4 harmonic exciter, 5 chorus, 6 flanger, 7 phaser, 8 echo, 9 dream.
   final int effect;
 
   static const AmusicEq off = AmusicEq();

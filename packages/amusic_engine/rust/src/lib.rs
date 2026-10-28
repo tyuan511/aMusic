@@ -11,6 +11,7 @@ pub mod dsp;
 pub mod effects;
 pub mod ffi;
 pub mod ffi_tools;
+mod hrir_data;
 pub mod http;
 pub mod limiter;
 pub mod loudness;

@@ -21,6 +21,16 @@ pub enum Effect {
     LiveHouse = 3,
     /// Adds high harmonics for a clearer, airier top end.
     Exciter = 4,
+    /// Three detuned voices per side for a wide, ensemble sound.
+    Chorus = 5,
+    /// A short swept comb filter with feedback: the jet-plane sweep.
+    Flanger = 6,
+    /// Six swept allpass stages: a softer, vocal sweep.
+    Phaser = 7,
+    /// Ping-pong echo with darkening repeats.
+    Echo = 8,
+    /// Slow chorus into a long, bright reverb.
+    Dream = 9,
 }
 
 impl Effect {
@@ -30,6 +40,11 @@ impl Effect {
             2 => Self::Rotate360,
             3 => Self::LiveHouse,
             4 => Self::Exciter,
+            5 => Self::Chorus,
+            6 => Self::Flanger,
+            7 => Self::Phaser,
+            8 => Self::Echo,
+            9 => Self::Dream,
             _ => Self::None,
         }
     }
@@ -126,6 +141,12 @@ impl Delay {
             buf: vec![0.0; len.max(1)],
             idx: 0,
         }
+    }
+
+    /// The sample `push` would return next.
+    #[inline]
+    fn peek(&self) -> f32 {
+        self.buf[self.idx]
     }
 
     /// Writes `x` and returns the sample written `len` frames ago.
@@ -250,171 +271,227 @@ impl Reverb {
 
 // ------------------------------------------------------------ the effects
 
+// ----------------------------------------------------------------- HRTF
+
+use crate::hrir_data::{HRIR, HRIR_COUNT, HRIR_LEN, HRIR_RATE, HRIR_STEP_DEG};
+
+/// The KEMAR responses resampled to the device rate, once, at construction.
+struct HrirBank {
+    len: usize,
+    /// `[azimuth index][ear][tap]`, azimuth 0..=180 degrees.
+    kernels: Vec<[Vec<f32>; 2]>,
+}
+
+impl HrirBank {
+    fn new(fs: u32) -> Self {
+        let ratio = fs as f64 / HRIR_RATE as f64;
+        let len = ((HRIR_LEN as f64 * ratio).ceil() as usize).max(1);
+        let resample = |src: &[f32; HRIR_LEN]| -> Vec<f32> {
+            let at = |i: isize| src[i.clamp(0, HRIR_LEN as isize - 1) as usize] as f64;
+            (0..len)
+                .map(|n| {
+                    // Catmull-Rom; the responses are band limited well below
+                    // the original Nyquist, so cubic is plenty. The scale keeps
+                    // the frequency response the same at another rate.
+                    let t = n as f64 / ratio;
+                    let i = t.floor();
+                    let f = t - i;
+                    let i = i as isize;
+                    let (p0, p1, p2, p3) = (at(i - 1), at(i), at(i + 1), at(i + 2));
+                    let v = p1
+                        + 0.5
+                            * f
+                            * (p2 - p0
+                                + f * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3
+                                    + f * (3.0 * (p1 - p2) + p3 - p0)));
+                    (v / ratio) as f32
+                })
+                .collect()
+        };
+        Self {
+            len,
+            kernels: HRIR
+                .iter()
+                .map(|k| [resample(&k[0]), resample(&k[1])])
+                .collect(),
+        }
+    }
+
+    /// Fills `out[ear]` with the response for a source at `azimuth` degrees
+    /// (0 front, +90 right, 180 back, -90 left), blending the two nearest
+    /// measurements.
+    fn blend(&self, azimuth: f64, out: &mut [Vec<f32>; 2]) {
+        let az = azimuth.rem_euclid(360.0);
+        let (mirror, a) = if az > 180.0 { (true, 360.0 - az) } else { (false, az) };
+        let pos = a / HRIR_STEP_DEG as f64;
+        let i = (pos.floor() as usize).min(HRIR_COUNT - 1);
+        let j = (i + 1).min(HRIR_COUNT - 1);
+        let f = (pos - i as f64) as f32;
+        for ear in 0..2 {
+            // A source on the left reaches the left ear the way the mirrored
+            // source on the right reaches the right ear.
+            let src = if mirror { 1 - ear } else { ear };
+            let (ka, kb) = (&self.kernels[i][src], &self.kernels[j][src]);
+            for ((o, &x), &y) in out[ear].iter_mut().zip(ka).zip(kb) {
+                *o = x + (y - x) * f;
+            }
+        }
+    }
+}
+
+/// FIR over the last `len` samples, one input channel.
+struct Fir {
+    hist: Vec<f32>,
+    pos: usize,
+    len: usize,
+}
+
+impl Fir {
+    fn new(len: usize) -> Self {
+        Self {
+            hist: vec![0.0; len * 2],
+            pos: 0,
+            len,
+        }
+    }
+
+    #[inline]
+    fn push(&mut self, x: f32) {
+        self.pos = if self.pos == 0 { self.len - 1 } else { self.pos - 1 };
+        self.hist[self.pos] = x;
+        self.hist[self.pos + self.len] = x;
+    }
+
+    /// Newest sample is `hist[pos]`, so taps line up with the kernel directly.
+    #[inline]
+    fn dot(&self, kernel: &[f32]) -> f32 {
+        let h = &self.hist[self.pos..self.pos + self.len];
+        // Four accumulators let the compiler vectorise the sum.
+        let mut acc = [0.0f32; 4];
+        for (hc, kc) in h.chunks_exact(4).zip(kernel.chunks_exact(4)) {
+            for i in 0..4 {
+                acc[i] += hc[i] * kc[i];
+            }
+        }
+        let rem = h.len() - h.len() % 4;
+        let tail: f32 = h[rem..].iter().zip(&kernel[rem..]).map(|(a, b)| a * b).sum();
+        acc[0] + acc[1] + acc[2] + acc[3] + tail
+    }
+}
+
 struct Surround3d {
     side_shelf: Biquad,
-    cross_l: Biquad,
-    cross_r: Biquad,
-    delay_l: Delay,
-    delay_r: Delay,
+    /// Virtual speakers at -30 and +30 degrees: `[from left / right][ear]`.
+    kernel: [[Vec<f32>; 2]; 2],
+    fir: [Fir; 2],
+    gain: f32,
     reverb: Reverb,
 }
 
+/// Where the two virtual speakers sit, degrees off the front.
+const SPEAKER_AZ: f64 = 30.0;
+
 impl Surround3d {
     fn new(fs: u32) -> Self {
-        let f = fs as f64;
+        let bank = HrirBank::new(fs);
+        let mut kernel = [
+            [vec![0.0; bank.len], vec![0.0; bank.len]],
+            [vec![0.0; bank.len], vec![0.0; bank.len]],
+        ];
+        bank.blend(-SPEAKER_AZ, &mut kernel[0]);
+        bank.blend(SPEAKER_AZ, &mut kernel[1]);
+        // Normalise so a centred noise-like source keeps its level at each ear.
+        let power = |ear: usize| -> f32 {
+            kernel[0][ear]
+                .iter()
+                .zip(&kernel[1][ear])
+                .map(|(a, b)| (a + b) * (a + b))
+                .sum()
+        };
+        let gain = 1.0 / (0.5 * (power(0) + power(1))).sqrt().max(1e-6);
         Self {
-            side_shelf: Biquad::high_shelf(f, 3500.0, 3.0),
-            cross_l: Biquad::lowpass(f, 700.0, 0.7),
-            cross_r: Biquad::lowpass(f, 700.0, 0.7),
-            // ~0.27 ms interaural delay.
-            delay_l: Delay::new((f * 0.00027).round() as usize),
-            delay_r: Delay::new((f * 0.00027).round() as usize),
-            reverb: Reverb::new(fs, 0.55, 0.55, 8.0),
+            side_shelf: Biquad::high_shelf(fs as f64, 3500.0, 2.0),
+            kernel,
+            fir: [Fir::new(bank.len), Fir::new(bank.len)],
+            gain,
+            reverb: Reverb::new(fs, 0.5, 0.55, 8.0),
         }
     }
 
     #[inline]
     fn process(&mut self, l: f32, r: f32) -> (f32, f32) {
-        // Widen: the difference signal gets louder and brighter.
+        // A little extra width before the head model.
         let m = (l + r) * 0.5;
-        let s = self.side_shelf.process((l - r) * 0.5) * 1.6;
-        let (wl, wr) = (m + s, m - s);
-        // Cross-feed: each ear also hears a darker, slightly late copy of the
-        // opposite channel, like speakers in a room.
-        let cf_l = self.cross_l.process(self.delay_l.push(wr));
-        let cf_r = self.cross_r.process(self.delay_r.push(wl));
-        let (ol, or) = (wl + 0.22 * cf_l, wr + 0.22 * cf_r);
+        let s = self.side_shelf.process((l - r) * 0.5) * 1.25;
+        self.fir[0].push(m + s);
+        self.fir[1].push(m - s);
+        let ol = (self.fir[0].dot(&self.kernel[0][0]) + self.fir[1].dot(&self.kernel[1][0]))
+            * self.gain;
+        let or = (self.fir[0].dot(&self.kernel[0][1]) + self.fir[1].dot(&self.kernel[1][1]))
+            * self.gain;
         // A little room around the head.
         let (rl, rr) = self.reverb.process(ol, or);
-        (ol * 0.95 + rl * 0.28, or * 0.95 + rr * 0.28)
+        (ol * 0.95 + rl * 0.25, or * 0.95 + rr * 0.25)
     }
 }
 
 struct Rotate360 {
-    fs: f64,
+    bank: HrirBank,
+    fir: Fir,
+    kernel: [Vec<f32>; 2],
     phase: f64,
     step: f64,
-    line: Vec<f32>,
-    pos: usize,
-    shadow_l: f32,
-    shadow_r: f32,
-    behind: Biquad,
+    gain: f32,
     reverb: Reverb,
-    /// Frames until the trigonometry below is recomputed.
+    /// Frames until the kernel is re-blended for the new azimuth.
     countdown: u32,
-    itd_l: f64,
-    itd_r: f64,
-    gain_l: f32,
-    gain_r: f32,
-    shadow_k_l: f32,
-    shadow_k_r: f32,
-    back: f32,
 }
 
 /// Seconds for one full turn.
 const ROTATE_PERIOD: f64 = 8.0;
-/// Largest interaural time difference, seconds.
-const MAX_ITD: f64 = 0.0006;
-/// Delay line length for the interaural delay; a power of two so wrapping is a mask.
-const ROTATE_LINE: usize = 256;
-/// The pan position moves by well under a degree in this many frames, so the
-/// sin / cos / exp work is done once per block instead of once per sample.
-const ROTATE_BLOCK: u32 = 16;
+/// The source moves a fraction of a degree in this many frames, so the HRIR
+/// blend is redone once per block instead of once per sample.
+const ROTATE_BLOCK: u32 = 64;
 
 impl Rotate360 {
     fn new(fs: u32) -> Self {
-        let f = fs as f64;
+        let bank = HrirBank::new(fs);
+        let len = bank.len;
+        // Level of the hrir at the front, used to keep the loudness steady.
+        let mut front = [vec![0.0; len], vec![0.0; len]];
+        bank.blend(0.0, &mut front);
+        let power: f32 = front.iter().flatten().map(|x| x * x).sum();
         Self {
-            fs: f,
+            fir: Fir::new(len),
+            kernel: [vec![0.0; len], vec![0.0; len]],
+            bank,
             phase: 0.0,
-            step: 2.0 * PI / (ROTATE_PERIOD * f),
-            line: vec![0.0; ROTATE_LINE],
-            pos: 0,
-            shadow_l: 0.0,
-            shadow_r: 0.0,
-            behind: Biquad::lowpass(f, 5000.0, 0.7),
+            step: 360.0 / (ROTATE_PERIOD * fs as f64),
+            gain: 1.0 / (0.5 * power).sqrt().max(1e-6),
             reverb: Reverb::new(fs, 0.45, 0.6, 5.0),
             countdown: 0,
-            itd_l: 0.0,
-            itd_r: 0.0,
-            gain_l: 1.0,
-            gain_r: 1.0,
-            shadow_k_l: 1.0,
-            shadow_k_r: 1.0,
-            back: 0.0,
         }
-    }
-
-    /// Recomputes everything that depends on the current azimuth.
-    fn update_position(&mut self) {
-        let p = self.phase.sin(); // -1 left .. +1 right
-        let front = self.phase.cos();
-        self.back = (-front).max(0.0) as f32;
-        // Interaural time difference: the far ear hears it later.
-        let itd = p.abs() * MAX_ITD * self.fs;
-        (self.itd_l, self.itd_r) = if p > 0.0 { (itd, 0.0) } else { (0.0, itd) };
-        // Interaural level difference (constant power).
-        let ang = (p + 1.0) * PI / 4.0;
-        self.gain_l = (ang.cos() * std::f64::consts::SQRT_2) as f32;
-        self.gain_r = (ang.sin() * std::f64::consts::SQRT_2) as f32;
-        // Head shadow: the far ear loses highs.
-        let k = |fc: f64| (1.0 - (-2.0 * PI * fc / self.fs).exp()) as f32;
-        self.shadow_k_l = k(if p > 0.0 {
-            20000.0 - p * 15000.0
-        } else {
-            20000.0
-        });
-        self.shadow_k_r = k(if p < 0.0 {
-            20000.0 + p * 15000.0
-        } else {
-            20000.0
-        });
-    }
-
-    #[inline]
-    fn tap(&self, delay: f64) -> f32 {
-        let at = self.pos as f64 - delay;
-        let at = if at < 0.0 {
-            at + ROTATE_LINE as f64
-        } else {
-            at
-        };
-        let floor = at.floor();
-        let i = floor as usize & (ROTATE_LINE - 1);
-        let frac = (at - floor) as f32;
-        let a = self.line[i];
-        let b = self.line[(i + 1) & (ROTATE_LINE - 1)];
-        a + (b - a) * frac
     }
 
     #[inline]
     fn process(&mut self, l: f32, r: f32) -> (f32, f32) {
         if self.countdown == 0 {
-            self.update_position();
+            self.bank.blend(self.phase, &mut self.kernel);
             self.countdown = ROTATE_BLOCK;
         }
         self.countdown -= 1;
+        self.phase += self.step;
+        if self.phase >= 360.0 {
+            self.phase -= 360.0;
+        }
 
+        // The centre circles the head; the stereo-only part stays around it
+        // as ambience.
         let m = (l + r) * 0.5;
         let s = (l - r) * 0.5;
-
-        // Sources behind the head are duller.
-        let m = m * (1.0 - 0.6 * self.back) + self.behind.process(m) * 0.6 * self.back;
-
-        self.line[self.pos] = m;
-        let (ml, mr) = (self.tap(self.itd_l), self.tap(self.itd_r));
-        self.pos = (self.pos + 1) & (ROTATE_LINE - 1);
-
-        self.shadow_l += (ml - self.shadow_l) * self.shadow_k_l;
-        self.shadow_r += (mr - self.shadow_r) * self.shadow_k_r;
-
-        // The stereo-only part stays around the head as ambience.
-        let ol = self.shadow_l * self.gain_l + s * 0.7;
-        let or = self.shadow_r * self.gain_r - s * 0.7;
-        self.phase += self.step;
-        if self.phase > 2.0 * PI {
-            self.phase -= 2.0 * PI;
-        }
+        self.fir.push(m);
+        let ol = self.fir.dot(&self.kernel[0]) * self.gain + s * 0.7;
+        let or = self.fir.dot(&self.kernel[1]) * self.gain - s * 0.7;
         let (rl, rr) = self.reverb.process(ol, or);
         (ol + rl * 0.35, or + rr * 0.35)
     }
@@ -495,6 +572,285 @@ impl Exciter {
     }
 }
 
+
+// ------------------------------------------------------------ modulation
+
+/// Delay line read at a fractional position, for chorus / flanger.
+struct ModDelay {
+    buf: Vec<f32>,
+    pos: usize,
+    mask: usize,
+}
+
+impl ModDelay {
+    fn new(max_frames: usize) -> Self {
+        let n = (max_frames + 2).next_power_of_two();
+        Self {
+            buf: vec![0.0; n],
+            pos: 0,
+            mask: n - 1,
+        }
+    }
+
+    #[inline]
+    fn write(&mut self, x: f32) {
+        self.buf[self.pos] = x;
+        self.pos = (self.pos + 1) & self.mask;
+    }
+
+    /// Sample written `delay` frames ago (`delay` >= 1), linearly interpolated.
+    #[inline]
+    fn read(&self, delay: f32) -> f32 {
+        let at = self.pos as f32 - delay;
+        let floor = at.floor();
+        let frac = at - floor;
+        let i = (floor as isize as usize) & self.mask;
+        let a = self.buf[i];
+        let b = self.buf[(i + 1) & self.mask];
+        a + (b - a) * frac
+    }
+}
+
+/// Sine LFO returning -1..1; `phase` is in turns.
+struct Lfo {
+    phase: f32,
+    inc: f32,
+}
+
+impl Lfo {
+    fn new(fs: u32, hz: f32, phase: f32) -> Self {
+        Self {
+            phase,
+            inc: hz / fs as f32,
+        }
+    }
+
+    #[inline]
+    fn next(&mut self) -> f32 {
+        let v = (self.phase * std::f32::consts::TAU).sin();
+        self.phase += self.inc;
+        if self.phase >= 1.0 {
+            self.phase -= 1.0;
+        }
+        v
+    }
+}
+
+struct Chorus {
+    line: [ModDelay; 2],
+    lfo: [[Lfo; 3]; 2],
+    base: f32,
+    depth: f32,
+    /// Output level of the wet voices.
+    wet: f32,
+}
+
+impl Chorus {
+    fn new(fs: u32, base_ms: f32, depth_ms: f32, rate: f32, wet: f32) -> Self {
+        let f = fs as f32;
+        let max = ((base_ms + depth_ms) * f / 1000.0) as usize + 4;
+        let voice = |ch: usize, v: usize| {
+            // Spread voices (and the two ears) evenly around the cycle, each
+            // a little off in rate so they never lock together.
+            let k = (ch * 3 + v) as f32;
+            Lfo::new(fs, rate * (1.0 + 0.11 * v as f32), k / 6.0)
+        };
+        Self {
+            line: [ModDelay::new(max), ModDelay::new(max)],
+            lfo: [
+                [voice(0, 0), voice(0, 1), voice(0, 2)],
+                [voice(1, 0), voice(1, 1), voice(1, 2)],
+            ],
+            base: base_ms * f / 1000.0,
+            depth: depth_ms * f / 1000.0,
+            wet,
+        }
+    }
+
+    #[inline]
+    fn process(&mut self, l: f32, r: f32) -> (f32, f32) {
+        let mut out = [l, r];
+        for ch in 0..2 {
+            self.line[ch].write(out[ch]);
+            let mut sum = 0.0;
+            for v in 0..3 {
+                let d = self.base + self.depth * (1.0 + self.lfo[ch][v].next()) * 0.5;
+                sum += self.line[ch].read(d.max(1.0));
+            }
+            out[ch] = out[ch] * 0.8 + sum * (self.wet / 3.0);
+        }
+        (out[0], out[1])
+    }
+}
+
+struct Flanger {
+    line: [ModDelay; 2],
+    lfo: [Lfo; 2],
+    fb: [f32; 2],
+    base: f32,
+    depth: f32,
+}
+
+impl Flanger {
+    fn new(fs: u32) -> Self {
+        let f = fs as f32;
+        let (min_ms, max_ms) = (0.4, 5.0);
+        let max = (max_ms * f / 1000.0) as usize + 4;
+        Self {
+            line: [ModDelay::new(max), ModDelay::new(max)],
+            lfo: [Lfo::new(fs, 0.22, 0.0), Lfo::new(fs, 0.22, 0.25)],
+            fb: [0.0; 2],
+            base: min_ms * f / 1000.0,
+            depth: (max_ms - min_ms) * f / 1000.0,
+        }
+    }
+
+    #[inline]
+    fn process(&mut self, l: f32, r: f32) -> (f32, f32) {
+        let mut out = [l, r];
+        for ch in 0..2 {
+            let x = out[ch];
+            self.line[ch].write(x + self.fb[ch] * 0.55);
+            let d = self.base + self.depth * (1.0 + self.lfo[ch].next()) * 0.5;
+            let wet = self.line[ch].read(d.max(1.0));
+            self.fb[ch] = wet;
+            out[ch] = x * 0.7 + wet * 0.7;
+        }
+        (out[0], out[1])
+    }
+}
+
+/// First order allpass with a variable coefficient.
+#[derive(Clone, Copy, Default)]
+struct Ap1 {
+    z: f32,
+}
+
+impl Ap1 {
+    #[inline]
+    fn process(&mut self, x: f32, a: f32) -> f32 {
+        let y = -a * x + self.z;
+        self.z = x + a * y;
+        y
+    }
+}
+
+const PHASER_STAGES: usize = 6;
+
+struct Phaser {
+    stages: [[Ap1; PHASER_STAGES]; 2],
+    lfo: [Lfo; 2],
+    fb: [f32; 2],
+    fs: f32,
+    /// Frames until the tangent below is recomputed.
+    countdown: u32,
+    coeff: [f32; 2],
+}
+
+impl Phaser {
+    fn new(fs: u32) -> Self {
+        Self {
+            stages: [[Ap1::default(); PHASER_STAGES]; 2],
+            lfo: [Lfo::new(fs, 0.3, 0.0), Lfo::new(fs, 0.3, 0.2)],
+            fb: [0.0; 2],
+            fs: fs as f32,
+            countdown: 0,
+            coeff: [0.0; 2],
+        }
+    }
+
+    fn update(&mut self) {
+        for ch in 0..2 {
+            // Notch centre swept exponentially between 300 Hz and 3.5 kHz.
+            let lfo = self.lfo[ch].next();
+            let fc = 300.0 * (3500.0f32 / 300.0).powf((lfo + 1.0) * 0.5);
+            let t = (std::f32::consts::PI * fc / self.fs).tan();
+            self.coeff[ch] = (t - 1.0) / (t + 1.0);
+        }
+    }
+
+    #[inline]
+    fn process(&mut self, l: f32, r: f32) -> (f32, f32) {
+        if self.countdown == 0 {
+            self.update();
+            self.countdown = 32;
+        }
+        self.countdown -= 1;
+        let mut out = [l, r];
+        for ch in 0..2 {
+            let x = out[ch];
+            let mut y = x + self.fb[ch] * 0.6;
+            for st in self.stages[ch].iter_mut() {
+                y = st.process(y, self.coeff[ch]);
+            }
+            self.fb[ch] = y;
+            out[ch] = (x + y) * 0.6;
+        }
+        (out[0], out[1])
+    }
+}
+
+struct Echo {
+    delay: [Delay; 2],
+    damp: [Biquad; 2],
+}
+
+impl Echo {
+    fn new(fs: u32) -> Self {
+        let f = fs as f64;
+        let len = |ms: f64| (f * ms / 1000.0).round() as usize;
+        Self {
+            // Slightly different times so the repeats bounce between ears.
+            delay: [Delay::new(len(330.0)), Delay::new(len(495.0))],
+            damp: [
+                Biquad::lowpass(f, 3500.0, 0.7),
+                Biquad::lowpass(f, 3500.0, 0.7),
+            ],
+        }
+    }
+
+    #[inline]
+    fn process(&mut self, l: f32, r: f32) -> (f32, f32) {
+        // Ping-pong: each tap feeds the other side.
+        let tail_l = self.delay[0].peek();
+        let tail_r = self.delay[1].peek();
+        let fb_l = self.damp[0].process(tail_r) * 0.42;
+        let fb_r = self.damp[1].process(tail_l) * 0.42;
+        self.delay[0].push(l + fb_l);
+        self.delay[1].push(r + fb_r);
+        (l + tail_l * 0.38, r + tail_r * 0.38)
+    }
+}
+
+struct Dream {
+    chorus: Chorus,
+    reverb: Reverb,
+    high: Biquad,
+    high_r: Biquad,
+}
+
+impl Dream {
+    fn new(fs: u32) -> Self {
+        let f = fs as f64;
+        Self {
+            chorus: Chorus::new(fs, 14.0, 6.0, 0.18, 0.7),
+            reverb: Reverb::new(fs, 0.9, 0.2, 25.0),
+            high: Biquad::high_shelf(f, 5000.0, 2.5),
+            high_r: Biquad::high_shelf(f, 5000.0, 2.5),
+        }
+    }
+
+    #[inline]
+    fn process(&mut self, l: f32, r: f32) -> (f32, f32) {
+        let (cl, cr) = self.chorus.process(l, r);
+        let (wl, wr) = self.reverb.process(cl, cr);
+        (
+            self.high.process(cl * 0.85 + wl * 0.9),
+            self.high_r.process(cr * 0.85 + wr * 0.9),
+        )
+    }
+}
+
 /// The active effect plus its state.
 pub struct EffectChain {
     fs: u32,
@@ -503,6 +859,11 @@ pub struct EffectChain {
     rotate: Option<Rotate360>,
     live: Option<LiveHouse>,
     exciter: Option<Exciter>,
+    chorus: Option<Chorus>,
+    flanger: Option<Flanger>,
+    phaser: Option<Phaser>,
+    echo: Option<Echo>,
+    dream: Option<Dream>,
 }
 
 impl EffectChain {
@@ -514,6 +875,11 @@ impl EffectChain {
             rotate: None,
             live: None,
             exciter: None,
+            chorus: None,
+            flanger: None,
+            phaser: None,
+            echo: None,
+            dream: None,
         }
     }
 
@@ -531,6 +897,11 @@ impl EffectChain {
         self.rotate = (kind == Effect::Rotate360).then(|| Rotate360::new(self.fs));
         self.live = (kind == Effect::LiveHouse).then(|| LiveHouse::new(self.fs));
         self.exciter = (kind == Effect::Exciter).then(|| Exciter::new(self.fs));
+        self.chorus = (kind == Effect::Chorus).then(|| Chorus::new(self.fs, 18.0, 8.0, 0.35, 1.0));
+        self.flanger = (kind == Effect::Flanger).then(|| Flanger::new(self.fs));
+        self.phaser = (kind == Effect::Phaser).then(|| Phaser::new(self.fs));
+        self.echo = (kind == Effect::Echo).then(|| Echo::new(self.fs));
+        self.dream = (kind == Effect::Dream).then(|| Dream::new(self.fs));
     }
 
     /// Processes interleaved stereo in place.
@@ -552,6 +923,11 @@ impl EffectChain {
             Effect::Rotate360 => run!(self.rotate),
             Effect::LiveHouse => run!(self.live),
             Effect::Exciter => run!(self.exciter),
+            Effect::Chorus => run!(self.chorus),
+            Effect::Flanger => run!(self.flanger),
+            Effect::Phaser => run!(self.phaser),
+            Effect::Echo => run!(self.echo),
+            Effect::Dream => run!(self.dream),
         }
     }
 }
@@ -627,6 +1003,11 @@ mod tests {
             Effect::Rotate360,
             Effect::LiveHouse,
             Effect::Exciter,
+            Effect::Chorus,
+            Effect::Flanger,
+            Effect::Phaser,
+            Effect::Echo,
+            Effect::Dream,
         ] {
             let out = run(e, &input);
             assert!(
@@ -686,8 +1067,13 @@ mod tests {
             max > 4.0 && min < -4.0,
             "balance only swung {min:.1}..{max:.1} dB"
         );
-        // It comes back: the first and last windows (a full turn apart) match.
-        assert!((balance[0] - balance[balance.len() - 1]).abs() < 3.0);
+        // It comes back: the first window sits just right of the front and the
+        // last just left of it, so they are mirror images, both near centre.
+        let (first, last) = (balance[0], balance[balance.len() - 1]);
+        assert!(
+            first.abs() < 8.0 && last.abs() < 8.0 && first * last <= 0.5,
+            "no full turn: {first:.1} .. {last:.1} dB"
+        );
         // Overall level stays roughly constant.
         let (a, b) = (
             rms(&mono, 0),
@@ -739,6 +1125,37 @@ mod tests {
             .sum::<f64>()
             / bass.len() as f64;
         assert!(diff < 0.005, "bass changed by {diff}");
+    }
+
+    #[test]
+    fn modulation_effects_change_the_signal_but_not_the_level_much() {
+        let input = noise(2.0, 1.0, 1.0);
+        for e in [Effect::Chorus, Effect::Flanger, Effect::Phaser, Effect::Dream] {
+            let out = run(e, &input);
+            let diff: f64 = input
+                .iter()
+                .zip(&out)
+                .map(|(a, b)| ((a - b) as f64).abs())
+                .sum::<f64>()
+                / input.len() as f64;
+            assert!(diff > 0.005, "{e:?} did nothing ({diff})");
+            let db = 20.0 * (rms(&out, 0) / rms(&input, 0)).log10();
+            assert!(db.abs() < 5.0, "{e:?} level moved {db:.1} dB");
+        }
+    }
+
+    #[test]
+    fn echo_repeats_decay_and_bounce() {
+        let mut input = vec![0.0f32; FS as usize * 3 * 2];
+        input[0] = 0.9; // left impulse only
+        let out = run(Effect::Echo, &input);
+        let win = |from: f64, to: f64, ch: usize| {
+            let (a, b) = ((FS as f64 * from) as usize * 2, (FS as f64 * to) as usize * 2);
+            rms(&out[a..b], ch)
+        };
+        assert!(win(0.32, 0.34, 0) > 1e-3, "no first echo on the left");
+        assert!(win(0.82, 0.86, 1) > 1e-4, "no bounce on the right");
+        assert!(win(2.5, 3.0, 0) < win(0.32, 0.34, 0), "echoes do not decay");
     }
 
     #[test]
