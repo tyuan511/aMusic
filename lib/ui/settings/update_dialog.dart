@@ -80,7 +80,8 @@ class _UpdateDialog extends StatelessWidget {
         icon: const Icon(Icons.install_desktop_rounded, size: 18),
         label: const Text('立即安装'),
       ),
-      UpdateDownloadStatus.failed => Wrap(
+      UpdateDownloadStatus.failed => Row(
+        mainAxisSize: MainAxisSize.min,
         spacing: 8,
         children: [
           TextButton(
@@ -196,33 +197,36 @@ class _UpdateDialog extends StatelessWidget {
                         _DownloadStatus(state: state),
                   ),
                   const SizedBox(height: 14),
-                  Wrap(
-                    alignment: WrapAlignment.end,
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          app.updates.dismiss();
-                          Navigator.of(context).pop();
-                        },
-                        child: const Text('稍后'),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          final navigator = Navigator.of(context);
-                          app.updates.cancelDownload();
-                          await app.updates.skip(release.version);
-                          navigator.pop();
-                        },
-                        child: const Text('跳过此版本'),
-                      ),
-                      ValueListenableBuilder<UpdateDownload>(
-                        valueListenable: app.updates.download,
-                        builder: (context, state, _) =>
-                            _primary(context, state),
-                      ),
-                    ],
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 8,
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            app.updates.dismiss();
+                            Navigator.of(context).pop();
+                          },
+                          child: const Text('稍后'),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            final navigator = Navigator.of(context);
+                            app.updates.cancelDownload();
+                            await app.updates.skip(release.version);
+                            navigator.pop();
+                          },
+                          child: const Text('跳过此版本'),
+                        ),
+                        ValueListenableBuilder<UpdateDownload>(
+                          valueListenable: app.updates.download,
+                          builder: (context, state, _) =>
+                              _primary(context, state),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
