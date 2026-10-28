@@ -53,10 +53,15 @@ class ResolvingAudioSource extends StreamAudioSource {
   PlayUrl? _resolved;
   AudioLevel? _resolvedLevel;
   DateTime? _resolvedAt;
+
+  /// Level of the whole-file cache entry this source served. A cache hit never
+  /// runs [_resolve], so without this the granted quality of an already
+  /// downloaded track would be unknown.
+  String? _cachedLevel;
   Future<PlayUrl>? _resolving;
 
   /// The quality level granted by the server for the current url.
-  String? get grantedLevel => _resolved?.level;
+  String? get grantedLevel => _resolved?.level ?? _cachedLevel;
 
   /// The last URL opened for this source, when one has been resolved.
   /// Used by the background spectrum analyser so it can read the same audio
@@ -138,6 +143,7 @@ class ResolvingAudioSource extends StreamAudioSource {
   StreamAudioResponse _serveCached(CachedAudio hit, int? start, int? end) {
     if (!_reportedCacheHit) {
       _reportedCacheHit = true;
+      _cachedLevel ??= hit.level;
       onResolved?.call(
         song,
         PlayUrl(url: hit.file.uri.toString(), level: hit.level),

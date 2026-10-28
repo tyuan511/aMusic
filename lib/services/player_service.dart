@@ -355,73 +355,6 @@ class PlayerService {
     }
   }
 
-  /// Heart mode as a play mode: on → recommendations seeded by the current
-  /// song, off → back to the queue, repeat and shuffle it replaced.
-  Future<void> toggleHeartMode() async {
-    if (radioKind.value == RadioKind.heart) {
-      await _leaveHeartMode();
-      return;
-    }
-    if (radioKind.value == null && !queue.value.isEmpty) {
-      _preHeart = queue.value;
-    }
-    await startHeartMode();
-    if (radioKind.value != RadioKind.heart) _preHeart = null;
-  }
-
-  PlayQueue? _preHeart;
-
-  Future<void> _leaveHeartMode() async {
-    final saved = _preHeart;
-    _preHeart = null;
-    _setRadio(null);
-    final current = currentSong;
-    if (saved == null || saved.isEmpty || current == null) {
-      queue.value = PlayQueue(
-        songs: queue.value.songs,
-        index: queue.value.index,
-        repeat: queue.value.repeat,
-        shuffle: queue.value.shuffle,
-        sourceId: queue.value.sourceId,
-      );
-      _persistNow();
-      return;
-    }
-    // The song that is playing stays; the rest goes back to how it was. A
-    // heart mode song that was not in the old queue slots in after the
-    // position the user left.
-    var songs = saved.songs;
-    var at = songs.indexWhere((song) => song.id == current.id);
-    if (at < 0) {
-      final after = saved.index.clamp(0, songs.length - 1) + 1;
-      songs = [...songs.take(after), current, ...songs.skip(after)];
-      at = after;
-    }
-    final index = queue.value.index;
-    final length = queue.value.length;
-    if (index + 1 < length) {
-      await _player.removeAudioSourceRange(index + 1, length);
-    }
-    if (index > 0) await _player.removeAudioSourceRange(0, index);
-    if (at > 0) {
-      await _player.insertAudioSources(0, _buildSources(songs.sublist(0, at)));
-    }
-    if (at + 1 < songs.length) {
-      await _player.addAudioSources(_buildSources(songs.sublist(at + 1)));
-    }
-    queue.value = PlayQueue(
-      songs: List.unmodifiable(songs),
-      index: at,
-      repeat: saved.repeat,
-      shuffle: saved.shuffle,
-      sourceTitle: saved.sourceTitle,
-      sourceId: saved.sourceId,
-    );
-    await _player.setLoopMode(saved.repeat);
-    await _player.setShuffleModeEnabled(saved.shuffle);
-    _persistNow();
-  }
-
   Future<int?> _likedPlaylistId() async {
     final profile = await _host.api.loginStatus();
     if (profile == null) return null;
@@ -721,18 +654,59 @@ class PlayerService {
     return _host.api.songUrlWithFallback(song.id, level: level);
   }
 
-  void _onUrlResolved(Song song, PlayUrl url) {
-    if (currentSong?.id != song.id) return;
-    final next = playback.value.copyWith(
+  /// Quality granted per song id.
+  ///
+  /// A url is often resolved before its track is the current one: the player
+  /// preloads the next source, and a whole file already on disk is served from
+  /// the cache within milliseconds, long before the index stream has announced
+  /// the new track. [ResolvingAudioSource] reports such a resolution only once,
+  /// so dropping it here used to leave the track without a known quality for
+  /// its whole life (the player page then shows no quality chip at all).
+  final Map<int, ({String? level, bool isTrial})> _grants = {};
+
+  /// Grants kept before the oldest is dropped.
+  static const int _maxGrants = 256;
+
+  void _rememberGrant(int songId, PlayUrl url) {
+    final previous = _grants.remove(songId);
+    _grants[songId] = (
+      // A cache entry without a stored level must not erase a level the server
+      // reported for the same song.
+      level: url.level ?? previous?.level,
       isTrial: url.isTrial,
-      level: url.level ?? playback.value.level,
+    );
+    while (_grants.length > _maxGrants) {
+      _grants.remove(_grants.keys.first);
+    }
+  }
+
+  void _onUrlResolved(Song song, PlayUrl url) {
+    _rememberGrant(song.id, url);
+    if (currentSong?.id != song.id) return;
+    _publishGrant(song);
+  }
+
+  /// Publishes the quality of [song]: the remembered grant first, then whatever
+  /// the live source has already resolved.
+  void _publishGrant(Song song) {
+    final grant = _grants[song.id];
+    final source = _currentSource();
+    final level =
+        grant?.level ??
+        (source?.song.id == song.id ? source?.grantedLevel : null);
+    final isTrial = grant?.isTrial ?? false;
+    final previous = playback.value;
+    if (previous.level == level &&
+        previous.isTrial == isTrial &&
+        previous.error == null) {
+      return;
+    }
+    playback.value = previous.copyWith(
+      level: level,
+      clearLevel: level == null,
+      isTrial: isTrial,
       clearError: true,
     );
-    if (next.isTrial != playback.value.isTrial ||
-        next.level != playback.value.level ||
-        playback.value.error != null) {
-      playback.value = next;
-    }
   }
 
   /// Starts the Rust spectrum analysis for [song] once its source is known.
@@ -821,7 +795,6 @@ class PlayerService {
     _pendingRestore = null;
     _userStarted = true;
     _endSession();
-    if (radio != RadioKind.heart) _preHeart = null;
     _setRadio(radio);
 
     queue.value = PlayQueue(
@@ -905,11 +878,6 @@ class PlayerService {
     if (queue.value.isEmpty) return;
     _userStarted = true;
     _pendingRestore = null;
-    // Restart the track when it already played for a while, like most players.
-    if (_player.position > const Duration(seconds: 4)) {
-      await seek(Duration.zero);
-      return;
-    }
     if (_player.hasPrevious) {
       await _player.seekToPrevious();
     } else {
@@ -1060,6 +1028,7 @@ class PlayerService {
   Future<void> clearQueue() async {
     _endSession();
     _setRadio(null);
+    _grants.clear();
     // Publish first so lists (Dismissible) update in the same frame.
     queue.value = const PlayQueue();
     currentSongId.value = null;
@@ -1275,11 +1244,10 @@ class PlayerService {
     spectrum.value = _spectrumCache[song.id] ?? Uint8List(0);
     _beginSession(song);
 
-    playback.value = playback.value.copyWith(
-      clearError: true,
-      clearLevel: true,
-      isTrial: false,
-    );
+    // Not a blind reset: the new track may already be resolved (a preloaded
+    // neighbour, or a file served from the cache), in which case its quality is
+    // known and must survive the change of track.
+    _publishGrant(song);
     if (_pendingRestore == null) {
       clock.sync(Duration.zero, running: false, duration: song.duration);
       position.value = PositionState(duration: song.duration);

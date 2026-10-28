@@ -253,7 +253,7 @@ class _WideCenter extends StatelessWidget {
                   onPressed: player.previous,
                 ),
                 const SizedBox(width: 8),
-                _PlayButton(size: 42, color: s.lime),
+                _PlayButton(size: 36, color: s.lime),
                 const SizedBox(width: 8),
                 RoundIconButton(
                   icon: Icons.skip_next_rounded,
@@ -272,18 +272,6 @@ class _WideCenter extends StatelessWidget {
                   color: Colors.transparent,
                   iconColor: queue.repeat == LoopMode.off ? null : s.lime,
                   onPressed: radio == null ? player.toggleRepeat : null,
-                ),
-                RoundIconButton(
-                  icon: radio == RadioKind.heart
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  tooltip: radio == RadioKind.heart ? '关闭心动模式' : '心动模式',
-                  size: 34,
-                  color: Colors.transparent,
-                  iconColor: radio == RadioKind.heart ? s.lime : null,
-                  onPressed: radio == RadioKind.fm
-                      ? null
-                      : player.toggleHeartMode,
                 ),
               ],
             ),

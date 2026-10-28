@@ -28,6 +28,7 @@ Future<void> showSongMenu(
   Playlist? removeFrom,
   VoidCallback? onRemoved,
   bool sleepTimer = false,
+  bool speed = false,
 }) {
   // Actions run after the sheet closed, against the page that opened it.
   final pageContext = context;
@@ -76,6 +77,14 @@ Future<void> showSongMenu(
         ),
       ),
     ],
+    if (speed)
+      SheetAction(
+        icon: Icons.speed_rounded,
+        label: (app.player.speed.value - 1).abs() < 0.01
+            ? '播放速度'
+            : '播放速度：${speedLabel(app.player.speed.value)}',
+        onSelected: () => showSpeedSheet(pageContext),
+      ),
     if (sleepTimer)
       SheetAction(
         icon: Icons.bedtime_outlined,

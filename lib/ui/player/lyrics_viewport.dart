@@ -424,20 +424,16 @@ class _LyricsViewportState extends State<LyricsViewport>
   Widget build(BuildContext context) {
     final lyric = widget.lyric;
     if (_cache.length != lyric.lines.length + 1) _invalidateAll();
-    final footer = _full && lyric.credits.isNotEmpty
-        ? _CreditsFooter(lyric: lyric, textAlign: widget.textAlign)
-        : null;
     final column = _LyricColumn(
       model: _model,
       textAlign: widget.textAlign,
       blur: _config.blur && !_manual,
       padding: widget.padding,
-      footer: footer != null,
+      footer: false,
       gap: _full ? _config.fontSize * 0.9 : 10,
       edgeFade: _full ? const (0.12, 0.82) : const (0.22, 0.78),
       children: [
         for (var i = 0; i < lyric.lines.length; i++) _line(i),
-        ?footer,
       ],
     );
     if (!_full) {
@@ -1201,30 +1197,6 @@ class _DotsPainter extends CustomPainter {
       old.clock != clock ||
       old.start != start ||
       old.end != end;
-}
-
-class _CreditsFooter extends StatelessWidget {
-  const _CreditsFooter({required this.lyric, required this.textAlign});
-
-  final Lyric lyric;
-  final TextAlign textAlign;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = TextStyle(
-      fontSize: 13,
-      height: 1.6,
-      color: context.playerInk.withValues(alpha: 0.8),
-    );
-    return Text(
-      [
-        for (final credit in lyric.credits)
-          '${credit.role}：${credit.names.join(' / ')}',
-      ].join('\n'),
-      style: style,
-      textAlign: textAlign,
-    );
-  }
 }
 
 class _ResumeChip extends StatelessWidget {

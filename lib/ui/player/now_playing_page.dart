@@ -10,6 +10,7 @@ import '../../models/loop_mode.dart';
 import '../../models/song.dart';
 import '../../router.dart';
 import '../../services/app.dart';
+import '../../services/local_library_service.dart';
 import '../../services/player_service.dart';
 import '../../theme/app_theme.dart';
 import '../eq/equalizer_sheet.dart';
@@ -430,15 +431,15 @@ class _Header extends StatelessWidget {
               iconColor: context.playerInk,
               onPressed: () => Navigator.of(context).maybePop(),
             ),
-            title == null
-                ? const Spacer()
-                : Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: title,
-                    ),
-                  ),
-            _LikeRoundButton(song: song),
+            if (title == null)
+              const Spacer()
+            else
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: title,
+                ),
+              ),
           ],
         ),
       ),
@@ -446,8 +447,8 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _LikeRoundButton extends StatelessWidget {
-  const _LikeRoundButton({required this.song});
+class _LikeAction extends StatelessWidget {
+  const _LikeAction({required this.song});
 
   final Song? song;
 
@@ -458,14 +459,13 @@ class _LikeRoundButton extends StatelessWidget {
       valueListenable: app.library.likedIds,
       builder: (context, liked, _) {
         final isLiked = song != null && liked.contains(song.id);
-        return RoundIconButton(
+        return _IconAction(
           icon: isLiked
               ? Icons.favorite_rounded
               : Icons.favorite_border_rounded,
           tooltip: isLiked ? '取消喜欢' : '喜欢',
-          color: context.playerInk.withValues(alpha: 0.12),
-          iconColor: isLiked ? const Color(0xFFFF5C8A) : context.playerInk,
-          onPressed: song == null || song.id <= 0
+          color: isLiked ? const Color(0xFFFF5C8A) : null,
+          onTap: song == null || song.id <= 0
               ? null
               : () async {
                   final messenger = ScaffoldMessenger.maybeOf(context);
@@ -642,7 +642,9 @@ class _Disc extends StatelessWidget {
           ),
           child: CoverImage(
             url: url,
-            size: (size * 2).clamp(300, 1000).round(),
+            // Bucketed: a size that follows every pixel of a window resize
+            // makes a new image request (and shimmer) per frame.
+            size: ((size * 2 / 400).ceil() * 400).clamp(400, 1000),
             width: size,
             height: size,
             radius: 0,
@@ -806,21 +808,31 @@ class _TitleBlock extends StatelessWidget {
             : CrossAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            song.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: centred ? TextAlign.center : TextAlign.start,
-            style: TextStyle(
-              color: context.playerInk,
-              fontSize: compact ? 16 : 22,
-              fontWeight: FontWeight.w500,
-              letterSpacing: -0.3,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: centred
+                ? MainAxisAlignment.center
+                : MainAxisAlignment.start,
+            children: [
+              Flexible(
+                child: Text(
+                  song.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: centred ? TextAlign.center : TextAlign.start,
+                  style: TextStyle(
+                    color: context.playerInk,
+                    fontSize: compact ? 16 : 22,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ),
+              if (!compact) ...[const SizedBox(width: 8), const _QualityChip()],
+            ],
           ),
           SizedBox(height: compact ? 2 : 6),
           _ArtistLine(song: song, centred: centred, small: compact),
-          if (!compact) ...[const SizedBox(height: 8), const _QualityChip()],
         ],
       ),
     );
@@ -926,7 +938,14 @@ class _QualityChip extends StatelessWidget {
     return ValueListenableBuilder(
       valueListenable: app.player.playback,
       builder: (context, playback, _) {
-        final level = playback.level;
+        final song = app.player.currentSong;
+        // Local files have no streaming quality to switch.
+        final online = song != null && !LocalLibraryService.isLocalId(song.id);
+        // The server sometimes omits the granted level; the chip must stay so
+        // the quality can still be changed, showing the requested level.
+        final level =
+            playback.level ??
+            (online ? app.settings.value.audioLevel.value : null);
         final badge = AnimatedSwitcher(
           duration: AppMotion.standard,
           child: level == null && !playback.isTrial
@@ -1080,7 +1099,7 @@ class _MainControls extends StatelessWidget {
               RoundIconButton(
                 icon: Icons.skip_previous_rounded,
                 tooltip: '上一首',
-                size: 58,
+                size: 52,
                 color: context.playerInk.withValues(alpha: 0.1),
                 iconColor: context.playerInk,
                 onPressed: empty ? null : player.previous,
@@ -1088,7 +1107,7 @@ class _MainControls extends StatelessWidget {
               ValueListenableBuilder(
                 valueListenable: player.playback,
                 builder: (context, playback, _) => AccentPlayButton(
-                  size: 78,
+                  size: 68,
                   playing: playback.playing,
                   loading: playback.loading && !playback.playing,
                   onPressed: empty ? null : player.togglePlayPause,
@@ -1097,7 +1116,7 @@ class _MainControls extends StatelessWidget {
               RoundIconButton(
                 icon: Icons.skip_next_rounded,
                 tooltip: '下一首',
-                size: 58,
+                size: 52,
                 color: context.playerInk.withValues(alpha: 0.1),
                 iconColor: context.playerInk,
                 onPressed: empty ? null : player.next,
@@ -1120,7 +1139,7 @@ class _MainControls extends StatelessWidget {
   }
 }
 
-/// Repeat · heart mode · add to playlist · equalizer · speed · more. The sleep
+/// Repeat · like · add to playlist · volume · equalizer · more. The speed, sleep
 /// timer and comments live in the more menu; a running countdown stays visible.
 class _SecondaryActions extends StatelessWidget {
   const _SecondaryActions({required this.song});
@@ -1138,91 +1157,58 @@ class _SecondaryActions extends StatelessWidget {
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 344),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            ValueListenableBuilder(
-              valueListenable: player.queue,
-              builder: (context, queue, _) => ValueListenableBuilder(
-                valueListenable: player.radioMode,
-                builder: (context, radio, _) => _IconAction(
-                  icon: queue.repeat == LoopMode.one
-                      ? Icons.repeat_one_rounded
-                      : Icons.repeat_rounded,
-                  tooltip: '循环：${queue.repeat.label}',
-                  color: queue.repeat == LoopMode.off ? null : s.lime,
-                  onTap: queue.isEmpty || radio ? null : player.toggleRepeat,
+        // The countdown chip is added only while it runs: an empty child would
+        // still get its own gap from spaceBetween.
+        child: ValueListenableBuilder(
+          valueListenable: player.sleepRemaining,
+          builder: (context, remaining, _) => Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              ValueListenableBuilder(
+                valueListenable: player.queue,
+                builder: (context, queue, _) => ValueListenableBuilder(
+                  valueListenable: player.radioMode,
+                  builder: (context, radio, _) => _IconAction(
+                    icon: queue.repeat == LoopMode.one
+                        ? Icons.repeat_one_rounded
+                        : Icons.repeat_rounded,
+                    tooltip: '循环：${queue.repeat.label}',
+                    color: queue.repeat == LoopMode.off ? null : s.lime,
+                    onTap: queue.isEmpty || radio ? null : player.toggleRepeat,
+                  ),
                 ),
               ),
-            ),
-            ValueListenableBuilder(
-              valueListenable: player.radioKind,
-              builder: (context, radio, _) => _IconAction(
-                icon: radio == RadioKind.heart
-                    ? Icons.favorite_rounded
-                    : Icons.favorite_border_rounded,
-                tooltip: radio == RadioKind.heart ? '关闭心动模式' : '心动模式',
-                color: radio == RadioKind.heart ? s.lime : null,
-                onTap: radio == RadioKind.fm || !app.session.value.isLoggedIn
+              _LikeAction(song: song),
+              _IconAction(
+                icon: Icons.playlist_add_rounded,
+                tooltip: '收藏到歌单',
+                onTap: online ? () => showAddToPlaylist(context, [song]) : null,
+              ),
+              if (remaining != null) const SleepCountdownChip(),
+              const _VolumeAction(),
+              ValueListenableBuilder(
+                valueListenable: app.eq,
+                builder: (context, eq, _) => _IconAction(
+                  icon: Icons.equalizer_rounded,
+                  tooltip: '音效与均衡器',
+                  color: eq.settings.isActive ? s.lime : null,
+                  onTap: () => showEqualizerSheet(context),
+                ),
+              ),
+              _IconAction(
+                icon: Icons.more_horiz_rounded,
+                tooltip: '更多',
+                onTap: song == null
                     ? null
-                    : player.toggleHeartMode,
-              ),
-            ),
-            _IconAction(
-              icon: Icons.playlist_add_rounded,
-              tooltip: '收藏到歌单',
-              onTap: online ? () => showAddToPlaylist(context, [song]) : null,
-            ),
-            ValueListenableBuilder(
-              valueListenable: player.sleepRemaining,
-              builder: (context, remaining, _) => remaining == null
-                  ? const SizedBox.shrink()
-                  : const SleepCountdownChip(),
-            ),
-            const _VolumeAction(),
-            ValueListenableBuilder(
-              valueListenable: app.eq,
-              builder: (context, eq, _) => _IconAction(
-                icon: Icons.equalizer_rounded,
-                tooltip: '音效与均衡器',
-                color: eq.settings.isActive ? s.lime : null,
-                onTap: () => showEqualizerSheet(context),
-              ),
-            ),
-            ValueListenableBuilder(
-              valueListenable: player.speed,
-              builder: (context, speed, _) => (speed - 1).abs() < 0.01
-                  ? _IconAction(
-                      icon: Icons.speed_rounded,
-                      tooltip: '播放速度',
-                      onTap: () => showSpeedSheet(context),
-                    )
-                  : Pressable(
-                      onTap: () => showSpeedSheet(context),
-                      child: SizedBox(
-                        width: 40,
-                        height: 40,
-                        child: Center(
-                          child: Text(
-                            speedLabel(speed),
-                            style: TextStyle(
-                              color: s.lime,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
+                    : () => showSongMenu(
+                        context,
+                        song,
+                        sleepTimer: true,
+                        speed: true,
                       ),
-                    ),
-            ),
-            _IconAction(
-              icon: Icons.more_horiz_rounded,
-              tooltip: '更多',
-              onTap: song == null
-                  ? null
-                  : () => showSongMenu(context, song, sleepTimer: true),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );

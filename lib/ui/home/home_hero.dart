@@ -6,6 +6,7 @@ import '../../core/errors.dart';
 import '../../models/playlist.dart';
 import '../../router.dart';
 import '../../services/app.dart';
+import '../../services/player_service.dart' show RadioKind;
 import '../../theme/app_theme.dart';
 import '../browse_widgets/cards.dart';
 import '../browse_widgets/sheets.dart';
@@ -89,6 +90,18 @@ List<HeroItem> buildHeroItems(
           onStart: app.player.startPersonalFm,
         ),
       ),
+      HeroItem(
+        eyebrow: 'Heartbeat',
+        title: '心动模式',
+        description: '从你喜欢的音乐出发，智能推荐相似的好歌',
+        color: const Color(0xFFFF8FA8),
+        icon: Icons.favorite_rounded,
+        onTap: () => _startHeart(context),
+        play: _AsyncPlayButton(
+          color: const Color(0xFF4A1426),
+          onStart: () => _startHeart(context),
+        ),
+      ),
     ] else
       HeroItem(
         eyebrow: 'aMusic',
@@ -135,6 +148,14 @@ Future<void> _start(BuildContext context, Future<void> Function() start) async {
     await start();
   } on Object catch (error) {
     if (context.mounted) showToast(context, describeError(error));
+  }
+}
+
+/// Starts heart mode from the liked songs and opens the player on success.
+Future<void> _startHeart(BuildContext context) async {
+  await _start(context, app.player.startHeartMode);
+  if (context.mounted && app.player.radioKind.value == RadioKind.heart) {
+    openPlayer(context);
   }
 }
 

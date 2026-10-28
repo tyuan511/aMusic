@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../../core/config.dart';
-import '../../core/format.dart';
-import '../../data/net_image.dart';
-import '../../services/app.dart';
 import '../../theme/app_theme.dart';
-import '../login/login_dialog.dart';
 import 'kit.dart';
 
 class NavDestination {
@@ -146,7 +141,6 @@ class Sidebar extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              _UserCard(expanded: expanded),
               const SizedBox(height: 14),
             ],
           ),
@@ -291,97 +285,6 @@ class _NavItemState extends State<_NavItem> {
           child: content,
         ),
       ),
-    );
-  }
-}
-
-class _UserCard extends StatelessWidget {
-  const _UserCard({required this.expanded});
-
-  final bool expanded;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.surfaces;
-    return ValueListenableBuilder(
-      valueListenable: app.session,
-      builder: (context, session, _) {
-        final profile = session.profile;
-        final avatar = CircleAvatar(
-          radius: 19,
-          backgroundColor: s.chip,
-          backgroundImage: (profile?.avatarUrl ?? '').isEmpty
-              ? null
-              : NetImage(sizedImage(profile!.avatarUrl, size: 96)),
-          child: profile == null
-              ? Icon(Icons.person_rounded, size: 20, color: s.textSecondary)
-              : null,
-        );
-        void onTap() {
-          if (profile == null) {
-            showLoginDialog(context);
-          } else {
-            context.go('/settings');
-          }
-        }
-
-        final card = Pressable(
-          onTap: onTap,
-          pressedScale: 0.97,
-          semanticLabel: profile?.nickname ?? '登录',
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            padding: EdgeInsets.all(expanded ? 10 : 6),
-            decoration: BoxDecoration(
-              color: s.card,
-              borderRadius: BorderRadius.circular(AppMetrics.radiusPill),
-              border: Border.all(color: s.hairline),
-            ),
-            child: expanded
-                ? Row(
-                    children: [
-                      avatar,
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              profile?.nickname ?? '未登录',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.text.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              profile == null
-                                  ? '扫码登录'
-                                  : (profile.isVip ? '黑胶VIP' : '已登录'),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.text.bodySmall?.copyWith(
-                                color: profile?.isVip ?? false
-                                    ? s.lime
-                                    : s.textTertiary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        size: 18,
-                        color: s.textTertiary,
-                      ),
-                    ],
-                  )
-                : Center(child: avatar),
-          ),
-        );
-        return card;
-      },
     );
   }
 }
