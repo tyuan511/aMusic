@@ -23,16 +23,38 @@ import 'update_service.dart';
 /// has a real limiter, so it takes the bands and the bare preamp.
 Future<void> _applyEq(EqEngineConfig config) async {
   final active =
-      config.bands.isNotEmpty || config.preampDb != 0 || config.effect != 0;
+      config.bands.isNotEmpty ||
+      config.preampDb != 0 ||
+      config.effect != 0 ||
+      config.effectLoudnessDb != 0;
   AmusicJustAudio.setEq(
     AmusicEq(
       bands: [for (final b in config.bands) (b.freq, b.q, b.gain)],
-      gainDb: config.preampDb,
+      gainDb: config.preampDb + config.effectLoudnessDb,
       // Stay bit-transparent while the equalizer is off.
       limiter: active,
       effect: config.effect,
     ),
   );
+}
+
+/// Tells the engine where a track's ReplayGain lives: the local library probed
+/// and kept it while scanning. Streams are never tagged, so they (like any file
+/// without the tag) play at unity gain.
+void _wireReplayGain(SettingsService settings, LocalLibraryService library) {
+  void apply() => AmusicJustAudio.setReplayGain(
+    settings.value.replayGain ? library.replayGainFor : null,
+  );
+
+  apply();
+  // Flipping the switch is heard at once: the engine re-applies the gain of
+  // the loaded and of the queued track.
+  var enabled = settings.value.replayGain;
+  settings.addListener(() {
+    if (settings.value.replayGain == enabled) return;
+    enabled = settings.value.replayGain;
+    apply();
+  });
 }
 
 /// Composition root.
@@ -78,6 +100,7 @@ class AppServices {
       localLibrary: localLibrary,
       recent: recent,
     );
+    _wireReplayGain(settings, localLibrary);
     return AppServices._(
       prefs: prefs,
       settings: settings,

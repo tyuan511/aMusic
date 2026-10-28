@@ -12,7 +12,11 @@ fn usage() -> (f64, i64, i64) {
     let mut ru: libc::rusage = unsafe { std::mem::zeroed() };
     unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut ru) };
     let secs = |t: libc::timeval| t.tv_sec as f64 + t.tv_usec as f64 / 1e6;
-    (secs(ru.ru_utime) + secs(ru.ru_stime), ru.ru_nvcsw, ru.ru_nivcsw)
+    (
+        secs(ru.ru_utime) + secs(ru.ru_stime),
+        ru.ru_nvcsw,
+        ru.ru_nivcsw,
+    )
 }
 
 fn measure(label: &str, secs: f64) {
@@ -38,15 +42,28 @@ fn main() {
     let player = Player::new().expect("open output");
     player.set_volume(0.0);
     player.set_speed(speed);
-    println!("device {} Hz, effect {effect}, speed {speed}", player.sample_rate());
+    println!(
+        "device {} Hz, effect {effect}, speed {speed}",
+        player.sample_rate()
+    );
     if effect == 99 {
         let bands = [62.5, 250.0, 1000.0, 4000.0, 16000.0]
             .iter()
-            .map(|&f| Band { freq: f, q: 1.41, gain_db: 3.0 })
+            .map(|&f| Band {
+                freq: f,
+                q: 1.41,
+                gain_db: 3.0,
+            })
             .collect();
-        player.set_eq(EqConfig { bands, ..Default::default() });
+        player.set_eq(EqConfig {
+            bands,
+            ..Default::default()
+        });
     } else {
-        player.set_eq(EqConfig { effect: Effect::from_u32(effect), ..Default::default() });
+        player.set_eq(EqConfig {
+            effect: Effect::from_u32(effect),
+            ..Default::default()
+        });
     }
 
     measure("idle, no track", 4.0);

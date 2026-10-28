@@ -36,7 +36,10 @@ fn bench_pipeline(name: &str, cfg: &EqConfig, rate: u32) {
     for c in buf.chunks_mut(chunk) {
         p.process(c);
     }
-    println!("  {name:<24} {:>6.2} %", percent_of_core(start.elapsed(), audio_secs));
+    println!(
+        "  {name:<24} {:>6.2} %",
+        percent_of_core(start.elapsed(), audio_secs)
+    );
 }
 
 fn main() {
@@ -44,20 +47,47 @@ fn main() {
     let rate = 48000;
 
     println!("DSP at {rate} Hz stereo (percent of one core):");
-    let ten_bands: Vec<Band> = [31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0]
-        .iter()
-        .map(|&f| Band { freq: f, q: 1.41, gain_db: 3.0 })
-        .collect();
+    let ten_bands: Vec<Band> = [
+        31.25, 62.5, 125.0, 250.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0,
+    ]
+    .iter()
+    .map(|&f| Band {
+        freq: f,
+        q: 1.41,
+        gain_db: 3.0,
+    })
+    .collect();
     bench_pipeline("passthrough + limiter", &EqConfig::default(), rate);
-    bench_pipeline("limiter off", &EqConfig { limiter: false, ..Default::default() }, rate);
-    bench_pipeline("EQ 10 bands", &EqConfig { bands: ten_bands, ..Default::default() }, rate);
+    bench_pipeline(
+        "limiter off",
+        &EqConfig {
+            limiter: false,
+            ..Default::default()
+        },
+        rate,
+    );
+    bench_pipeline(
+        "EQ 10 bands",
+        &EqConfig {
+            bands: ten_bands,
+            ..Default::default()
+        },
+        rate,
+    );
     for (name, e) in [
         ("3D surround", Effect::Surround3d),
         ("360 rotate", Effect::Rotate360),
         ("LiveHouse", Effect::LiveHouse),
         ("exciter", Effect::Exciter),
     ] {
-        bench_pipeline(name, &EqConfig { effect: e, ..Default::default() }, rate);
+        bench_pipeline(
+            name,
+            &EqConfig {
+                effect: e,
+                ..Default::default()
+            },
+            rate,
+        );
     }
 
     println!("resample / stretch (percent of one core):");
@@ -71,7 +101,10 @@ fn main() {
         for c in input.chunks(8192) {
             r.process(c, &mut out);
         }
-        println!("  resample {from}->{to:<8} {:>6.2} %", percent_of_core(start.elapsed(), secs));
+        println!(
+            "  resample {from}->{to:<8} {:>6.2} %",
+            percent_of_core(start.elapsed(), secs)
+        );
     }
     for speed in [0.75, 1.25, 2.0] {
         let mut s = Stretcher::new(rate);
@@ -82,7 +115,10 @@ fn main() {
         for c in input.chunks(4096) {
             s.process(c, &mut out);
         }
-        println!("  stretch x{speed:<14} {:>6.2} %", percent_of_core(start.elapsed(), secs));
+        println!(
+            "  stretch x{speed:<14} {:>6.2} %",
+            percent_of_core(start.elapsed(), secs)
+        );
     }
 
     println!("decode (percent of one core):");

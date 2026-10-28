@@ -12,6 +12,7 @@ class PrefsKeys {
 
   static const themeMode = 'settings.theme_mode';
   static const audioLevel = 'settings.audio_level';
+  static const replayGain = 'settings.replay_gain';
   static const autoPlay = 'settings.auto_play';
   static const immersive = 'settings.immersive';
   static const volume = 'settings.volume';
@@ -64,6 +65,7 @@ class SettingsState {
   const SettingsState({
     this.themeMode = ThemeMode.dark,
     this.audioLevel = AudioLevel.exhigh,
+    this.replayGain = true,
     this.autoPlay = false,
     this.immersive = false,
     this.volume = 1.0,
@@ -86,6 +88,11 @@ class SettingsState {
   /// Dark by default: the design is built dark-first.
   final ThemeMode themeMode;
   final AudioLevel audioLevel;
+
+  /// Normalise the volume of local files that carry a `REPLAYGAIN_TRACK_GAIN`
+  /// tag. Streaming tracks are never tagged, so they are left alone.
+  final bool replayGain;
+
   final bool autoPlay;
 
   /// Hide the system UI (phone / tablet only).
@@ -130,6 +137,7 @@ class SettingsState {
   SettingsState copyWith({
     ThemeMode? themeMode,
     AudioLevel? audioLevel,
+    bool? replayGain,
     bool? autoPlay,
     bool? immersive,
     double? volume,
@@ -150,6 +158,7 @@ class SettingsState {
   }) => SettingsState(
     themeMode: themeMode ?? this.themeMode,
     audioLevel: audioLevel ?? this.audioLevel,
+    replayGain: replayGain ?? this.replayGain,
     autoPlay: autoPlay ?? this.autoPlay,
     immersive: immersive ?? this.immersive,
     volume: volume ?? this.volume,
@@ -183,6 +192,7 @@ SettingsState readSettings(SharedPreferences prefs) {
       _ => ThemeMode.dark,
     },
     audioLevel: AudioLevel.fromValue(prefs.getString(PrefsKeys.audioLevel)),
+    replayGain: prefs.getBool(PrefsKeys.replayGain) ?? defaults.replayGain,
     autoPlay: prefs.getBool(PrefsKeys.autoPlay) ?? defaults.autoPlay,
     immersive: prefs.getBool(PrefsKeys.immersive) ?? defaults.immersive,
     volume: clampDouble(PrefsKeys.volume, 1.0, 0, 1),

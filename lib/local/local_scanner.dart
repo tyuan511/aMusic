@@ -4,7 +4,7 @@ import 'dart:io';
 import 'audio_probe.dart';
 import 'file_names.dart';
 import 'local_track.dart';
-import 'tags/tag_data.dart';
+import 'tag_picture.dart';
 
 /// Progress of a running scan.
 class ScanProgress {
@@ -84,11 +84,14 @@ class LocalScanner {
       name.startsWith('.') || _skippedDirs.contains(name.toLowerCase());
 
   /// Scans [roots]. [saveCover] stores an extracted picture and returns its
-  /// path. Files listed in [excluded] (path keys) are ignored.
+  /// path. Files listed in [excluded] (path keys) are ignored. With
+  /// [reprobeAll] even unchanged files are read again (a library upgrade needs
+  /// a field the older build did not store); their `added` stamp is kept.
   Future<ScanResult> scan(
     List<String> roots, {
     Map<String, LocalTrack> previous = const {},
     Set<String> excluded = const {},
+    bool reprobeAll = false,
     Future<String?> Function(String path, TagPicture picture)? saveCover,
     void Function(ScanProgress progress)? onProgress,
     bool Function()? isCanceled,
@@ -156,6 +159,7 @@ class LocalScanner {
             final old = previous[key];
             LocalTrack track;
             if (old != null &&
+                !reprobeAll &&
                 old.size == stat.size &&
                 old.modified.millisecondsSinceEpoch ==
                     stat.modified.millisecondsSinceEpoch) {
@@ -234,6 +238,7 @@ class LocalScanner {
       coverPath: coverPath,
       source: source,
       format: extensionOf(path),
+      replayGainDb: meta.replayGainDb,
     );
   }
 }

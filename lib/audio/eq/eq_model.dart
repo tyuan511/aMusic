@@ -71,6 +71,15 @@ const double eqMaxPreamp = 6;
 
 double clampPreamp(double db) => db.clamp(-eqMaxGain, eqMaxPreamp).toDouble();
 
+/// Independent gain for one-tap sound effects. Keeping this separate from the
+/// equalizer preamp means switching between an effect and the EQ never changes
+/// the user's effect loudness preference.
+const double effectMinLoudness = -12;
+const double effectMaxLoudness = 6;
+
+double clampEffectLoudness(double db) =>
+    db.clamp(effectMinLoudness, effectMaxLoudness).toDouble();
+
 /// Built in presets.
 ///
 /// The curves are the ones Apple Music ships (read from Music.app's own
@@ -301,8 +310,66 @@ class SoundEffects {
     ),
   ];
 
+  /// Additional tonal effects. The original six remain in [all] so saved
+  /// selections and integrations that used that list keep their ordering.
+  /// [available] is the list rendered by the effects panel.
+  static const List<SoundEffect> additional = [
+    SoundEffect(
+      id: 'warmAnalog',
+      name: '温暖模拟',
+      description: '柔和高频与厚实中低频，重现模拟设备的温润质感',
+      bands: [
+        EqBand(80, 0.8, 2.5),
+        EqBand(180, 1.0, 2),
+        EqBand(500, 0.9, 1),
+        EqBand(5000, 1.0, -1.5),
+        EqBand(12000, 0.8, -3),
+      ],
+    ),
+    SoundEffect(
+      id: 'vintageRadio',
+      name: '复古收音机',
+      description: '收窄频响与轻微中频聚焦，适合怀旧人声与播客',
+      bands: [
+        EqBand(120, 0.8, -3),
+        EqBand(300, 1.0, 2),
+        EqBand(1200, 0.9, 3),
+        EqBand(2800, 1.0, 2),
+        EqBand(7000, 0.8, -5),
+        EqBand(14000, 0.8, -8),
+      ],
+    ),
+    SoundEffect(
+      id: 'nightListening',
+      name: '夜间聆听',
+      description: '收敛刺耳的低频与高频，在较小音量下保持清晰细节',
+      bands: [
+        EqBand(60, 0.8, -4),
+        EqBand(120, 1.0, -2),
+        EqBand(1000, 0.8, 1.5),
+        EqBand(3000, 1.0, 2),
+        EqBand(9000, 0.8, -3),
+        EqBand(16000, 0.8, -4),
+      ],
+    ),
+    SoundEffect(
+      id: 'acousticRoom',
+      name: '原声现场',
+      description: '保留木质乐器的自然共鸣，突出现场录音的空间感',
+      bands: [
+        EqBand(70, 0.8, 2),
+        EqBand(220, 1.0, -1.5),
+        EqBand(800, 0.9, 1),
+        EqBand(3200, 1.0, 2),
+        EqBand(10000, 0.8, 2.5),
+      ],
+    ),
+  ];
+
+  static List<SoundEffect> get available => [...all, ...additional];
+
   static SoundEffect? byId(String? id) {
-    for (final effect in all) {
+    for (final effect in available) {
       if (effect.id == id) return effect;
     }
     return null;
@@ -324,6 +391,7 @@ class EqSettings {
     this.presetId = 'flat',
     this.effectEnabled = false,
     this.effectId,
+    this.effectLoudness = 0,
   });
 
   static const List<double> _flat = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -341,6 +409,10 @@ class EqSettings {
   final bool effectEnabled;
   final String? effectId;
 
+  /// Gain applied by the effect chain, independent of the master volume and
+  /// the equalizer preamp. Stored in dB so 0 keeps the original level.
+  final double effectLoudness;
+
   SoundEffect? get effect => effectEnabled ? SoundEffects.byId(effectId) : null;
 
   bool get isFlat => gains.every((g) => g.abs() < 0.05) && preamp.abs() < 0.05;
@@ -355,6 +427,7 @@ class EqSettings {
     Object? presetId = _keep,
     bool? effectEnabled,
     Object? effectId = _keep,
+    double? effectLoudness,
   }) => EqSettings(
     enabled: enabled ?? this.enabled,
     preamp: preamp ?? this.preamp,
@@ -362,6 +435,7 @@ class EqSettings {
     presetId: identical(presetId, _keep) ? this.presetId : presetId as String?,
     effectEnabled: effectEnabled ?? this.effectEnabled,
     effectId: identical(effectId, _keep) ? this.effectId : effectId as String?,
+    effectLoudness: effectLoudness ?? this.effectLoudness,
   );
 
   static const Object _keep = Object();
@@ -373,6 +447,7 @@ class EqSettings {
     'preset': presetId,
     'effectEnabled': effectEnabled,
     'effect': effectId,
+    'effectLoudness': effectLoudness,
   };
 
   static EqSettings fromJson(Object? json) {
@@ -389,6 +464,9 @@ class EqSettings {
       presetId: json['preset'] as String?,
       effectEnabled: effectOn,
       effectId: json['effect'] as String?,
+      effectLoudness: clampEffectLoudness(
+        (json['effectLoudness'] as num?)?.toDouble() ?? 0,
+      ),
     );
   }
 
@@ -400,6 +478,7 @@ class EqSettings {
       other.presetId == presetId &&
       other.effectEnabled == effectEnabled &&
       other.effectId == effectId &&
+      other.effectLoudness == effectLoudness &&
       _listEquals(other.gains, gains);
 
   @override
@@ -409,6 +488,7 @@ class EqSettings {
     presetId,
     effectEnabled,
     effectId,
+    effectLoudness,
     Object.hashAll(gains),
   );
 }

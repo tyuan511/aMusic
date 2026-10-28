@@ -170,6 +170,38 @@ void main() {
       }
     }
 
+    testWidgets('quality chip opens the source quality menu', (tester) async {
+      tester.view
+        ..physicalSize = const Size(1440, 900)
+        ..devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final previous = app.settings.value.audioLevel;
+      addTearDown(() {
+        app.settings.setAudioLevel(previous);
+        app.player.playback.value = const PlaybackState();
+      });
+
+      fill();
+      app.player.playback.value = const PlaybackState(level: 'exhigh');
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.build(Brightness.dark),
+          home: const NowPlayingPage(panel: PlayerPanel.lyrics),
+        ),
+      );
+      await _settle(tester);
+
+      expect(find.text('极高'), findsOneWidget);
+      await tester.tap(find.text('极高'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('无损'), findsOneWidget);
+
+      await tester.tap(find.byType(MenuItemButton).at(3));
+      await tester.pump();
+      expect(app.settings.value.audioLevel, AudioLevel.lossless);
+      await _unmount(tester);
+    });
+
     for (final size in const [Size(400, 860), Size(1440, 900)]) {
       testWidgets('mini player ⇄ player transition flies the cover '
           '@${size.width.toInt()}', (tester) async {

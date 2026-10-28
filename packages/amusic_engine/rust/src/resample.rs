@@ -34,8 +34,12 @@ impl Resampler {
             let i = self.pos as usize;
             let t = (self.pos - i as f64) as f32;
             for ch in 0..2 {
-                let (y0, y1, y2, y3) =
-                    (self.buf[i - 1][ch], self.buf[i][ch], self.buf[i + 1][ch], self.buf[i + 2][ch]);
+                let (y0, y1, y2, y3) = (
+                    self.buf[i - 1][ch],
+                    self.buf[i][ch],
+                    self.buf[i + 1][ch],
+                    self.buf[i + 2][ch],
+                );
                 out.push(hermite(y0, y1, y2, y3, t));
             }
             self.pos += self.step;

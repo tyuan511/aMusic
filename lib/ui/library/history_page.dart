@@ -1,10 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/song.dart';
 import '../../models/user.dart';
 import '../../services/app.dart';
 import '../../theme/app_theme.dart';
+import '../browse_widgets/buttons.dart';
 import '../browse_widgets/layout.dart';
+import '../browse_widgets/playback.dart';
 import '../widgets/async_view.dart';
 import '../widgets/kit.dart';
 import 'library_views.dart';
@@ -31,6 +34,27 @@ class HistoryPage extends StatefulWidget {
 
 class _HistoryPageState extends State<HistoryPage> {
   HistorySource _source = HistorySource.local;
+  final _remote = ValueNotifier<List<Song>>(const []);
+
+  ValueListenable<List<Song>> get _songs =>
+      _source == HistorySource.local ? app.recent.tracks : _remote;
+
+  String get _title => switch (_source) {
+    HistorySource.local => '最近播放',
+    HistorySource.week => '本周听歌排行',
+    HistorySource.all => '听歌排行',
+  };
+
+  void _select(HistorySource source) {
+    _remote.value = const [];
+    setState(() => _source = source);
+  }
+
+  @override
+  void dispose() {
+    _remote.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,16 +82,40 @@ class _HistoryPageState extends State<HistoryPage> {
             ],
           ),
         ),
-        if (sources.length > 1)
-          ContentBox(
-            padding: const EdgeInsets.only(top: 4, bottom: 10),
-            child: ChipBar<HistorySource>(
-              values: sources,
-              selected: _source,
-              labelOf: (source) => source.label,
-              onSelected: (source) => setState(() => _source = source),
-            ),
+        ContentBox(
+          padding: const EdgeInsets.only(top: 4, bottom: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: sources.length > 1
+                    ? ChipBar<HistorySource>(
+                        values: sources,
+                        selected: _source,
+                        labelOf: (source) => source.label,
+                        onSelected: _select,
+                      )
+                    : const SizedBox(height: 46),
+              ),
+              ValueListenableBuilder<List<Song>>(
+                valueListenable: _songs,
+                builder: (context, songs, _) => songs.isEmpty
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: const EdgeInsets.only(
+                          right: AppMetrics.gutter,
+                          left: 12,
+                        ),
+                        child: LimePillButton(
+                          label: '播放全部',
+                          icon: Icons.play_arrow_rounded,
+                          onPressed: () =>
+                              playCollection(context, songs, title: _title),
+                        ),
+                      ),
+              ),
+            ],
           ),
+        ),
         Expanded(
           child: AnimatedSwitcher(
             duration: AppMotion.standard,
@@ -91,12 +139,16 @@ class _HistoryPageState extends State<HistoryPage> {
                 message: '这台设备上还没有播放记录',
                 icon: Icons.history_rounded,
               )
-            : SongListView(songs: tracks, title: '最近播放'),
+            : SongListView(songs: tracks, title: '最近播放', showHeader: false),
       );
     }
     final week = _source == HistorySource.week;
     return AsyncView<List<PlayRecordEntry>>(
-      load: () => app.library.playRecord(week: week),
+      load: () async {
+        final records = await app.library.playRecord(week: week);
+        _remote.value = [for (final record in records) record.song];
+        return records;
+      },
       skeleton: true,
       emptyWhen: (records) => records.isEmpty,
       emptyView: EmptyView(
@@ -106,6 +158,7 @@ class _HistoryPageState extends State<HistoryPage> {
       builder: (context, records) => SongListView(
         songs: [for (final record in records) record.song],
         title: week ? '本周听歌排行' : '听歌排行',
+        showHeader: false,
       ),
     );
   }

@@ -147,6 +147,35 @@ void main() {
     expect(indices, containsAllInOrder([0, 1]));
   }, skip: skip);
 
+  test('ReplayGain is asked for per track and can change while playing', () async {
+    final player = newPlayer();
+    addTearDown(player.dispose);
+    addTearDown(() => AmusicJustAudio.setReplayGain(null));
+    await player.setVolume(0);
+
+    // Only the first track is "tagged"; the engine asks by uri.
+    AmusicJustAudio.setReplayGain((uri) => uri == a.path ? -6.5 : null);
+    await player.setAudioSources([
+      AudioSource.file(a.path),
+      AudioSource.file(b.path),
+    ]);
+    final states = <ProcessingState>[];
+    player.processingStateStream.listen(states.add);
+
+    unawaited(player.play());
+    // Turning normalisation off mid-track re-applies the gain of the playing
+    // and of the queued track; neither may disturb playback.
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    AmusicJustAudio.setReplayGain(null);
+    await _until(player.currentIndexStream, (i) => i == 1);
+    await _until(
+      player.processingStateStream,
+      (s) => s == ProcessingState.completed,
+    );
+    expect(states.contains(ProcessingState.completed), isTrue);
+    expect(player.currentIndex, 1);
+  }, skip: skip);
+
   test('plays a StreamAudioSource through just_audio\'s local proxy', () async {
     final player = newPlayer();
     addTearDown(player.dispose);

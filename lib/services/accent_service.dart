@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:palette_generator/palette_generator.dart';
+import 'package:amusic_engine/amusic_engine.dart';
 
 import '../core/async_cache.dart';
 import '../data/net_image.dart';
@@ -70,38 +71,45 @@ class AccentService extends ValueNotifier<Color?> {
     palette.value = colors.palette;
   }
 
-  /// Local music covers are `file://` URIs (or bare paths) written by the
-  /// local library scanner; they must not go through the network pipeline.
-  static ImageProvider<Object> _providerFor(String url) {
+  /// Encoded bytes of the cover. Local music covers are `file://` URIs (or
+  /// bare paths) written by the local library scanner; they must not go
+  /// through the network pipeline.
+  static Future<Uint8List> _bytesFor(String url) {
     final isFile =
         url.startsWith('file://') ||
         url.startsWith('/') ||
         RegExp(r'^[a-zA-Z]:[\\/]').hasMatch(url);
-    if (!isFile) return NetImage(_thumbnail(url));
+    if (!isFile) {
+      return ImageByteCache.instance.load(
+        _thumbnail(url),
+        referer: 'https://music.163.com',
+      );
+    }
     final path = url.startsWith('file://') ? Uri.parse(url).toFilePath() : url;
-    return ResizeImage(FileImage(File(path)), width: 120, height: 120);
+    return File(path).readAsBytes();
   }
 
   Future<CoverColors> _extract(String picUrl) async {
-    final generated = await PaletteGenerator.fromImageProvider(
-      _providerFor(picUrl),
-      maximumColorCount: 16,
+    final swatches = await AmusicTools.coverPaletteAsync(
+      await _bytesFor(picUrl),
     );
+    if (swatches == null) throw StateError('undecodable cover: $picUrl');
+    Color? slot(int argb) => argb == 0 ? null : Color(argb);
     // Vibrant first: it reads best as an accent on both light and dark surfaces.
     final accent =
-        generated.vibrantColor?.color ??
-        generated.lightVibrantColor?.color ??
-        generated.darkVibrantColor?.color ??
-        generated.dominantColor?.color ??
+        slot(swatches.vibrant) ??
+        slot(swatches.lightVibrant) ??
+        slot(swatches.darkVibrant) ??
+        slot(swatches.dominant) ??
         _fallback;
     final candidates = [
-      ?generated.dominantColor?.color,
-      ?generated.vibrantColor?.color,
-      ?generated.darkVibrantColor?.color,
-      ?generated.lightVibrantColor?.color,
-      ?generated.mutedColor?.color,
-      ?generated.darkMutedColor?.color,
-      ...generated.paletteColors.map((swatch) => swatch.color),
+      ?slot(swatches.dominant),
+      ?slot(swatches.vibrant),
+      ?slot(swatches.darkVibrant),
+      ?slot(swatches.lightVibrant),
+      ?slot(swatches.muted),
+      ?slot(swatches.darkMuted),
+      ...swatches.all.map(Color.new),
     ];
     return (accent: accent, palette: buildBackdropPalette(candidates, accent));
   }

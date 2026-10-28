@@ -91,7 +91,10 @@ pub struct Equalizer {
 
 impl Equalizer {
     pub fn new(fs: f64) -> Self {
-        Self { fs, stages: Vec::new() }
+        Self {
+            fs,
+            stages: Vec::new(),
+        }
     }
 
     pub fn set_sample_rate(&mut self, fs: f64) {
@@ -155,7 +158,11 @@ mod tests {
 
     #[test]
     fn single_band_peaks_at_its_gain() {
-        let b = [Band { freq: 1000.0, q: 1.41, gain_db: 6.0 }];
+        let b = [Band {
+            freq: 1000.0,
+            q: 1.41,
+            gain_db: 6.0,
+        }];
         assert!((response_db(&b, 48000.0, 1000.0) - 6.0).abs() < 0.05);
         assert!(response_db(&b, 48000.0, 100.0).abs() < 1.0);
     }
@@ -164,9 +171,21 @@ mod tests {
     fn filtering_matches_the_analytic_response() {
         let fs = 48000.0;
         let bands = [
-            Band { freq: 62.5, q: 1.41, gain_db: 5.0 },
-            Band { freq: 1000.0, q: 1.41, gain_db: -4.0 },
-            Band { freq: 8000.0, q: 1.0, gain_db: 3.5 },
+            Band {
+                freq: 62.5,
+                q: 1.41,
+                gain_db: 5.0,
+            },
+            Band {
+                freq: 1000.0,
+                q: 1.41,
+                gain_db: -4.0,
+            },
+            Band {
+                freq: 8000.0,
+                q: 1.0,
+                gain_db: 3.5,
+            },
         ];
         for &hz in &[50.0, 250.0, 1000.0, 3200.0, 10000.0] {
             let mut eq = Equalizer::new(fs);
@@ -197,9 +216,21 @@ mod tests {
     fn near_zero_and_invalid_bands_are_skipped() {
         let mut eq = Equalizer::new(48000.0);
         eq.set_bands(&[
-            Band { freq: 1000.0, q: 1.0, gain_db: 0.01 },
-            Band { freq: 30000.0, q: 1.0, gain_db: 6.0 },
-            Band { freq: 1000.0, q: 0.0, gain_db: 6.0 },
+            Band {
+                freq: 1000.0,
+                q: 1.0,
+                gain_db: 0.01,
+            },
+            Band {
+                freq: 30000.0,
+                q: 1.0,
+                gain_db: 6.0,
+            },
+            Band {
+                freq: 1000.0,
+                q: 0.0,
+                gain_db: 6.0,
+            },
         ]);
         assert!(eq.is_empty());
     }
@@ -207,8 +238,16 @@ mod tests {
     #[test]
     fn peak_boost_covers_overlapping_bands() {
         let bands = [
-            Band { freq: 40.0, q: 0.9, gain_db: 6.0 },
-            Band { freq: 70.0, q: 1.0, gain_db: 5.5 },
+            Band {
+                freq: 40.0,
+                q: 0.9,
+                gain_db: 6.0,
+            },
+            Band {
+                freq: 70.0,
+                q: 1.0,
+                gain_db: 5.5,
+            },
         ];
         let peak = peak_boost_db(&bands, 48000.0);
         assert!(peak > 6.0 && peak < 12.0, "{peak}");

@@ -12,6 +12,7 @@ import '../../services/app.dart';
 import '../../services/local_library_service.dart';
 import '../../theme/app_theme.dart';
 import '../browse_widgets/sheets.dart';
+import '../player/player_sheets.dart';
 import '../shared/comments_view.dart';
 import '../shared/playlist_picker.dart';
 import 'cover_image.dart';
@@ -26,6 +27,7 @@ Future<void> showSongMenu(
   Song song, {
   Playlist? removeFrom,
   VoidCallback? onRemoved,
+  bool sleepTimer = false,
 }) {
   // Actions run after the sheet closed, against the page that opened it.
   final pageContext = context;
@@ -74,6 +76,12 @@ Future<void> showSongMenu(
         ),
       ),
     ],
+    if (sleepTimer)
+      SheetAction(
+        icon: Icons.bedtime_outlined,
+        label: '定时关闭',
+        onSelected: () => showSleepTimerSheet(pageContext),
+      ),
     if (song.artists.any((artist) => artist.id > 0))
       SheetAction(
         icon: Icons.person_outline_rounded,

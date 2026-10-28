@@ -31,6 +31,11 @@ const DEVICE_BUFFER_FRAMES: u32 = 2048;
 /// How long the output stays open without playing before it is paused.
 const STREAM_IDLE: Duration = Duration::from_secs(3);
 
+/// Transport fade duration used when pausing and resuming. The fade is done
+/// in the audio callback so it is independent of Flutter scheduling and the
+/// platform's audio focus implementation.
+const TRANSPORT_FADE: Duration = Duration::from_millis(500);
+
 /// Decoder thread polling when it has nothing to do.
 const IDLE_POLL: Duration = Duration::from_millis(250);
 
@@ -53,6 +58,10 @@ pub(crate) struct Shared {
     /// The decoder reached the end of the last queued track.
     eof: AtomicBool,
     volume: AtomicU32,
+    /// Loudness normalisation of the current track, linear.
+    gain: AtomicU32,
+    /// Gain of the queued track, applied where it starts; NaN when unset.
+    next_gain: AtomicU32,
     speed: AtomicU64,
     /// Position in the current track, seconds; written by the callback.
     pos_secs: AtomicU64,
@@ -132,7 +141,11 @@ impl Player {
             .spawn(move || Decoding::new(decode_shared, producer, boundaries).run(rx))
             .map_err(|e| e.to_string())?;
 
-        Ok(Self { shared, tx, threads: vec![audio, decode] })
+        Ok(Self {
+            shared,
+            tx,
+            threads: vec![audio, decode],
+        })
     }
 
     /// Starts loading `url` (path, `file://` or `http://`). Returns at once;
@@ -140,7 +153,10 @@ impl Player {
     pub fn load(&self, url: &str, start_secs: f64) {
         self.shared.state.store(STATE_LOADING, Ordering::Release);
         self.shared.wake();
-        let _ = self.tx.send(Cmd::Load { url: url.to_string(), start: start_secs });
+        let _ = self.tx.send(Cmd::Load {
+            url: url.to_string(),
+            start: start_secs,
+        });
     }
 
     /// Queues the track that follows the current one so it can start without a
@@ -156,6 +172,9 @@ impl Player {
 
     pub fn pause(&self) {
         self.shared.playing.store(false, Ordering::Release);
+        // A paused stream may already be sleeping on a backend that stopped
+        // its device stream. Wake it so the callback can finish the fade out.
+        self.shared.wake();
     }
 
     pub fn stop(&self) {
@@ -170,11 +189,32 @@ impl Player {
     }
 
     pub fn set_volume(&self, v: f32) {
-        self.shared.volume.store(v.clamp(0.0, 1.0).to_bits(), Ordering::Relaxed);
+        self.shared
+            .volume
+            .store(v.clamp(0.0, 1.0).to_bits(), Ordering::Relaxed);
+    }
+
+    /// Loudness normalisation for the track playing now, in dB (ramped).
+    pub fn set_gain_db(&self, db: f32) {
+        self.shared
+            .gain
+            .store(db_to_linear(db).to_bits(), Ordering::Relaxed);
+    }
+
+    /// Gain for the queued track, applied the instant it starts; NaN clears.
+    pub fn set_next_gain_db(&self, db: f32) {
+        let v = if db.is_nan() {
+            f32::NAN
+        } else {
+            db_to_linear(db)
+        };
+        self.shared.next_gain.store(v.to_bits(), Ordering::Relaxed);
     }
 
     pub fn set_speed(&self, speed: f64) {
-        self.shared.speed.store(speed.clamp(0.25, 4.0).to_bits(), Ordering::Relaxed);
+        self.shared
+            .speed
+            .store(speed.clamp(0.25, 4.0).to_bits(), Ordering::Relaxed);
     }
 
     pub fn set_eq(&self, cfg: EqConfig) {
@@ -230,6 +270,24 @@ impl Drop for Player {
     }
 }
 
+/// Normalisation never boosts by more than this, nor cuts by more than 24 dB.
+fn db_to_linear(db: f32) -> f32 {
+    10f32.powf(db.clamp(-24.0, 12.0) / 20.0)
+}
+
+/// Moves a linear gain toward its target by at most one callback sample.
+/// Keeping this as a bounded step avoids overshoot when a play request arrives
+/// while a pause fade is still in progress.
+fn move_towards(value: f32, target: f32, step: f32) -> f32 {
+    if (value - target).abs() <= step {
+        target
+    } else if value < target {
+        value + step
+    } else {
+        value - step
+    }
+}
+
 // ------------------------------------------------------------ audio thread
 
 fn audio_thread(init: Sender<Init>, ctl_tx: Sender<Ctl>, ctl_rx: Receiver<Ctl>) {
@@ -279,7 +337,12 @@ fn audio_thread(init: Sender<Init>, ctl_tx: Sender<Ctl>, ctl_rx: Receiver<Ctl>) 
     }
 }
 
-type Opened = (Stream, Arc<Shared>, rtrb::Producer<f32>, rtrb::Producer<Boundary>);
+type Opened = (
+    Stream,
+    Arc<Shared>,
+    rtrb::Producer<f32>,
+    rtrb::Producer<Boundary>,
+);
 
 fn open_stream(ctl: Sender<Ctl>) -> Result<Opened, String> {
     let host = cpal::default_host();
@@ -299,7 +362,10 @@ fn open_stream(ctl: Sender<Ctl>) -> Result<Opened, String> {
         SupportedBufferSize::Unknown => DEVICE_BUFFER_FRAMES,
     };
     if frames > 0 {
-        configs.push(StreamConfig { buffer_size: BufferSize::Fixed(frames), ..base.clone() });
+        configs.push(StreamConfig {
+            buffer_size: BufferSize::Fixed(frames),
+            ..base.clone()
+        });
     }
     configs.push(base);
 
@@ -309,6 +375,8 @@ fn open_stream(ctl: Sender<Ctl>) -> Result<Opened, String> {
         state: AtomicU32::new(STATE_IDLE),
         eof: AtomicBool::new(false),
         volume: AtomicU32::new(1.0f32.to_bits()),
+        gain: AtomicU32::new(1.0f32.to_bits()),
+        next_gain: AtomicU32::new(f32::NAN.to_bits()),
         speed: AtomicU64::new(1.0f64.to_bits()),
         pos_secs: AtomicU64::new(0f64.to_bits()),
         base_secs: AtomicU64::new(0f64.to_bits()),
@@ -361,6 +429,13 @@ where
     let mut pipeline = Pipeline::new(config.sample_rate);
     let mut scratch: Vec<f32> = Vec::new();
     let mut vol = 1.0f32;
+    let mut norm = 1.0f32;
+    // `playing` is the transport request exposed to the UI. `output_active`
+    // stays true for the short pause fade, allowing the callback to drain the
+    // already-decoded frames while the output gain reaches zero.
+    let mut output_active = false;
+    let fade_step = 1.0 / (config.sample_rate as f32 * TRANSPORT_FADE.as_secs_f32());
+    let mut transport_gain = 0.0f32;
     // Frames popped since the last flush (the clock `Boundary::at` refers to).
     let mut consumed: u64 = 0;
 
@@ -389,10 +464,14 @@ where
 
                 scratch.clear();
                 scratch.resize(frames * 2, 0.0);
+                let mut gain_switch: Option<(usize, f32)> = None;
+                let norm_target = f32::from_bits(shared.gain.load(Ordering::Relaxed));
                 let mut got = 0;
-                if shared.playing.load(Ordering::Acquire)
-                    && shared.state.load(Ordering::Acquire) == STATE_READY
-                {
+                let requested_playing = shared.playing.load(Ordering::Acquire);
+                if requested_playing {
+                    output_active = true;
+                }
+                if output_active && shared.state.load(Ordering::Acquire) == STATE_READY {
                     // Whole frames only, taken in one go.
                     let take = consumer.slots().min(frames * 2) & !1;
                     if take > 0 {
@@ -412,16 +491,30 @@ where
 
                     // Position: frames played, scaled by the playback speed.
                     let speed = f64::from_bits(shared.speed.load(Ordering::Relaxed));
+                    let consumed_before = consumed;
                     consumed += got as u64;
                     let mut pos = f64::from_bits(shared.pos_secs.load(Ordering::Acquire))
                         + got as f64 * speed / rate;
                     if let Ok(b) = boundaries.peek() {
                         if b.at <= consumed {
+                            let at = b.at;
                             // The queued track began `consumed - at` frames ago.
                             pos = (consumed - b.at) as f64 * speed / rate;
-                            shared.duration.store(b.duration.to_bits(), Ordering::Release);
+                            shared
+                                .duration
+                                .store(b.duration.to_bits(), Ordering::Release);
                             shared.advance_seq.fetch_add(1, Ordering::AcqRel);
                             let _ = boundaries.pop();
+                            // The queued track's own gain, from its first frame.
+                            let next = f32::from_bits(shared.next_gain.load(Ordering::Relaxed));
+                            if !next.is_nan() {
+                                gain_switch =
+                                    Some((at.saturating_sub(consumed_before) as usize, next));
+                                shared
+                                    .next_gain
+                                    .store(f32::NAN.to_bits(), Ordering::Relaxed);
+                                shared.gain.store(next.to_bits(), Ordering::Relaxed);
+                            }
                         }
                     }
                     shared.pos_secs.store(pos.to_bits(), Ordering::Release);
@@ -429,9 +522,18 @@ where
 
                 // Volume with a short ramp so changes do not click.
                 let target = f32::from_bits(shared.volume.load(Ordering::Relaxed));
+                let transport_target = if requested_playing { 1.0 } else { 0.0 };
                 for (i, frame) in data.chunks_mut(channels).enumerate() {
                     vol += (target - vol) * 0.002;
-                    let (l, r) = (scratch[i * 2] * vol, scratch[i * 2 + 1] * vol);
+                    // The previous track's gain holds until the new one begins.
+                    let wanted = match gain_switch {
+                        Some((at, g)) if i >= at => g,
+                        _ => norm_target,
+                    };
+                    norm += (wanted - norm) * 0.002;
+                    transport_gain = move_towards(transport_gain, transport_target, fade_step);
+                    let gain = vol * norm * transport_gain;
+                    let (l, r) = (scratch[i * 2] * gain, scratch[i * 2 + 1] * gain);
                     match channels {
                         1 => frame[0] = T::from_sample((l + r) * 0.5),
                         _ => {
@@ -442,6 +544,9 @@ where
                             }
                         }
                     }
+                }
+                if !requested_playing && transport_gain <= f32::EPSILON {
+                    output_active = false;
                 }
             },
             |e| eprintln!("audio stream error: {e}"),
@@ -461,7 +566,11 @@ struct Source {
 impl Source {
     fn new(decoder: Decoder, rate: u32) -> Self {
         let resampler = Resampler::new(decoder.sample_rate, rate);
-        Self { decoder, resampler, stretcher: Stretcher::new(rate) }
+        Self {
+            decoder,
+            resampler,
+            stretcher: Stretcher::new(rate),
+        }
     }
 
     /// Back to the start of the stream state after a seek.
@@ -494,7 +603,11 @@ struct Decoding {
 }
 
 impl Decoding {
-    fn new(shared: Arc<Shared>, producer: rtrb::Producer<f32>, boundaries: rtrb::Producer<Boundary>) -> Self {
+    fn new(
+        shared: Arc<Shared>,
+        producer: rtrb::Producer<f32>,
+        boundaries: rtrb::Producer<Boundary>,
+    ) -> Self {
         let rate = shared.rate;
         Self {
             shared,
@@ -516,7 +629,9 @@ impl Decoding {
         self.backlog.clear();
         self.backlog_pos = 0;
         self.pushed = 0;
-        self.shared.base_secs.store(base_secs.to_bits(), Ordering::Release);
+        self.shared
+            .base_secs
+            .store(base_secs.to_bits(), Ordering::Release);
         let req = self.shared.flush_req.fetch_add(1, Ordering::AcqRel) + 1;
         // The callback does the flush, so a paused stream has to wake up first.
         self.shared.wake();
@@ -569,7 +684,11 @@ impl Decoding {
             }
 
             self.poll_next();
-            wait = if self.source.is_some() { self.pump() } else { IDLE_POLL };
+            wait = if self.source.is_some() {
+                self.pump()
+            } else {
+                IDLE_POLL
+            };
         }
     }
 
@@ -580,7 +699,9 @@ impl Decoding {
         match Decoder::open_any(url) {
             Ok(mut decoder) => {
                 let duration = decoder.duration.unwrap_or(f64::NAN);
-                self.shared.duration.store(duration.to_bits(), Ordering::Release);
+                self.shared
+                    .duration
+                    .store(duration.to_bits(), Ordering::Release);
                 let mut base = 0.0;
                 if start > 0.05 {
                     match decoder.seek(start) {
@@ -627,7 +748,9 @@ impl Decoding {
 
     fn seek(&mut self, secs: f64) {
         let rate = self.rate;
-        let Some(src) = self.source.as_mut() else { return };
+        let Some(src) = self.source.as_mut() else {
+            return;
+        };
         match src.decoder.seek(secs) {
             Ok(actual) => {
                 src.reset(rate);
@@ -741,7 +864,48 @@ impl Decoding {
         self.backlog.clear();
         self.backlog_pos = 0;
         let duration = decoder.duration.unwrap_or(f64::NAN);
-        let _ = self.boundaries.push(Boundary { at: self.pushed, duration });
+        let _ = self.boundaries.push(Boundary {
+            at: self.pushed,
+            duration,
+        });
         self.source = Some(Source::new(decoder, self.rate));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{move_towards, TRANSPORT_FADE};
+
+    #[test]
+    fn transport_fade_reaches_both_endpoints_without_overshoot() {
+        let step = 1.0 / (48_000.0 * TRANSPORT_FADE.as_secs_f32());
+        // Add a couple of samples for floating-point rounding in the step.
+        let samples = (48_000.0 * TRANSPORT_FADE.as_secs_f32()).ceil() as usize + 2;
+        let mut gain = 0.0;
+        for _ in 0..samples {
+            gain = move_towards(gain, 1.0, step);
+            if gain == 1.0 {
+                break;
+            }
+        }
+        assert_eq!(gain, 1.0);
+
+        for _ in 0..samples {
+            gain = move_towards(gain, 0.0, step);
+            if gain == 0.0 {
+                break;
+            }
+        }
+        assert_eq!(gain, 0.0);
+    }
+
+    #[test]
+    fn transport_fade_can_reverse_while_in_progress() {
+        let step = 1.0 / (48_000.0 * TRANSPORT_FADE.as_secs_f32());
+        let rising = move_towards(0.2, 1.0, step);
+        let falling = move_towards(rising, 0.0, step);
+        assert!(rising > 0.2);
+        assert!(falling < rising);
+        assert!(falling > 0.0);
     }
 }

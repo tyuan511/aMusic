@@ -53,6 +53,7 @@ class LocalTrack {
     this.coverPath,
     this.source = LocalTrackSource.scan,
     this.format = '',
+    this.replayGainDb,
   });
 
   static const String unknownArtist = '未知歌手';
@@ -76,6 +77,9 @@ class LocalTrack {
 
   /// Lower case extension (`mp3`, `flac`...).
   final String format;
+
+  /// `REPLAYGAIN_TRACK_GAIN` in dB, `null` when the file carries no such tag.
+  final double? replayGainDb;
 
   int get id => localIdForPath(path);
 
@@ -119,6 +123,7 @@ class LocalTrack {
         coverPath: clearCover ? null : (coverPath ?? this.coverPath),
         source: source,
         format: format,
+        replayGainDb: replayGainDb,
       );
 
   Map<String, dynamic> toJson() => {
@@ -134,6 +139,7 @@ class LocalTrack {
     if (coverPath != null) 'cover': coverPath,
     'source': source.name,
     'format': format,
+    if (replayGainDb != null) 'gain': replayGainDb,
   };
 
   static LocalTrack? fromJson(Object? raw) {
@@ -154,6 +160,7 @@ class LocalTrack {
       coverPath: raw['cover'] as String?,
       source: LocalTrackSource.fromName(raw['source'] as String?),
       format: raw['format'] as String? ?? extensionOf(path),
+      replayGainDb: (raw['gain'] as num?)?.toDouble(),
     );
   }
 }

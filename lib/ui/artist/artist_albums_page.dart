@@ -60,7 +60,7 @@ class _ArtistAlbumsPageState extends State<ArtistAlbumsPage> {
             builder: (context, _) {
               final Widget child;
               if (_controller.initialLoading) {
-                child = const Padding(
+                child = const ContentBox(
                   key: ValueKey('loading'),
                   padding: EdgeInsets.only(top: 12),
                   child: CardShelfSkeleton(itemWidth: 160),

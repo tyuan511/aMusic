@@ -28,9 +28,13 @@ impl Decoder {
     /// Opens a local path, a `file://` URL or an `http://` URL.
     pub fn open_any(location: &str) -> Result<Self, String> {
         if location.starts_with("http://") {
-            let source = crate::http::HttpSource::open(location).map_err(|e| format!("http: {e}"))?;
+            let source =
+                crate::http::HttpSource::open(location).map_err(|e| format!("http: {e}"))?;
             let path = location.split(['?', '#']).next().unwrap_or(location);
-            Self::from_source(Box::new(source), Path::new(path).extension().and_then(|e| e.to_str()))
+            Self::from_source(
+                Box::new(source),
+                Path::new(path).extension().and_then(|e| e.to_str()),
+            )
         } else if location.starts_with("https://") {
             Err("https is not supported yet".into())
         } else {
@@ -51,7 +55,12 @@ impl Decoder {
             hint.with_extension(ext);
         }
         let format = symphonia::default::get_probe()
-            .probe(&hint, mss, FormatOptions::default(), MetadataOptions::default())
+            .probe(
+                &hint,
+                mss,
+                FormatOptions::default(),
+                MetadataOptions::default(),
+            )
             .map_err(|e| format!("probe: {e}"))?;
 
         let track = format
@@ -68,7 +77,14 @@ impl Decoder {
             .make_audio_decoder(&params, &AudioDecoderOptions::default())
             .map_err(|e| format!("decoder: {e}"))?;
 
-        Ok(Self { format, decoder, track_id, sample_rate, duration, scratch: Vec::new() })
+        Ok(Self {
+            format,
+            decoder,
+            track_id,
+            sample_rate,
+            duration,
+            scratch: Vec::new(),
+        })
     }
 
     /// Appends the next packet's frames (stereo, interleaved) to `out`.
@@ -108,7 +124,10 @@ impl Decoder {
     /// Seeks and returns the position actually reached, in seconds.
     pub fn seek(&mut self, secs: f64) -> Result<f64, String> {
         let time = Time::try_from_secs_f64(secs.max(0.0)).ok_or("bad seek time")?;
-        let to = SeekTo::Time { time, track_id: Some(self.track_id) };
+        let to = SeekTo::Time {
+            time,
+            track_id: Some(self.track_id),
+        };
         let seeked = self
             .format
             .seek(SeekMode::Accurate, to)

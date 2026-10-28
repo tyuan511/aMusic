@@ -108,6 +108,11 @@ class EqService extends ValueNotifier<EqState> {
     immediate: true,
   );
 
+  /// Adjusts the selected sound effect without changing the master volume or
+  /// the equalizer preamp. The value is persisted with the sound settings.
+  void setEffectLoudness(double db) =>
+      _edit(settings.copyWith(effectLoudness: clampEffectLoudness(db)));
+
   /// The preamp is not part of a preset, so it keeps the preset selected.
   void setPreamp(double db) => _edit(
     settings.copyWith(

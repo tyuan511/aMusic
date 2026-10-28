@@ -15,6 +15,7 @@ import '../../models/playlist.dart' show UserProfile;
 import '../../models/user.dart';
 import '../../services/app.dart';
 import '../../services/update_service.dart';
+import '../../services/update_source.dart';
 import '../../theme/app_theme.dart';
 import '../eq/equalizer_sheet.dart';
 import '../login/login_dialog.dart';
@@ -471,6 +472,14 @@ class _PlaybackGroup extends StatelessWidget {
               color: context.surfaces.textTertiary,
             ),
             onTap: () => showEqualizerSheet(context),
+          ),
+        ),
+        SettingsTile(
+          label: '音量归一化',
+          subtitle: '按本地文件的 ReplayGain 标签统一音量',
+          trailing: Switch(
+            value: settings.replayGain,
+            onChanged: (v) => _update((s) => s.copyWith(replayGain: v)),
           ),
         ),
         SettingsTile(
@@ -939,6 +948,44 @@ class _AboutGroupState extends State<_AboutGroup> {
     }
   }
 
+  Future<void> _editCustomPrefix(UpdateSourceConfig config) async {
+    final controller = TextEditingController(text: config.customPrefix);
+    final value = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('自定义加速前缀'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(
+            hintText: 'https://gh-proxy.com/',
+            helperText: '会拼在 GitHub 链接前面，例如 前缀 + https://github.com/…',
+            helperMaxLines: 2,
+          ),
+          onSubmitted: (v) => Navigator.of(context).pop(v),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (value == null) return;
+    if (normalizeMirrorPrefix(value) == null) {
+      if (mounted) _toast(context, '请输入以 http(s):// 开头的地址');
+      return;
+    }
+    await app.updates.setCustomPrefix(value);
+  }
+
   Future<void> _openUrl(String url) async {
     final ok = await launchUrl(
       Uri.parse(url),
@@ -1002,6 +1049,52 @@ class _AboutGroupState extends State<_AboutGroup> {
           trailing: Switch(
             value: widget.settings.checkUpdates,
             onChanged: (v) => _update((s) => s.copyWith(checkUpdates: v)),
+          ),
+        ),
+        ValueListenableBuilder<UpdateSourceConfig>(
+          valueListenable: app.updates.config,
+          builder: (context, config, _) => Column(
+            children: [
+              SettingsTile(
+                label: '更新源',
+                subtitle: config.source == UpdateSource.custom
+                    ? config.label
+                    : config.source.description,
+                trailing: ChoiceButton<UpdateSource>(
+                  value: config.source,
+                  values: UpdateSource.values,
+                  labelOf: (source) => source.label,
+                  onSelected: (source) {
+                    if (source == UpdateSource.custom) {
+                      _editCustomPrefix(config);
+                    } else {
+                      app.updates.setSource(source);
+                    }
+                  },
+                ),
+              ),
+              if (config.source == UpdateSource.custom)
+                SettingsTile(
+                  label: '自定义加速前缀',
+                  subtitle: config.customPrefix.isEmpty
+                      ? '未设置，暂时使用 GitHub 官方'
+                      : config.customPrefix,
+                  trailing: Icon(
+                    Icons.edit_rounded,
+                    size: 18,
+                    color: s.textSecondary,
+                  ),
+                  onTap: () => _editCustomPrefix(config),
+                ),
+              SettingsTile(
+                label: '发现更新后自动下载',
+                subtitle: '后台下载安装包，由你确认后再安装',
+                trailing: Switch(
+                  value: config.autoInstall,
+                  onChanged: app.updates.setAutoInstall,
+                ),
+              ),
+            ],
           ),
         ),
         SettingsTile(

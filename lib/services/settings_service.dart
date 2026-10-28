@@ -38,6 +38,7 @@ class SettingsService extends ValueNotifier<SettingsState> {
       (v) => _prefs.setString(PrefsKeys.audioLevel, v),
     );
     put((s) => s.autoPlay, (v) => _prefs.setBool(PrefsKeys.autoPlay, v));
+    put((s) => s.replayGain, (v) => _prefs.setBool(PrefsKeys.replayGain, v));
     put((s) => s.immersive, (v) => _prefs.setBool(PrefsKeys.immersive, v));
     put(
       (s) => s.playbackSpeed,
@@ -102,6 +103,8 @@ class SettingsService extends ValueNotifier<SettingsState> {
   void setAudioLevel(AudioLevel level) =>
       _save(value.copyWith(audioLevel: level));
   void setAutoPlay(bool autoPlay) => _save(value.copyWith(autoPlay: autoPlay));
+  void setReplayGain(bool replayGain) =>
+      _save(value.copyWith(replayGain: replayGain));
   void setImmersive(bool immersive) =>
       _save(value.copyWith(immersive: immersive));
   void setVolume(double volume) =>

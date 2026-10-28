@@ -13,6 +13,10 @@ class AmusicJustAudio extends JustAudioPlatform {
   static final _players = <String, AmusicPlayer>{};
   static AmusicEq _eq = AmusicEq.off;
 
+  /// Dart statics reset on a hot restart but the native library does not, so
+  /// the first player of each isolate reaps whatever the last one left playing.
+  static bool _reaped = false;
+
   /// The engine plays on every platform the app ships on.
   static bool get isSupported =>
       Platform.isMacOS ||
@@ -36,10 +40,24 @@ class AmusicJustAudio extends JustAudioPlatform {
     }
   }
 
+  /// Sets (or clears, with `null`) where players read a track's ReplayGain,
+  /// and re-applies it to the tracks that are already loaded, so switching
+  /// normalisation on or off is heard at once.
+  static void setReplayGain(AmusicReplayGain? lookup) {
+    AmusicPlayer.replayGain = lookup;
+    for (final player in _players.values) {
+      player.applyReplayGain();
+    }
+  }
+
   @override
   Future<AudioPlayerPlatform> init(InitRequest request) async {
     if (_players.containsKey(request.id)) {
       throw StateError('Player ${request.id} already exists');
+    }
+    if (!_reaped) {
+      _reaped = true;
+      AmusicNative.instance.freeAll();
     }
     final player = AmusicPlayer(request.id, AmusicNative.instance, _eq);
     _players[request.id] = player;

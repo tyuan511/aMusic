@@ -80,6 +80,9 @@ class AmusicNative {
   AmusicNative(DynamicLibrary lib)
     : create = lib.lookupFunction<_NewC, _NewC>('amusic_player_new'),
       free = lib.lookupFunction<_FreeC, _Free>('amusic_player_free'),
+      freeAll = lib.lookupFunction<Void Function(), void Function()>(
+        'amusic_player_free_all',
+      ),
       load = lib.lookupFunction<_LoadC, _Load>('amusic_player_load'),
       setNext = lib.lookupFunction<_SetNextC, _SetNext>(
         'amusic_player_set_next',
@@ -90,6 +93,12 @@ class AmusicNative {
       seek = lib.lookupFunction<_SeekC, _Seek>('amusic_player_seek'),
       setVolume = lib.lookupFunction<_FloatC, _FloatFn>(
         'amusic_player_set_volume',
+      ),
+      setGain = lib.lookupFunction<_FloatC, _FloatFn>(
+        'amusic_player_set_gain',
+      ),
+      setNextGain = lib.lookupFunction<_FloatC, _FloatFn>(
+        'amusic_player_set_next_gain',
       ),
       setSpeed = lib.lookupFunction<_SeekC, _Seek>('amusic_player_set_speed'),
       setEq = lib.lookupFunction<_SetEqC, _SetEq>('amusic_player_set_eq'),
@@ -103,6 +112,9 @@ class AmusicNative {
 
   final Pointer<Void> Function() create;
   final _Free free;
+
+  /// Frees players left over from a previous Dart isolate (hot restart).
+  final void Function() freeAll;
   final _Load load;
   final _SetNext setNext;
   final _Void play;
@@ -110,6 +122,13 @@ class AmusicNative {
   final _Void stop;
   final _Seek seek;
   final _FloatFn setVolume;
+
+  /// Loudness normalisation of the playing track, in dB.
+  final _FloatFn setGain;
+
+  /// Gain of the queued track, applied where it starts; NaN clears it.
+  final _FloatFn setNextGain;
+
   final _Seek setSpeed;
   final _SetEq setEq;
   final _Status status;
@@ -134,8 +153,14 @@ class AmusicNative {
 
   /// Test hook: use the library at [path] instead of the bundled one.
   static void overrideLibrary(String path) {
+    _libraryPath = path;
     _shared = AmusicNative(DynamicLibrary.open(path));
   }
+
+  static String? _libraryPath;
+
+  /// The library to open in a helper isolate: the test override, if any.
+  static String? get libraryPathOverride => _libraryPath;
 
   /// The process wide instance.
   static AmusicNative get instance => _shared ??= AmusicNative(openDefault());

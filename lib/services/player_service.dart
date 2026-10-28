@@ -7,6 +7,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:amusic_engine/amusic_engine.dart';
 
 import '../audio/audio_cache.dart';
 import '../audio/resolving_source.dart';
@@ -205,6 +206,17 @@ class PlayerService {
   }) {
     _lyrics.localPathFor = _localLibrary.pathFor;
     _sleep.trackRemaining = _trackRemaining;
+  }
+
+  /// Creates the native player before the first frame is shown. The first
+  /// engine instance opens the system audio device synchronously; doing that
+  /// during the first tap would briefly block the Flutter isolate and make
+  /// the whole desktop UI look frozen.
+  void prepare() {
+    _player;
+    // URL encryption and cover/spectrum helpers use a second FFI view of the
+    // same library; resolve it while startup work is still off-screen too.
+    AmusicTools.instance;
   }
 
   final ApiHost _host;
@@ -523,6 +535,10 @@ class PlayerService {
   /// the whole queue so a shuffle toggle does not rebuild every list item.
   final ValueNotifier<int?> currentSongId = ValueNotifier(null);
 
+  /// Rust-computed frequency magnitudes for the full-screen seek bar.
+  /// Empty while the current source is still resolving or cannot be analysed.
+  final ValueNotifier<Uint8List> spectrum = ValueNotifier(Uint8List(0));
+
   final ValueNotifier<PlaybackState> playback = ValueNotifier(
     const PlaybackState(),
   );
@@ -541,6 +557,8 @@ class PlayerService {
   int _consecutiveFailures = 0;
   Timer? _skipTimer;
   DateTime? _lastFailureAt;
+  final _spectrumCache = <int, Uint8List>{};
+  final _spectrumJobs = <int, Future<void>>{};
 
   /// Restored position not yet confirmed by the engine (the player reports
   /// zero until the lazily prepared source loads).
@@ -585,6 +603,8 @@ class PlayerService {
       _player.positionDiscontinuityStream.listen(_onDiscontinuity),
     ]);
     unawaited(_scrobbles.flush());
+    _lastLevel = _settings.value.audioLevel;
+    _settings.addListener(_onSettingsChanged);
 
     if (snapshot == null || snapshot.isEmpty) {
       ready.value = true;
@@ -637,6 +657,42 @@ class PlayerService {
     }
   }
 
+  AudioLevel? _lastLevel;
+
+  /// A new quality only applies to sources resolved afterwards, so reload the
+  /// current queue at the same position to make the switch audible at once.
+  void _onSettingsChanged() {
+    final level = _settings.value.audioLevel;
+    if (level == _lastLevel) return;
+    _lastLevel = level;
+    final song = currentSong;
+    if (song == null || LocalLibraryService.isLocalId(song.id)) return;
+    if (_pendingRestore != null) return;
+    unawaited(_reloadCurrent());
+  }
+
+  Future<void> _reloadCurrent() async {
+    final songs = queue.value.songs;
+    final index = queue.value.index;
+    if (songs.isEmpty) return;
+    final wasPlaying = _player.playing;
+    final at = _player.position;
+    try {
+      await _player.setAudioSources(
+        _buildSources(songs),
+        initialIndex: index,
+        initialPosition: at,
+        preload: true,
+      );
+      _onIndexChanged(index);
+      if (wasPlaying) await _player.play();
+    } on PlayerInterruptedException {
+      // A newer request took over.
+    } on Object catch (error) {
+      _onPlayerError(error);
+    }
+  }
+
   List<AudioSource> _buildSources(List<Song> songs) =>
       songs.map(_sourceFor).toList(growable: false);
 
@@ -675,6 +731,60 @@ class PlayerService {
         next.level != playback.value.level ||
         playback.value.error != null) {
       playback.value = next;
+    }
+  }
+
+  /// Starts the Rust spectrum analysis for [song] once its source is known.
+  /// The work runs in a helper isolate and never blocks the playback stream.
+  Future<void> ensureSpectrum(Song song) {
+    if (currentSong?.id != song.id) return Future<void>.value();
+    final cached = _spectrumCache[song.id];
+    if (cached != null) {
+      if (spectrum.value != cached) spectrum.value = cached;
+      return Future<void>.value();
+    }
+    final existing = _spectrumJobs[song.id];
+    if (existing != null) return existing;
+    final job = _prepareSpectrum(song);
+    _spectrumJobs[song.id] = job;
+    unawaited(
+      job.whenComplete(() {
+        if (identical(_spectrumJobs[song.id], job)) {
+          _spectrumJobs.remove(song.id);
+        }
+      }),
+    );
+    return job;
+  }
+
+  Future<void> _prepareSpectrum(Song song) async {
+    String? location;
+    if (LocalLibraryService.isLocalId(song.id)) {
+      location = _localLibrary.pathFor(song.id);
+    } else {
+      final source = _currentSource();
+      if (source?.song.id == song.id) {
+        location = source?.resolvedUri;
+        if (location == null) {
+          try {
+            location = (await source!.resolveForAnalysis()).url;
+          } on Object catch (error) {
+            debugPrint('spectrum source resolve failed: $error');
+            return;
+          }
+        }
+      }
+    }
+    if (location == null || location.isEmpty) return;
+    try {
+      final values = await AmusicTools.spectrumFileAsync(location, bands: 256);
+      if (values == null || values.isEmpty || currentSong?.id != song.id) {
+        return;
+      }
+      _spectrumCache[song.id] = values;
+      if (currentSong?.id == song.id) spectrum.value = values;
+    } on Object catch (error) {
+      debugPrint('spectrum analysis failed: $error');
     }
   }
 
@@ -1161,6 +1271,7 @@ class PlayerService {
       return;
     }
     currentSongId.value = song.id;
+    spectrum.value = _spectrumCache[song.id] ?? Uint8List(0);
     _beginSession(song);
 
     playback.value = playback.value.copyWith(
@@ -1281,6 +1392,7 @@ class PlayerService {
   void dispose() {
     _endSession();
     _skipTimer?.cancel();
+    _settings.removeListener(_onSettingsChanged);
     _sleep.dispose();
     _scrobbles.dispose();
     for (final subscription in _subscriptions) {

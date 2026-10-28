@@ -50,19 +50,41 @@ struct Biquad {
 
 impl Biquad {
     fn from_coeffs(b0: f64, b1: f64, b2: f64, a0: f64, a1: f64, a2: f64) -> Self {
-        Self { b0: b0 / a0, b1: b1 / a0, b2: b2 / a0, a1: a1 / a0, a2: a2 / a0, z1: 0.0, z2: 0.0 }
+        Self {
+            b0: b0 / a0,
+            b1: b1 / a0,
+            b2: b2 / a0,
+            a1: a1 / a0,
+            a2: a2 / a0,
+            z1: 0.0,
+            z2: 0.0,
+        }
     }
 
     fn lowpass(fs: f64, f: f64, q: f64) -> Self {
         let w = 2.0 * PI * f / fs;
         let (c, a) = (w.cos(), w.sin() / (2.0 * q));
-        Self::from_coeffs((1.0 - c) / 2.0, 1.0 - c, (1.0 - c) / 2.0, 1.0 + a, -2.0 * c, 1.0 - a)
+        Self::from_coeffs(
+            (1.0 - c) / 2.0,
+            1.0 - c,
+            (1.0 - c) / 2.0,
+            1.0 + a,
+            -2.0 * c,
+            1.0 - a,
+        )
     }
 
     fn highpass(fs: f64, f: f64, q: f64) -> Self {
         let w = 2.0 * PI * f / fs;
         let (c, a) = (w.cos(), w.sin() / (2.0 * q));
-        Self::from_coeffs((1.0 + c) / 2.0, -(1.0 + c), (1.0 + c) / 2.0, 1.0 + a, -2.0 * c, 1.0 - a)
+        Self::from_coeffs(
+            (1.0 + c) / 2.0,
+            -(1.0 + c),
+            (1.0 + c) / 2.0,
+            1.0 + a,
+            -2.0 * c,
+            1.0 - a,
+        )
     }
 
     fn high_shelf(fs: f64, f: f64, gain_db: f64) -> Self {
@@ -100,7 +122,10 @@ struct Delay {
 
 impl Delay {
     fn new(len: usize) -> Self {
-        Self { buf: vec![0.0; len.max(1)], idx: 0 }
+        Self {
+            buf: vec![0.0; len.max(1)],
+            idx: 0,
+        }
     }
 
     /// Writes `x` and returns the sample written `len` frames ago.
@@ -150,13 +175,26 @@ impl Reverb {
     fn new(fs: u32, room: f32, damp: f32, predelay_ms: f32) -> Self {
         let scale = fs as f64 / 44100.0;
         let len = |n: usize| ((n as f64 * scale).round() as usize).max(1);
-        let comb = |n: usize| Comb { buf: vec![0.0; len(n)], idx: 0, store: 0.0 };
-        let all = |n: usize| Allpass { buf: vec![0.0; len(n)], idx: 0 };
+        let comb = |n: usize| Comb {
+            buf: vec![0.0; len(n)],
+            idx: 0,
+            store: 0.0,
+        };
+        let all = |n: usize| Allpass {
+            buf: vec![0.0; len(n)],
+            idx: 0,
+        };
         Self {
             comb_l: COMB_TUNING.iter().map(|&n| comb(n)).collect(),
-            comb_r: COMB_TUNING.iter().map(|&n| comb(n + STEREO_SPREAD)).collect(),
+            comb_r: COMB_TUNING
+                .iter()
+                .map(|&n| comb(n + STEREO_SPREAD))
+                .collect(),
             all_l: ALLPASS_TUNING.iter().map(|&n| all(n)).collect(),
-            all_r: ALLPASS_TUNING.iter().map(|&n| all(n + STEREO_SPREAD)).collect(),
+            all_r: ALLPASS_TUNING
+                .iter()
+                .map(|&n| all(n + STEREO_SPREAD))
+                .collect(),
             feedback: room * 0.28 + 0.7,
             damp: damp * 0.4,
             predelay: Delay::new((fs as f32 * predelay_ms / 1000.0) as usize),
@@ -321,14 +359,26 @@ impl Rotate360 {
         self.gain_r = (ang.sin() * std::f64::consts::SQRT_2) as f32;
         // Head shadow: the far ear loses highs.
         let k = |fc: f64| (1.0 - (-2.0 * PI * fc / self.fs).exp()) as f32;
-        self.shadow_k_l = k(if p > 0.0 { 20000.0 - p * 15000.0 } else { 20000.0 });
-        self.shadow_k_r = k(if p < 0.0 { 20000.0 + p * 15000.0 } else { 20000.0 });
+        self.shadow_k_l = k(if p > 0.0 {
+            20000.0 - p * 15000.0
+        } else {
+            20000.0
+        });
+        self.shadow_k_r = k(if p < 0.0 {
+            20000.0 + p * 15000.0
+        } else {
+            20000.0
+        });
     }
 
     #[inline]
     fn tap(&self, delay: f64) -> f32 {
         let at = self.pos as f64 - delay;
-        let at = if at < 0.0 { at + ROTATE_LINE as f64 } else { at };
+        let at = if at < 0.0 {
+            at + ROTATE_LINE as f64
+        } else {
+            at
+        };
         let floor = at.floor();
         let i = floor as usize & (ROTATE_LINE - 1);
         let frac = (at - floor) as f32;
@@ -421,8 +471,14 @@ impl Exciter {
     fn new(fs: u32) -> Self {
         let f = fs as f64;
         Self {
-            pre: [Biquad::highpass(f, 3500.0, 0.7), Biquad::highpass(f, 3500.0, 0.7)],
-            post: [Biquad::highpass(f, 6500.0, 0.7), Biquad::highpass(f, 6500.0, 0.7)],
+            pre: [
+                Biquad::highpass(f, 3500.0, 0.7),
+                Biquad::highpass(f, 3500.0, 0.7),
+            ],
+            post: [
+                Biquad::highpass(f, 6500.0, 0.7),
+                Biquad::highpass(f, 6500.0, 0.7),
+            ],
         }
     }
 
@@ -451,7 +507,14 @@ pub struct EffectChain {
 
 impl EffectChain {
     pub fn new(fs: u32) -> Self {
-        Self { fs, kind: Effect::None, surround: None, rotate: None, live: None, exciter: None }
+        Self {
+            fs,
+            kind: Effect::None,
+            surround: None,
+            rotate: None,
+            live: None,
+            exciter: None,
+        }
     }
 
     pub fn effect(&self) -> Effect {
@@ -559,9 +622,17 @@ mod tests {
     #[test]
     fn every_effect_is_finite_and_bounded_on_loud_input() {
         let input = tone(220.0, 2.0, 1.0, 0.7);
-        for e in [Effect::Surround3d, Effect::Rotate360, Effect::LiveHouse, Effect::Exciter] {
+        for e in [
+            Effect::Surround3d,
+            Effect::Rotate360,
+            Effect::LiveHouse,
+            Effect::Exciter,
+        ] {
             let out = run(e, &input);
-            assert!(out.iter().all(|s| s.is_finite() && s.abs() < 4.0), "{e:?} blew up");
+            assert!(
+                out.iter().all(|s| s.is_finite() && s.abs() < 4.0),
+                "{e:?} blew up"
+            );
         }
     }
 
@@ -581,10 +652,20 @@ mod tests {
         assert!(rms(tail, 1) > 0.01, "no cross-feed");
         let side_in = {
             let t = &left[left.len() / 2..];
-            t.chunks_exact(2).map(|f| ((f[0] - f[1]) * 0.5) as f64).map(|x| x * x).sum::<f64>()
+            t.chunks_exact(2)
+                .map(|f| ((f[0] - f[1]) * 0.5) as f64)
+                .map(|x| x * x)
+                .sum::<f64>()
         };
-        let side_out = tail.chunks_exact(2).map(|f| ((f[0] - f[1]) * 0.5) as f64).map(|x| x * x).sum::<f64>();
-        assert!(side_out > side_in * 1.1, "side energy {side_out} vs {side_in}");
+        let side_out = tail
+            .chunks_exact(2)
+            .map(|f| ((f[0] - f[1]) * 0.5) as f64)
+            .map(|x| x * x)
+            .sum::<f64>();
+        assert!(
+            side_out > side_in * 1.1,
+            "side energy {side_out} vs {side_in}"
+        );
     }
 
     #[test]
@@ -601,11 +682,17 @@ mod tests {
             .collect();
         let max = balance.iter().cloned().fold(f64::MIN, f64::max);
         let min = balance.iter().cloned().fold(f64::MAX, f64::min);
-        assert!(max > 4.0 && min < -4.0, "balance only swung {min:.1}..{max:.1} dB");
+        assert!(
+            max > 4.0 && min < -4.0,
+            "balance only swung {min:.1}..{max:.1} dB"
+        );
         // It comes back: the first and last windows (a full turn apart) match.
         assert!((balance[0] - balance[balance.len() - 1]).abs() < 3.0);
         // Overall level stays roughly constant.
-        let (a, b) = (rms(&mono, 0), (rms(&out, 0).powi(2) + rms(&out, 1).powi(2)).sqrt() / 2f64.sqrt());
+        let (a, b) = (
+            rms(&mono, 0),
+            (rms(&out, 0).powi(2) + rms(&out, 1).powi(2)).sqrt() / 2f64.sqrt(),
+        );
         assert!((20.0 * (b / a).log10()).abs() < 4.0, "level {a} -> {b}");
     }
 
@@ -616,7 +703,10 @@ mod tests {
         input[1] = 0.9;
         let out = run(Effect::LiveHouse, &input);
         let second = |from: f64, to: f64| {
-            let (a, b) = ((FS as f64 * from) as usize * 2, (FS as f64 * to) as usize * 2);
+            let (a, b) = (
+                (FS as f64 * from) as usize * 2,
+                (FS as f64 * to) as usize * 2,
+            );
             rms(&out[a..b], 0)
         };
         let early = second(0.05, 0.25);
@@ -624,7 +714,10 @@ mod tests {
         let late = second(1.5, 1.7);
         assert!(early > 1e-4, "no reverb tail at all");
         assert!(later > 1e-5, "tail too short: {later}");
-        assert!(early > later && later > late, "tail does not decay: {early} {later} {late}");
+        assert!(
+            early > later && later > late,
+            "tail does not decay: {early} {later} {late}"
+        );
     }
 
     #[test]
@@ -632,11 +725,19 @@ mod tests {
         let hi = tone(3000.0, 1.0, 1.0, 1.0);
         let out = run(Effect::Exciter, &hi);
         let (before, after) = (goertzel(&hi, 0, 9000.0), goertzel(&out, 0, 9000.0));
-        assert!(before < 1e-3 && after > 0.004, "9 kHz harmonic {before} -> {after}");
+        assert!(
+            before < 1e-3 && after > 0.004,
+            "9 kHz harmonic {before} -> {after}"
+        );
 
         let bass = tone(200.0, 1.0, 1.0, 1.0);
         let out = run(Effect::Exciter, &bass);
-        let diff: f64 = bass.iter().zip(&out).map(|(a, b)| ((a - b) as f64).abs()).sum::<f64>() / bass.len() as f64;
+        let diff: f64 = bass
+            .iter()
+            .zip(&out)
+            .map(|(a, b)| ((a - b) as f64).abs())
+            .sum::<f64>()
+            / bass.len() as f64;
         assert!(diff < 0.005, "bass changed by {diff}");
     }
 

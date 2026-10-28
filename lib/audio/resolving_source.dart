@@ -58,6 +58,14 @@ class ResolvingAudioSource extends StreamAudioSource {
   /// The quality level granted by the server for the current url.
   String? get grantedLevel => _resolved?.level;
 
+  /// The last URL opened for this source, when one has been resolved.
+  /// Used by the background spectrum analyser so it can read the same audio
+  /// location as the player without resolving the short-lived URL twice.
+  String? get resolvedUri => _resolved?.url;
+
+  /// Resolves the source for an auxiliary background analysis.
+  Future<PlayUrl> resolveForAnalysis() => _resolve();
+
   Future<PlayUrl> _resolve({bool force = false}) {
     final level = levelProvider();
     final cached = _resolved;

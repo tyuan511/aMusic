@@ -12,7 +12,9 @@ use amusic_engine::{Band, Effect, EqConfig, Pipeline};
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.len() < 2 {
-        eprintln!("usage: render <in> <out.wav> [--band f:q:g]... [--gain db] [--no-limiter] [--rate hz]");
+        eprintln!(
+            "usage: render <in> <out.wav> [--band f:q:g]... [--gain db] [--no-limiter] [--rate hz]"
+        );
         std::process::exit(2);
     }
     let (input, output) = (&args[0], &args[1]);
@@ -23,7 +25,11 @@ fn main() {
         match args[i].as_str() {
             "--band" => {
                 let p: Vec<f32> = args[i + 1].split(':').map(|v| v.parse().unwrap()).collect();
-                cfg.bands.push(Band { freq: p[0], q: p[1], gain_db: p[2] });
+                cfg.bands.push(Band {
+                    freq: p[0],
+                    q: p[1],
+                    gain_db: p[2],
+                });
                 i += 1;
             }
             "--gain" => {
@@ -78,5 +84,8 @@ fn main() {
         wav.write_sample(*s).unwrap();
     }
     wav.finalize().unwrap();
-    eprintln!("wrote {frames} frames ({:.2}s)", frames as f64 / out_rate as f64);
+    eprintln!(
+        "wrote {frames} frames ({:.2}s)",
+        frames as f64 / out_rate as f64
+    );
 }

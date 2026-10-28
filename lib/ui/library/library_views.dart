@@ -6,7 +6,7 @@ import '../../models/user.dart';
 import '../../router.dart';
 import '../../services/app.dart';
 import '../../theme/app_theme.dart';
-import '../browse_widgets/cards.dart';
+import '../browse_widgets/buttons.dart';
 import '../browse_widgets/layout.dart';
 import '../browse_widgets/playback.dart';
 import '../browse_widgets/playlist_row.dart';
@@ -108,10 +108,8 @@ class LibraryOverview extends StatelessWidget {
           showCreator: false,
           leading: const LikedCover(),
         ),
-      const Padding(
-        padding: EdgeInsets.fromLTRB(10, 16, 10, 0),
-        child: LibraryShortcuts(),
-      ),
+      const _LocalMusicRow(),
+      const _RecentMusicRow(),
       SectionTitle(
         title: '创建的歌单',
         subtitle: '${collections.created.length} 个',
@@ -142,42 +140,69 @@ class LibraryOverview extends StatelessWidget {
   }
 }
 
-/// 本地 / 下载 / 最近 summary cards.
+/// 本地 / 最近 shortcuts using the same row treatment as playlists.
 class LibraryShortcuts extends StatelessWidget {
   const LibraryShortcuts({super.key});
 
   @override
+  Widget build(BuildContext context) =>
+      const Column(children: [_LocalMusicRow(), _RecentMusicRow()]);
+}
+
+class _LocalMusicRow extends StatelessWidget {
+  const _LocalMusicRow();
+
+  @override
   Widget build(BuildContext context) {
     final s = context.surfaces;
-    return ResponsiveColumns(
-      minColumnWidth: 280,
-      maxColumns: 3,
-      spacing: 12,
-      runSpacing: 12,
-      children: [
-        ValueListenableBuilder<List<Song>>(
-          valueListenable: app.localLibrary.songs,
-          builder: (context, songs, _) => EntryCard(
-            icon: Icons.folder_open_rounded,
-            title: '本地音乐',
-            subtitle: songs.isEmpty ? '扫描设备中的音乐' : '${songs.length} 首',
-            tint: s.peach,
-            onTap: () => openLocalMusic(context),
-          ),
-        ),
-        ValueListenableBuilder<List<Song>>(
-          valueListenable: app.recent.tracks,
-          builder: (context, tracks, _) => EntryCard(
-            icon: Icons.history_rounded,
-            title: '最近播放',
-            subtitle: tracks.isEmpty ? '暂无记录' : '${tracks.length} 首',
-            tint: s.lavender,
-            onTap: () => openHistory(context),
-          ),
-        ),
-      ],
+    return ValueListenableBuilder<List<Song>>(
+      valueListenable: app.localLibrary.songs,
+      builder: (context, songs, _) => MediaRow(
+        leading: _ShortcutIcon(icon: Icons.folder_open_rounded, color: s.peach),
+        title: '本地音乐',
+        subtitle: songs.isEmpty ? '扫描设备中的音乐' : '${songs.length} 首本地歌曲',
+        trailing: Icon(Icons.chevron_right_rounded, color: s.textTertiary),
+        onTap: () => openLocalMusic(context),
+      ),
     );
   }
+}
+
+class _RecentMusicRow extends StatelessWidget {
+  const _RecentMusicRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.surfaces;
+    return ValueListenableBuilder<List<Song>>(
+      valueListenable: app.recent.tracks,
+      builder: (context, tracks, _) => MediaRow(
+        leading: _ShortcutIcon(icon: Icons.history_rounded, color: s.lavender),
+        title: '最近播放',
+        subtitle: tracks.isEmpty ? '暂无记录' : '${tracks.length} 首',
+        trailing: Icon(Icons.chevron_right_rounded, color: s.textTertiary),
+        onTap: () => openHistory(context),
+      ),
+    );
+  }
+}
+
+class _ShortcutIcon extends StatelessWidget {
+  const _ShortcutIcon({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 58,
+    height: 58,
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: 0.16),
+      borderRadius: BorderRadius.circular(AppMetrics.radiusSm + 2),
+    ),
+    child: Icon(icon, color: color, size: 26),
+  );
 }
 
 /// List of playlists for 创建 / 收藏.
@@ -276,6 +301,7 @@ class SongListView extends StatelessWidget {
     this.sourceId,
     this.onRefresh,
     this.footer,
+    this.showHeader = true,
   });
 
   final List<Song> songs;
@@ -284,42 +310,45 @@ class SongListView extends StatelessWidget {
   final Future<void> Function()? onRefresh;
   final Widget? footer;
 
+  /// Whether to show the "播放全部" row; false when the host page offers it.
+  final bool showHeader;
+
   @override
   Widget build(BuildContext context) {
     final list = CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
-        SliverToBoxAdapter(
-          child: ContentBox(
-            padding: const EdgeInsets.fromLTRB(
-              AppMetrics.gutter,
-              4,
-              AppMetrics.gutter,
-              8,
-            ),
-            child: Row(
-              children: [
-                LimePillButton(
-                  label: '播放全部',
-                  icon: Icons.play_arrow_rounded,
-                  onPressed: () => playCollection(
-                    context,
-                    songs,
-                    title: title,
-                    sourceId: sourceId,
-                  ),
+        if (showHeader)
+          SliverContent(
+            horizontal: AppMetrics.gutter - 10,
+            sliver: SliverToBoxAdapter(
+              child: Padding(
+                // Line up with the song covers, which sit inside the tile padding.
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                child: Row(
+                  children: [
+                    LimePillButton(
+                      label: '播放全部',
+                      icon: Icons.play_arrow_rounded,
+                      onPressed: () => playCollection(
+                        context,
+                        songs,
+                        title: title,
+                        sourceId: sourceId,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '${songs.length} 首',
+                      style: context.text.bodySmall?.copyWith(
+                        color: context.surfaces.textTertiary,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Text(
-                  '${songs.length} 首',
-                  style: context.text.bodySmall?.copyWith(
-                    color: context.surfaces.textTertiary,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
         SliverContent(
           horizontal: AppMetrics.gutter - 10,
           sliver: SliverFixedExtentList.builder(

@@ -28,6 +28,12 @@ void main() {
     final restored = readSettings(prefs);
     expect(restored.themeMode, ThemeMode.light);
     expect(restored.volume, 1.0);
+
+    // The ReplayGain switch persists like any other bool.
+    expect(readSettings(prefs).replayGain, isTrue); // default
+    settings.setReplayGain(false);
+    expect(prefs.getBool(PrefsKeys.replayGain), isFalse);
+    expect(readSettings(prefs).replayGain, isFalse);
   });
 
   test('snapshot encode reuses the queue json and stays decodable', () {

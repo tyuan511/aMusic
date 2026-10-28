@@ -16,6 +16,13 @@ Future<void> main() async {
   }
 
   app = await AppServices.bootstrap();
+  // Initialising cpal can synchronously query the macOS audio device. Do it
+  // before the window is interactive so the first play tap stays responsive.
+  try {
+    app.player.prepare();
+  } on Object catch (error) {
+    debugPrint('audio player prepare failed: $error');
+  }
   runApp(const AmusicApp());
 
   // Restoring the session and the playback queue touches the network, so it

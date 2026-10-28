@@ -7,6 +7,7 @@
 
 use std::cell::RefCell;
 use std::ffi::{c_char, CStr, CString};
+use std::sync::Mutex;
 
 use crate::dsp::Band;
 use crate::effects::Effect;
@@ -15,6 +16,15 @@ use crate::player::{Player, Status};
 
 thread_local! {
     static LAST_ERROR: RefCell<CString> = RefCell::new(CString::default());
+}
+
+/// Handles that are still alive. A Flutter hot restart resets Dart's state but
+/// leaves this library loaded, so players made before it would play on forever;
+/// [`amusic_player_free_all`] lets the new isolate reap them.
+static LIVE: Mutex<Vec<usize>> = Mutex::new(Vec::new());
+
+fn live() -> std::sync::MutexGuard<'static, Vec<usize>> {
+    LIVE.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 fn set_error(msg: &str) {
@@ -31,7 +41,11 @@ pub extern "C" fn amusic_last_error() -> *const c_char {
 #[no_mangle]
 pub extern "C" fn amusic_player_new() -> *mut Player {
     match Player::new() {
-        Ok(p) => Box::into_raw(Box::new(p)),
+        Ok(p) => {
+            let raw = Box::into_raw(Box::new(p));
+            live().push(raw as usize);
+            raw
+        }
         Err(e) => {
             set_error(&e);
             std::ptr::null_mut()
@@ -44,7 +58,21 @@ pub extern "C" fn amusic_player_new() -> *mut Player {
 #[no_mangle]
 pub unsafe extern "C" fn amusic_player_free(p: *mut Player) {
     if !p.is_null() {
+        live().retain(|&h| h != p as usize);
         drop(Box::from_raw(p));
+    }
+}
+
+/// Frees every player that was never freed (leftovers of a previous Dart
+/// isolate after a hot restart). Call before creating the first player.
+///
+/// # Safety
+/// No handle returned earlier may be used afterwards.
+#[no_mangle]
+pub unsafe extern "C" fn amusic_player_free_all() {
+    let stale: Vec<usize> = std::mem::take(&mut *live());
+    for h in stale {
+        drop(Box::from_raw(h as *mut Player));
     }
 }
 
@@ -69,7 +97,11 @@ unsafe fn text(ptr: *const c_char) -> Option<String> {
 /// # Safety
 /// `url` must be a valid NUL terminated string.
 #[no_mangle]
-pub unsafe extern "C" fn amusic_player_load(p: *mut Player, url: *const c_char, start_secs: f64) -> i32 {
+pub unsafe extern "C" fn amusic_player_load(
+    p: *mut Player,
+    url: *const c_char,
+    start_secs: f64,
+) -> i32 {
     let Some(url) = text(url) else {
         set_error("invalid url");
         return -1;
@@ -141,7 +173,14 @@ pub unsafe extern "C" fn amusic_player_set_eq(
     } else {
         std::slice::from_raw_parts(bands, count).to_vec()
     };
-    with(p, (), |pl| pl.set_eq(EqConfig { bands, gain_db, limiter, effect: Effect::from_u32(effect) }));
+    with(p, (), |pl| {
+        pl.set_eq(EqConfig {
+            bands,
+            gain_db,
+            limiter,
+            effect: Effect::from_u32(effect),
+        })
+    });
 }
 
 /// What the UI polls. `state`: 0 idle, 1 loading, 2 ready, 3 ended, 4 error.
@@ -194,7 +233,11 @@ pub unsafe extern "C" fn amusic_player_status(p: *mut Player, out: *mut AmusicSt
 /// # Safety
 /// `buf` must have room for `cap` bytes.
 #[no_mangle]
-pub unsafe extern "C" fn amusic_player_take_error(p: *mut Player, buf: *mut c_char, cap: usize) -> usize {
+pub unsafe extern "C" fn amusic_player_take_error(
+    p: *mut Player,
+    buf: *mut c_char,
+    cap: usize,
+) -> usize {
     let msg = with(p, String::new(), |pl| pl.take_error());
     if buf.is_null() || cap == 0 {
         return msg.len();
@@ -244,4 +287,16 @@ mod tests {
         assert_eq!(std::mem::size_of::<AmusicStatus>(), 40);
         assert_eq!(std::mem::align_of::<AmusicStatus>(), 8);
     }
+}
+
+/// Loudness normalisation of the playing track, in dB.
+#[no_mangle]
+pub extern "C" fn amusic_player_set_gain(p: *mut Player, db: f32) {
+    with(p, (), |pl| pl.set_gain_db(db));
+}
+
+/// Gain of the queued track, applied where it starts. NaN clears it.
+#[no_mangle]
+pub extern "C" fn amusic_player_set_next_gain(p: *mut Player, db: f32) {
+    with(p, (), |pl| pl.set_next_gain_db(db));
 }

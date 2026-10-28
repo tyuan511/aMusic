@@ -2,8 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:amusic/local/local_track.dart';
-import 'package:amusic/local/tags/tag_data.dart';
-import 'package:amusic/local/tags/tag_writer.dart';
 import 'package:amusic/services/local_library_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -39,27 +37,15 @@ void main() {
     return service;
   }
 
-  Future<void> taggedMp3(String path, TagData tag) async {
-    final raw = File('$path.raw')..writeAsBytesSync(mp3Frames(30));
-    await TagWriter.writeTagged(raw.path, path, tag);
-    raw.deleteSync();
-  }
-
   test('scan, probe, covers, persistence, rescans and removal', () async {
     Directory('${music.path}/Jay/叶惠美').createSync(recursive: true);
     Directory('${music.path}/.hidden').createSync();
     Directory('${music.path}/node_modules').createSync();
-    await taggedMp3(
+    // 晴天 / 周杰伦 / 叶惠美, with an embedded cover.
+    File('test/system/data/song.mp3').copySync(
       '${music.path}/Jay/叶惠美/01.mp3',
-      TagData(
-        title: '晴天',
-        artists: const ['周杰伦'],
-        album: '叶惠美',
-        cover: TagPicture(bytes: fakeJpeg(), mime: 'image/jpeg'),
-      ),
     );
-    File('${music.path}/Jay/夜曲.flac')
-        .writeAsBytesSync(flacFile(comments: {'TITLE': '夜曲', 'ARTIST': '周杰伦'}));
+    File('test/system/data/song.flac').copySync('${music.path}/Jay/夜曲.flac');
     File('${music.path}/王菲 - 红豆.wav').writeAsBytesSync(wavFile(seconds: 1));
     File('${music.path}/notes.txt').writeAsStringSync('not audio');
     File('${music.path}/.hidden/secret.mp3').writeAsBytesSync(mp3Frames(5));
@@ -103,9 +89,7 @@ void main() {
     // changed file is re-probed.
     final addedBefore = restarted.trackFor(sunny.id)!.added;
     await Future<void>.delayed(const Duration(milliseconds: 20));
-    File('${music.path}/Jay/夜曲.flac').writeAsBytesSync(
-      flacFile(comments: {'TITLE': '夜曲 (Live)', 'ARTIST': '周杰伦'}),
-    );
+    File('test/system/data/live.flac').copySync('${music.path}/Jay/夜曲.flac');
     await restarted.scan();
     expect(restarted.trackFor(sunny.id)!.added, addedBefore);
     expect(restarted.songs.value.map((s) => s.name), contains('夜曲 (Live)'));
@@ -132,6 +116,41 @@ void main() {
     await third.deleteFile(night.id);
     expect(File('${music.path}/Jay/夜曲.flac').existsSync(), isFalse);
     expect(third.songs.value, isEmpty);
+  });
+
+  test('ReplayGain survives a scan and a restart', () async {
+    final path = '${music.path}/夜曲.flac';
+    File('test/system/data/gain.flac').copySync(path);
+    final service = await create();
+    await service.scan();
+    expect(service.songs.value.single.name, '夜曲');
+    expect(service.replayGainFor(path), closeTo(-6.5, 0.01));
+    // The gain is persisted with the library and read back without a rescan:
+    // this is the value the engine asks for while playing.
+    final restarted = await create();
+    expect(restarted.replayGainFor(path), closeTo(-6.5, 0.01));
+  });
+
+  test('a library written by an older build is re-probed for ReplayGain', () async {
+    final path = '${music.path}/夜曲.flac';
+    File('test/system/data/gain.flac').copySync(path);
+    final first = await create();
+    await first.scan();
+    expect(first.replayGainFor(path), closeTo(-6.5, 0.01));
+
+    // Rewrite the store the way version 1 did: no `gain` key anywhere.
+    final store = File('${support.path}/local_library.json');
+    final json = jsonDecode(store.readAsStringSync()) as Map;
+    for (final track in json['tracks'] as List) {
+      (track as Map).remove('gain');
+    }
+    store.writeAsStringSync(jsonEncode({...json, 'version': 1}));
+
+    final upgraded = await create();
+    expect(upgraded.replayGainFor(path), isNull); // nothing scanned yet
+    await upgraded.scan();
+    // The file never changed, but the stored entry missed the gain.
+    expect(upgraded.replayGainFor(path), closeTo(-6.5, 0.01));
   });
 
   test('scan progress is reported and depth is capped', () async {

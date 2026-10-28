@@ -4,9 +4,16 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+aes = "0.8"
+cbc = { version = "0.1", features = ["alloc"] }
 cpal = "0.18.2"
+ebur128 = "0.1"
+ecb = { version = "0.1", features = ["alloc"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp"] }
+md-5 = "0.10"
+num-bigint = "0.4"
 rtrb = "0.4.1"
-symphonia = { version = "0.6.1", default-features = false, features = ["mp3", "aac", "flac", "isomp4", "ogg", "vorbis", "wav", "alac", "pcm", "mkv", "adpcm"] }
+symphonia = { version = "0.6.1", default-features = false, features = ["id3v1", "id3v2", "ape", "mp3", "aac", "flac", "isomp4", "ogg", "vorbis", "wav", "alac", "pcm", "mkv", "adpcm"] }
 ureq = { version = "3.5.0", default-features = false }
 
 [target.'cfg(target_os = "android")'.dependencies]

@@ -281,11 +281,8 @@ class _NowPlayingPageState extends State<NowPlayingPage>
         PlayerEntrance(
           delay: 0.3,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-            child: _SecondaryActions(
-              song: song,
-              onComments: () => _openSheet(PlayerPanel.comments),
-            ),
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+            child: _SecondaryActions(song: song),
           ),
         ),
       ],
@@ -312,10 +309,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                   flex: 5,
                   child: song == null
                       ? const _NothingPlaying()
-                      : _WideInfo(
-                          song: song,
-                          onComments: () => _select(PlayerPanel.comments),
-                        ),
+                      : _WideInfo(song: song),
                 ),
                 const SizedBox(width: 36),
                 Expanded(
@@ -422,37 +416,7 @@ class _Header extends StatelessWidget {
               iconColor: context.playerInk,
               onPressed: () => Navigator.of(context).maybePop(),
             ),
-            Expanded(
-              child: ValueListenableBuilder(
-                valueListenable: app.player.queue,
-                builder: (context, queue, _) => Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '正在播放',
-                      style: TextStyle(
-                        color: context.playerInk,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (queue.sourceTitle != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          queue.sourceTitle!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: context.playerInk.withValues(alpha: 0.55),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
+            const Spacer(),
             _LikeRoundButton(song: song),
           ],
         ),
@@ -899,13 +863,21 @@ class _ArtistLine extends StatelessWidget {
 class _QualityChip extends StatelessWidget {
   const _QualityChip();
 
+  static String _hint(AudioLevel level) => switch (level) {
+    AudioLevel.standard ||
+    AudioLevel.higher ||
+    AudioLevel.exhigh => '${level.bitrate ~/ 1000} kbps',
+    AudioLevel.lossless => 'FLAC',
+    _ => '会员音质',
+  };
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder(
       valueListenable: app.player.playback,
       builder: (context, playback, _) {
         final level = playback.level;
-        return AnimatedSwitcher(
+        final badge = AnimatedSwitcher(
           duration: AppMotion.standard,
           child: level == null && !playback.isTrial
               ? const SizedBox(key: ValueKey('none'), height: 17)
@@ -925,6 +897,62 @@ class _QualityChip extends StatelessWidget {
                   ],
                 ),
         );
+        if (level == null && !playback.isTrial) return badge;
+
+        return ValueListenableBuilder(
+          valueListenable: app.settings,
+          builder: (context, settings, _) => MenuAnchor(
+            style: MenuStyle(
+              backgroundColor: WidgetStatePropertyAll(context.surfaces.card),
+              shape: WidgetStatePropertyAll(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppMetrics.radiusSm),
+                  side: BorderSide(color: context.surfaces.hairline),
+                ),
+              ),
+            ),
+            menuChildren: [
+              for (final option in AudioLevel.values)
+                MenuItemButton(
+                  onPressed: () => app.settings.setAudioLevel(option),
+                  leadingIcon: AnimatedOpacity(
+                    duration: AppMotion.quick,
+                    opacity: option == settings.audioLevel ? 1 : 0,
+                    child: Icon(
+                      Icons.check_rounded,
+                      size: 18,
+                      color: context.surfaces.lime,
+                    ),
+                  ),
+                  child: SizedBox(
+                    width: 170,
+                    child: Row(
+                      children: [
+                        Text(option.label),
+                        const Spacer(),
+                        Text(
+                          _hint(option),
+                          style: context.text.bodySmall?.copyWith(
+                            color: context.surfaces.textTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+            builder: (context, controller, _) => Tooltip(
+              message: '音源品质：${settings.audioLevel.label}，点击调整',
+              child: Pressable(
+                onTap: () =>
+                    controller.isOpen ? controller.close() : controller.open(),
+                semanticLabel: '调整音源品质',
+                pressedScale: 0.96,
+                child: badge,
+              ),
+            ),
+          ),
+        );
       },
     );
   }
@@ -943,8 +971,9 @@ class _Transport extends StatelessWidget {
       children: [
         SeekBar(
           color: s.lime,
-          height: 28,
-          trackColor: context.playerInk.withValues(alpha: 0.18),
+          height: 36,
+          trackColor: context.playerInk.withValues(alpha: 0.2),
+          spectrum: true,
         ),
         SeekTimeRow(
           style: TextStyle(
@@ -1041,12 +1070,12 @@ class _MainControls extends StatelessWidget {
   }
 }
 
-/// Repeat · add to playlist · comments · sleep · speed · more.
+/// Repeat · heart mode · add to playlist · equalizer · speed · more. The sleep
+/// timer and comments live in the more menu; a running countdown stays visible.
 class _SecondaryActions extends StatelessWidget {
-  const _SecondaryActions({required this.song, required this.onComments});
+  const _SecondaryActions({required this.song});
 
   final Song? song;
-  final VoidCallback onComments;
 
   @override
   Widget build(BuildContext context) {
@@ -1054,107 +1083,199 @@ class _SecondaryActions extends StatelessWidget {
     final player = app.player;
     final s = context.surfaces;
     final online = song != null && song.id > 0;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        ValueListenableBuilder(
-          valueListenable: player.queue,
-          builder: (context, queue, _) => ValueListenableBuilder(
-            valueListenable: player.radioMode,
-            builder: (context, radio, _) => _IconAction(
-              icon: queue.repeat == LoopMode.one
-                  ? Icons.repeat_one_rounded
-                  : Icons.repeat_rounded,
-              tooltip: '循环：${queue.repeat.label}',
-              color: queue.repeat == LoopMode.off ? null : s.lime,
-              onTap: queue.isEmpty || radio ? null : player.toggleRepeat,
+    // Every slot is a fixed 40pt box and the gaps are equal, so the icons sit
+    // on an even grid whatever the speed label or countdown chip shows.
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 344),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            ValueListenableBuilder(
+              valueListenable: player.queue,
+              builder: (context, queue, _) => ValueListenableBuilder(
+                valueListenable: player.radioMode,
+                builder: (context, radio, _) => _IconAction(
+                  icon: queue.repeat == LoopMode.one
+                      ? Icons.repeat_one_rounded
+                      : Icons.repeat_rounded,
+                  tooltip: '循环：${queue.repeat.label}',
+                  color: queue.repeat == LoopMode.off ? null : s.lime,
+                  onTap: queue.isEmpty || radio ? null : player.toggleRepeat,
+                ),
+              ),
             ),
-          ),
-        ),
-        ValueListenableBuilder(
-          valueListenable: player.radioKind,
-          builder: (context, radio, _) => _IconAction(
-            icon: radio == RadioKind.heart
-                ? Icons.favorite_rounded
-                : Icons.favorite_border_rounded,
-            tooltip: radio == RadioKind.heart ? '关闭心动模式' : '心动模式',
-            color: radio == RadioKind.heart ? s.lime : null,
-            onTap: radio == RadioKind.fm || !app.session.value.isLoggedIn
-                ? null
-                : player.toggleHeartMode,
-          ),
-        ),
-        _IconAction(
-          icon: Icons.playlist_add_rounded,
-          tooltip: '收藏到歌单',
-          onTap: online ? () => showAddToPlaylist(context, [song]) : null,
-        ),
-        _IconAction(
-          icon: Icons.chat_bubble_outline_rounded,
-          tooltip: '评论',
-          onTap: online ? onComments : null,
-        ),
-        ValueListenableBuilder(
-          valueListenable: player.sleepRemaining,
-          builder: (context, remaining, _) => AnimatedSwitcher(
-            duration: AppMotion.standard,
-            transitionBuilder: (child, animation) =>
-                ScaleTransition(scale: animation, child: child),
-            child: remaining == null
-                ? _IconAction(
-                    key: const ValueKey('sleep-off'),
-                    icon: Icons.bedtime_outlined,
-                    tooltip: '定时关闭',
-                    onTap: () => showSleepTimerSheet(context),
-                  )
-                : const SleepCountdownChip(key: ValueKey('sleep-on')),
-          ),
-        ),
-        ValueListenableBuilder(
-          valueListenable: app.eq,
-          builder: (context, eq, _) => _IconAction(
-            icon: Icons.equalizer_rounded,
-            tooltip: '音效与均衡器',
-            color: eq.settings.isActive ? s.lime : null,
-            onTap: () => showEqualizerSheet(context),
-          ),
-        ),
-        ValueListenableBuilder(
-          valueListenable: player.speed,
-          builder: (context, speed, _) => (speed - 1).abs() < 0.01
-              ? _IconAction(
-                  icon: Icons.speed_rounded,
-                  tooltip: '播放速度',
-                  onTap: () => showSpeedSheet(context),
-                )
-              : Pressable(
-                  onTap: () => showSpeedSheet(context),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Text(
-                      speedLabel(speed),
-                      style: TextStyle(
-                        color: s.lime,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+            ValueListenableBuilder(
+              valueListenable: player.radioKind,
+              builder: (context, radio, _) => _IconAction(
+                icon: radio == RadioKind.heart
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                tooltip: radio == RadioKind.heart ? '关闭心动模式' : '心动模式',
+                color: radio == RadioKind.heart ? s.lime : null,
+                onTap: radio == RadioKind.fm || !app.session.value.isLoggedIn
+                    ? null
+                    : player.toggleHeartMode,
+              ),
+            ),
+            _IconAction(
+              icon: Icons.playlist_add_rounded,
+              tooltip: '收藏到歌单',
+              onTap: online ? () => showAddToPlaylist(context, [song]) : null,
+            ),
+            ValueListenableBuilder(
+              valueListenable: player.sleepRemaining,
+              builder: (context, remaining, _) => remaining == null
+                  ? const SizedBox.shrink()
+                  : const SleepCountdownChip(),
+            ),
+            const _VolumeAction(),
+            ValueListenableBuilder(
+              valueListenable: app.eq,
+              builder: (context, eq, _) => _IconAction(
+                icon: Icons.equalizer_rounded,
+                tooltip: '音效与均衡器',
+                color: eq.settings.isActive ? s.lime : null,
+                onTap: () => showEqualizerSheet(context),
+              ),
+            ),
+            ValueListenableBuilder(
+              valueListenable: player.speed,
+              builder: (context, speed, _) => (speed - 1).abs() < 0.01
+                  ? _IconAction(
+                      icon: Icons.speed_rounded,
+                      tooltip: '播放速度',
+                      onTap: () => showSpeedSheet(context),
+                    )
+                  : Pressable(
+                      onTap: () => showSpeedSheet(context),
+                      child: SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: Center(
+                          child: Text(
+                            speedLabel(speed),
+                            style: TextStyle(
+                              color: s.lime,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
+            ),
+            _IconAction(
+              icon: Icons.more_horiz_rounded,
+              tooltip: '更多',
+              onTap: song == null
+                  ? null
+                  : () => showSongMenu(context, song, sleepTimer: true),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Volume icon that mutes on a long press and opens a slider popover on tap.
+class _VolumeAction extends StatelessWidget {
+  const _VolumeAction();
+
+  @override
+  Widget build(BuildContext context) {
+    final player = app.player;
+    final s = context.surfaces;
+    return ValueListenableBuilder(
+      valueListenable: player.volume,
+      builder: (context, volume, _) {
+        final icon = volume == 0
+            ? Icons.volume_off_rounded
+            : volume < 0.5
+            ? Icons.volume_down_rounded
+            : Icons.volume_up_rounded;
+        return GestureDetector(
+          onLongPress: player.toggleMute,
+          child: PopupMenuButton<void>(
+            tooltip: '音量（长按静音）',
+            padding: EdgeInsets.zero,
+            position: PopupMenuPosition.over,
+            color: s.card,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            itemBuilder: (_) => [
+              PopupMenuItem<void>(
+                enabled: false,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: SizedBox(
+                  width: 180,
+                  child: Row(
+                    children: [
+                      ValueListenableBuilder(
+                        valueListenable: player.volume,
+                        builder: (context, v, _) => Icon(
+                          v == 0
+                              ? Icons.volume_off_rounded
+                              : Icons.volume_down_rounded,
+                          size: 18,
+                          color: s.textSecondary,
+                        ),
+                      ),
+                      Expanded(
+                        child: ValueListenableBuilder(
+                          valueListenable: player.volume,
+                          builder: (context, v, _) => SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              trackHeight: 3,
+                              activeTrackColor: s.lime,
+                              inactiveTrackColor: s.textTertiary.withValues(
+                                alpha: 0.25,
+                              ),
+                              thumbColor: s.lime,
+                              overlayShape: SliderComponentShape.noOverlay,
+                              thumbShape: const RoundSliderThumbShape(
+                                enabledThumbRadius: 6,
+                              ),
+                            ),
+                            child: Slider(
+                              value: v,
+                              onChanged: player.setVolume,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.volume_up_rounded,
+                        size: 18,
+                        color: s.textSecondary,
+                      ),
+                    ],
                   ),
                 ),
-        ),
-        _IconAction(
-          icon: Icons.more_horiz_rounded,
-          tooltip: '更多',
-          onTap: song == null ? null : () => showSongMenu(context, song),
-        ),
-      ],
+              ),
+            ],
+            child: SizedBox(
+              width: 40,
+              height: 40,
+              child: Icon(
+                icon,
+                size: 22,
+                color: volume == 0
+                    ? s.lime
+                    : context.playerInk.withValues(alpha: 0.78),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
 class _IconAction extends StatelessWidget {
   const _IconAction({
-    super.key,
     required this.icon,
     required this.tooltip,
     this.onTap,
@@ -1205,10 +1326,9 @@ class _IconAction extends StatelessWidget {
 // -------------------------------------------------------------------- wide
 
 class _WideInfo extends StatelessWidget {
-  const _WideInfo({required this.song, required this.onComments});
+  const _WideInfo({required this.song});
 
   final Song song;
-  final VoidCallback onComments;
 
   @override
   Widget build(BuildContext context) {
@@ -1218,7 +1338,7 @@ class _WideInfo extends StatelessWidget {
           160.0,
           math.min(
             math.min(constraints.maxWidth - 40, 440.0),
-            constraints.maxHeight - 330,
+            constraints.maxHeight - 344,
           ),
         );
         return Center(
@@ -1232,10 +1352,10 @@ class _WideInfo extends StatelessWidget {
                 PlayerEntrance(delay: 0.1, child: _TitleBlock(song: song)),
                 const SizedBox(height: 18),
                 const PlayerEntrance(delay: 0.18, child: _Transport()),
-                const SizedBox(height: 8),
+                const SizedBox(height: 22),
                 PlayerEntrance(
                   delay: 0.26,
-                  child: _SecondaryActions(song: song, onComments: onComments),
+                  child: _SecondaryActions(song: song),
                 ),
               ],
             ),

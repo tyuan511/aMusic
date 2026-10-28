@@ -12,6 +12,7 @@ class EqEngineConfig {
     this.bands = const [],
     this.preampDb = 0,
     this.effect = 0,
+    this.effectLoudnessDb = 0,
   });
 
   /// The filter stages the engine runs as peaking biquads.
@@ -23,6 +24,10 @@ class EqEngineConfig {
   /// The engine's DSP effect (0 none); see [SoundEffect.dsp].
   final int effect;
 
+  /// Independent gain for a sound effect, in dB. This is kept separate from
+  /// [preampDb] so the EQ preamp remains meaningful when the effect is off.
+  final double effectLoudnessDb;
+
   static const EqEngineConfig off = EqEngineConfig();
 
   @override
@@ -30,18 +35,23 @@ class EqEngineConfig {
       other is EqEngineConfig &&
       other.preampDb == preampDb &&
       other.effect == effect &&
+      other.effectLoudnessDb == effectLoudnessDb &&
       _sameBands(other.bands, bands);
 
   @override
-  int get hashCode => Object.hash(preampDb, effect, Object.hashAll(bands));
+  int get hashCode =>
+      Object.hash(preampDb, effect, effectLoudnessDb, Object.hashAll(bands));
 
   @override
-  String toString() => 'EqEngineConfig(${bands.length} bands, ${preampDb}dB)';
+  String toString() =>
+      'EqEngineConfig(${bands.length} bands, ${preampDb}dB, effect ${effectLoudnessDb}dB)';
 
   static bool _sameBands(List<EqBand> a, List<EqBand> b) {
     if (a.length != b.length) return false;
     for (var i = 0; i < a.length; i++) {
-      if (a[i].freq != b[i].freq || a[i].q != b[i].q || a[i].gain != b[i].gain) {
+      if (a[i].freq != b[i].freq ||
+          a[i].q != b[i].q ||
+          a[i].gain != b[i].gain) {
         return false;
       }
     }
@@ -58,10 +68,19 @@ class EqFilterGraph {
     final bands = bandsOf(settings);
     final preamp = preampOf(settings);
     final dsp = settings.effect?.dsp ?? 0;
-    if (bands.isEmpty && preamp.abs() < 0.05 && dsp == 0) {
+    final effectLoudness = effectLoudnessOf(settings);
+    if (bands.isEmpty &&
+        preamp.abs() < 0.05 &&
+        dsp == 0 &&
+        effectLoudness.abs() < 0.05) {
       return EqEngineConfig.off;
     }
-    return EqEngineConfig(bands: bands, preampDb: preamp, effect: dsp);
+    return EqEngineConfig(
+      bands: bands,
+      preampDb: preamp,
+      effect: dsp,
+      effectLoudnessDb: effectLoudness,
+    );
   }
 
   /// The filter stages: the sound effect's, or else the user's own bands. The
@@ -76,6 +95,9 @@ class EqFilterGraph {
   static double preampOf(EqSettings settings) =>
       settings.effect == null && settings.enabled ? settings.preamp : 0;
 
+  static double effectLoudnessOf(EqSettings settings) =>
+      settings.effect == null ? 0 : settings.effectLoudness;
+
   /// Largest positive combined response of [bands], in dB (never negative).
   static double peakBoostDb(List<EqBand> bands) {
     var peak = 0.0;
@@ -88,7 +110,6 @@ class EqFilterGraph {
   static final List<double> _probeFrequencies = [
     for (var i = 0; i <= 96; i++) 20 * math.pow(1000, i / 96).toDouble(),
   ];
-
 }
 
 /// Combined magnitude response, in dB, of [bands] at [hz]: the product of the

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -46,6 +48,58 @@ class _UpdateDialog extends StatelessWidget {
       return;
     }
     navigator.pop();
+  }
+
+  Future<void> _install(BuildContext context, File file) async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final error = await app.updates.install(file);
+    if (error != null) {
+      messenger?.showSnackBar(SnackBar(content: Text('无法打开安装包：$error')));
+      return;
+    }
+    navigator.pop();
+  }
+
+  Widget _primary(BuildContext context, UpdateDownload state) {
+    final installable = app.updates.installerFor(release) != null;
+    if (!installable) {
+      return FilledButton.icon(
+        onPressed: () => _open(context),
+        icon: const Icon(Icons.open_in_new_rounded, size: 18),
+        label: const Text('前往下载'),
+      );
+    }
+    return switch (state.status) {
+      UpdateDownloadStatus.downloading => OutlinedButton(
+        onPressed: app.updates.cancelDownload,
+        child: const Text('取消下载'),
+      ),
+      UpdateDownloadStatus.ready => FilledButton.icon(
+        onPressed: () => _install(context, state.file!),
+        icon: const Icon(Icons.install_desktop_rounded, size: 18),
+        label: const Text('立即安装'),
+      ),
+      UpdateDownloadStatus.failed => Wrap(
+        spacing: 8,
+        children: [
+          TextButton(
+            onPressed: () => _open(context),
+            child: const Text('浏览器下载'),
+          ),
+          FilledButton.icon(
+            onPressed: () => app.updates.startDownload(release),
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('重试'),
+          ),
+        ],
+      ),
+      UpdateDownloadStatus.idle => FilledButton.icon(
+        onPressed: () => app.updates.startDownload(release),
+        icon: const Icon(Icons.download_rounded, size: 18),
+        label: const Text('下载更新'),
+      ),
+    };
   }
 
   @override
@@ -135,7 +189,13 @@ class _UpdateDialog extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
+                  ValueListenableBuilder<UpdateDownload>(
+                    valueListenable: app.updates.download,
+                    builder: (context, state, _) =>
+                        _DownloadStatus(state: state),
+                  ),
+                  const SizedBox(height: 14),
                   Wrap(
                     alignment: WrapAlignment.end,
                     spacing: 8,
@@ -151,15 +211,16 @@ class _UpdateDialog extends StatelessWidget {
                       TextButton(
                         onPressed: () async {
                           final navigator = Navigator.of(context);
+                          app.updates.cancelDownload();
                           await app.updates.skip(release.version);
                           navigator.pop();
                         },
                         child: const Text('跳过此版本'),
                       ),
-                      FilledButton.icon(
-                        onPressed: () => _open(context),
-                        icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                        label: const Text('前往下载'),
+                      ValueListenableBuilder<UpdateDownload>(
+                        valueListenable: app.updates.download,
+                        builder: (context, state, _) =>
+                            _primary(context, state),
                       ),
                     ],
                   ),
@@ -169,6 +230,49 @@ class _UpdateDialog extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DownloadStatus extends StatelessWidget {
+  const _DownloadStatus({required this.state});
+
+  final UpdateDownload state;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.surfaces;
+    final style = context.text.bodySmall?.copyWith(color: s.textSecondary);
+    return AnimatedSize(
+      duration: AppMotion.standard,
+      curve: AppMotion.enter,
+      alignment: Alignment.topCenter,
+      child: switch (state.status) {
+        UpdateDownloadStatus.idle => const SizedBox(width: double.infinity),
+        UpdateDownloadStatus.downloading => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LinearProgressIndicator(
+              value: state.progress > 0 ? state.progress : null,
+              minHeight: 4,
+              borderRadius: BorderRadius.circular(2),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${state.channel ?? ''} · 下载中 ${(state.progress * 100).round()}%',
+              style: style,
+            ),
+          ],
+        ),
+        UpdateDownloadStatus.ready => Text(
+          '已下载并校验完成，可以安装',
+          style: style?.copyWith(color: s.lime),
+        ),
+        UpdateDownloadStatus.failed => Text(
+          '下载失败：${state.error ?? '未知错误'}。可在设置里切换更新源',
+          style: style?.copyWith(color: Theme.of(context).colorScheme.error),
+        ),
+      },
     );
   }
 }

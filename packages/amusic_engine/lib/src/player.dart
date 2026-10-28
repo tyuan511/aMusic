@@ -28,6 +28,11 @@ class AmusicEq {
   static const AmusicEq off = AmusicEq();
 }
 
+/// Reads a track's ReplayGain in dB from what the engine opens (a local file
+/// path or an http url); `null` plays that track at unity gain. The app
+/// installs it through `AmusicJustAudio.setReplayGain`.
+typedef AmusicReplayGain = double? Function(String uri);
+
 class _Track {
   _Track(this.uri);
 
@@ -146,6 +151,7 @@ class AmusicPlayer extends AudioPlayerPlatform {
     _queuedNext = next;
     if (next == null) {
       _native.setNext(_handle, nullptr);
+      _native.setNextGain(_handle, double.nan);
       return;
     }
     final url = _tracks[next].uri.toNativeUtf8();
@@ -154,6 +160,35 @@ class AmusicPlayer extends AudioPlayerPlatform {
     } finally {
       malloc.free(url);
     }
+    // The gain switches exactly where the queued track starts.
+    _native.setNextGain(_handle, _gainDbOf(next));
+  }
+
+  // ---------------------------------------------------------- replay gain
+
+  /// Where the per track ReplayGain comes from; `null` keeps every track at
+  /// unity gain. Set through [AmusicJustAudio.setReplayGain].
+  static AmusicReplayGain? replayGain;
+
+  /// A tag is a hint, not a licence to clip: cut freely, boost a little.
+  static const double _maxBoostDb = 6;
+  static const double _maxCutDb = -12;
+
+  double _gainDbOf(int index) {
+    if (index < 0 || index >= _tracks.length) return 0;
+    final db = replayGain?.call(_tracks[index].uri);
+    if (db == null || !db.isFinite) return 0;
+    return db.clamp(_maxCutDb, _maxBoostDb).toDouble();
+  }
+
+  /// Pushes the gain of the current and of the queued track. Runs after every
+  /// load and whenever [replayGain] changed, so flipping the setting takes
+  /// effect without a reload.
+  void applyReplayGain() {
+    if (_disposed || _tracks.isEmpty) return;
+    _native.setGain(_handle, _gainDbOf(_index));
+    final next = _queuedNext;
+    _native.setNextGain(_handle, next == null ? double.nan : _gainDbOf(next));
   }
 
   /// Opens track [index] and waits for the engine to be ready (or fail).
@@ -198,6 +233,7 @@ class AmusicPlayer extends AudioPlayerPlatform {
     _duration = st.duration < 0
         ? null
         : Duration(microseconds: (st.duration * 1e6).round());
+    _native.setGain(_handle, _gainDbOf(_index));
     if (_playing) _native.play(_handle);
     _queueNext();
     _emit();

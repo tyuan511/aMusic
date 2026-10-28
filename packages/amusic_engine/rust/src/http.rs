@@ -58,7 +58,10 @@ impl HttpSource {
             .map_err(io::Error::other)?;
         let status = resp.status().as_u16();
         let header = |name: &str| {
-            resp.headers().get(name).and_then(|v| v.to_str().ok()).map(str::to_owned)
+            resp.headers()
+                .get(name)
+                .and_then(|v| v.to_str().ok())
+                .map(str::to_owned)
         };
         let (len, seekable) = match status {
             206 => {
@@ -71,7 +74,12 @@ impl HttpSource {
                 let total = header("content-length").and_then(|v| v.trim().parse().ok());
                 (total, false)
             }
-            416 => return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "range not satisfiable")),
+            416 => {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "range not satisfiable",
+                ))
+            }
             code => return Err(io::Error::other(format!("http status {code}"))),
         };
         if pos > 0 && status == 200 {
@@ -158,10 +166,21 @@ mod tests {
                     let req = String::from_utf8_lossy(&buf[..n]).to_string();
                     let start = req
                         .lines()
-                        .find_map(|l| l.to_ascii_lowercase().strip_prefix("range: bytes=").map(str::to_owned))
-                        .and_then(|r| r.trim_end_matches('-').split('-').next().and_then(|s| s.parse::<usize>().ok()))
+                        .find_map(|l| {
+                            l.to_ascii_lowercase()
+                                .strip_prefix("range: bytes=")
+                                .map(str::to_owned)
+                        })
+                        .and_then(|r| {
+                            r.trim_end_matches('-')
+                                .split('-')
+                                .next()
+                                .and_then(|s| s.parse::<usize>().ok())
+                        })
                         .unwrap_or(0);
-                    let head = if ranges && start > 0 || ranges && req.to_lowercase().contains("range:") {
+                    let head = if ranges && start > 0
+                        || ranges && req.to_lowercase().contains("range:")
+                    {
                         format!(
                             "HTTP/1.1 206 Partial Content\r\nContent-Range: bytes {start}-{}/{}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
                             data.len() - 1,
@@ -169,7 +188,10 @@ mod tests {
                             data.len() - start
                         )
                     } else {
-                        format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", data.len())
+                        format!(
+                            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                            data.len()
+                        )
                     };
                     let from = if ranges { start } else { 0 };
                     let _ = stream.write_all(head.as_bytes());

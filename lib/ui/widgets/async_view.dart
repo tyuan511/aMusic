@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/errors.dart';
 import '../../theme/app_theme.dart';
+import '../browse_widgets/layout.dart';
 import 'kit.dart';
 
 /// Loading / error / empty / data wrapper around a [Future].
@@ -74,7 +75,7 @@ class _AsyncViewState<T> extends State<AsyncView<T>> {
                         horizontal: AppMetrics.gutter - 10,
                         vertical: 12,
                       ),
-                      child: MediaRowSkeletonList(count: 8),
+                      child: ContentBox(child: MediaRowSkeletonList(count: 8)),
                     )
                   : const CenteredLoader());
         } else if (snapshot.hasError) {

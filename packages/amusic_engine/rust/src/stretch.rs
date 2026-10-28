@@ -74,7 +74,8 @@ impl Stretcher {
             return;
         }
         self.active = true;
-        self.input.extend(input.chunks_exact(2).map(|f| [f[0], f[1]]));
+        self.input
+            .extend(input.chunks_exact(2).map(|f| [f[0], f[1]]));
         self.mono.extend(input.chunks_exact(2).map(|f| f[0] + f[1]));
         self.run(out, false);
     }
@@ -95,7 +96,11 @@ impl Stretcher {
 
     fn run(&mut self, out: &mut Vec<f32>, finishing: bool) {
         let (hs, n, tol) = (self.hs, self.n, self.tol);
-        let real_end = if finishing { self.input.len() - (n + tol + 2) } else { usize::MAX };
+        let real_end = if finishing {
+            self.input.len() - (n + tol + 2)
+        } else {
+            usize::MAX
+        };
         loop {
             let need = self.nominal.ceil() as usize + tol + n + 1;
             if self.input.len() < need.max(n) {
@@ -254,7 +259,10 @@ mod tests {
         for speed in [1.25, 1.5, 2.0] {
             let out = run(speed, &input, rate);
             let ratio = (input.len() as f64 / out.len() as f64).abs();
-            assert!((ratio - speed).abs() < 0.04 * speed, "speed {speed}: length ratio {ratio}");
+            assert!(
+                (ratio - speed).abs() < 0.04 * speed,
+                "speed {speed}: length ratio {ratio}"
+            );
             let f = frequency(&out, rate);
             assert!((f - 440.0).abs() < 8.0, "speed {speed}: pitch {f}");
             let (a, b) = (rms(&input), rms(&out));
@@ -269,7 +277,10 @@ mod tests {
         for speed in [0.5, 0.75] {
             let out = run(speed, &input, rate);
             let ratio = input.len() as f64 / out.len() as f64;
-            assert!((ratio - speed).abs() < 0.04, "speed {speed}: length ratio {ratio}");
+            assert!(
+                (ratio - speed).abs() < 0.04,
+                "speed {speed}: length ratio {ratio}"
+            );
             let f = frequency(&out, rate);
             assert!((f - 220.0).abs() < 6.0, "speed {speed}: pitch {f}");
         }

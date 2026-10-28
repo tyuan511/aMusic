@@ -13,7 +13,7 @@ import '../local/file_names.dart';
 import '../local/local_scanner.dart';
 import '../local/reveal.dart';
 import '../local/local_track.dart';
-import '../local/tags/tag_data.dart';
+import '../local/tag_picture.dart';
 import '../models/song.dart';
 
 /// Storage permission state of the local library (Android only; other
@@ -67,6 +67,9 @@ class LocalLibraryService extends ChangeNotifier {
   static const String _scanDefaultsKey = 'local.scan_defaults';
   static const String _libraryFile = 'local_library.json';
 
+  /// Bumped whenever stored tracks miss a field a scan has to fill in again.
+  static const int _libraryVersion = 2;
+
   /// Playable songs (missing files excluded), most recently added first.
   final ValueNotifier<List<Song>> songs = ValueNotifier(const []);
 
@@ -87,6 +90,9 @@ class LocalLibraryService extends ChangeNotifier {
   final Map<int, LocalTrack> _byId = {};
   bool _initialized = false;
   bool _cancelScan = false;
+
+  /// One full re-probe after reading a library an older build wrote.
+  bool _reprobeAll = false;
   Future<void>? _running;
 
   static bool isLocalId(int id) => id < 0;
@@ -107,6 +113,10 @@ class LocalLibraryService extends ChangeNotifier {
             if (track != null) _tracks[pathKey(track.path)] = track;
           }
         }
+        // Tracks stored by an older build miss what it did not know yet (the
+        // ReplayGain tag before version 2), so the next scan reads every file.
+        final version = raw is Map ? (raw['version'] as num?)?.toInt() ?? 0 : 0;
+        _reprobeAll = _tracks.isNotEmpty && version < _libraryVersion;
       } on Object catch (error) {
         debugPrint('local library unreadable: $error');
       }
@@ -151,6 +161,11 @@ class LocalLibraryService extends ChangeNotifier {
   }
 
   LocalTrack? trackFor(int songId) => _byId[songId];
+
+  /// `REPLAYGAIN_TRACK_GAIN` (dB) of the local file at [path]; `null` when the
+  /// file is not in the library or carries no such tag. The engine asks by uri,
+  /// so a stream (which is never a local path) simply plays at unity gain.
+  double? replayGainFor(String path) => _tracks[pathKey(path)]?.replayGainDb;
 
   /// All present tracks (same order as [songs]).
   List<LocalTrack> get tracks => [
@@ -272,6 +287,7 @@ class LocalLibraryService extends ChangeNotifier {
         roots,
         previous: Map.of(_tracks),
         excluded: _excluded,
+        reprobeAll: _reprobeAll,
         saveCover: _saveCover,
         isCanceled: () => _cancelScan,
         onProgress: (progress) {
@@ -291,6 +307,7 @@ class LocalLibraryService extends ChangeNotifier {
         scanState.value = const LocalScanState(message: '扫描已取消');
         return;
       }
+      _reprobeAll = false;
       final scannedKeys = {for (final t in result.tracks) pathKey(t.path)};
       for (final track in result.tracks) {
         _tracks[pathKey(track.path)] = track;
@@ -555,7 +572,7 @@ class LocalLibraryService extends ChangeNotifier {
       final temp = File('${file.path}.tmp');
       await temp.writeAsString(
         jsonEncode({
-          'version': 1,
+          'version': _libraryVersion,
           'tracks': [for (final t in _tracks.values) t.toJson()],
         }),
         flush: true,

@@ -230,9 +230,10 @@ class _EffectsTab extends StatelessWidget {
               spacing: gap,
               runSpacing: gap,
               children: [
-                for (final effect in SoundEffects.all)
+                for (final effect in SoundEffects.available)
                   SizedBox(
                     width: width,
+                    height: 112,
                     child: _EffectCard(
                       effect: effect,
                       selected:
@@ -249,12 +250,58 @@ class _EffectsTab extends StatelessWidget {
             );
           },
         ),
+        const SizedBox(height: 20),
+        _EffectLoudnessRow(settings: settings),
         const SizedBox(height: 18),
         Text(
           '音效与均衡器同一时间只能开启一个，选择其一会自动关闭另一个。',
           style: context.text.bodySmall?.copyWith(
             color: context.surfaces.textTertiary,
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EffectLoudnessRow extends StatelessWidget {
+  const _EffectLoudnessRow({required this.settings});
+
+  final EqSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.surfaces;
+    final loudness = settings.effectLoudness;
+    final text = '${loudness > 0 ? '+' : ''}${loudness.toStringAsFixed(1)} dB';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('音效响度', style: context.text.titleSmall),
+            const Spacer(),
+            Text(
+              text,
+              style: context.text.labelLarge?.copyWith(
+                color: settings.effect != null ? s.lime : s.textTertiary,
+                fontWeight: FontWeight.w700,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+        Slider(
+          value: loudness,
+          min: effectMinLoudness,
+          max: effectMaxLoudness,
+          divisions: ((effectMaxLoudness - effectMinLoudness) * 2).round(),
+          label: text,
+          onChanged: app.eq.setEffectLoudness,
+        ),
+        Text(
+          '只调节音效处理后的响度，不会改变主音量',
+          style: context.text.bodySmall?.copyWith(color: s.textTertiary),
         ),
       ],
     );
@@ -300,6 +347,8 @@ class _EffectCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     effect.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: context.text.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
@@ -317,11 +366,16 @@ class _EffectCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              effect.description,
-              style: context.text.bodySmall?.copyWith(
-                color: s.textSecondary,
-                height: 1.45,
+            SizedBox(
+              height: 40,
+              child: Text(
+                effect.description,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: context.text.bodySmall?.copyWith(
+                  color: s.textSecondary,
+                  height: 1.45,
+                ),
               ),
             ),
           ],

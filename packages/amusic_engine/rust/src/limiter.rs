@@ -46,7 +46,11 @@ impl Limiter {
         for frame in buf.chunks_exact_mut(2) {
             let (l, r) = (frame[0], frame[1]);
             let peak = l.abs().max(r.abs());
-            let need = if peak > self.ceiling { self.ceiling / peak } else { 1.0 };
+            let need = if peak > self.ceiling {
+                self.ceiling / peak
+            } else {
+                1.0
+            };
 
             while self.min_window.back().is_some_and(|&(_, v)| v >= need) {
                 self.min_window.pop_back();
@@ -99,7 +103,9 @@ mod tests {
     #[test]
     fn quiet_signal_passes_through_delayed_and_unchanged() {
         let mut lim = Limiter::new(0.97, 100);
-        let input: Vec<f32> = (0..2000).map(|i| ((i / 2) as f32 * 0.01).sin() * 0.3).collect();
+        let input: Vec<f32> = (0..2000)
+            .map(|i| ((i / 2) as f32 * 0.01).sin() * 0.3)
+            .collect();
         let mut out = input.clone();
         lim.process(&mut out);
         let d = lim.latency() * 2;

@@ -20,7 +20,12 @@ pub struct EqConfig {
 
 impl Default for EqConfig {
     fn default() -> Self {
-        Self { bands: Vec::new(), gain_db: 0.0, limiter: true, effect: Effect::None }
+        Self {
+            bands: Vec::new(),
+            gain_db: 0.0,
+            limiter: true,
+            effect: Effect::None,
+        }
     }
 }
 
