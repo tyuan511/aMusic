@@ -23,8 +23,6 @@ pub enum Effect {
     Exciter = 4,
     /// Three detuned voices per side for a wide, ensemble sound.
     Chorus = 5,
-    /// Ping-pong echo with darkening repeats.
-    Echo = 8,
     /// Slow chorus into a long, bright reverb.
     Dream = 9,
 }
@@ -37,7 +35,6 @@ impl Effect {
             3 => Self::LiveHouse,
             4 => Self::Exciter,
             5 => Self::Chorus,
-            8 => Self::Echo,
             9 => Self::Dream,
             _ => Self::None,
         }
@@ -68,19 +65,6 @@ impl Biquad {
             z1: 0.0,
             z2: 0.0,
         }
-    }
-
-    fn lowpass(fs: f64, f: f64, q: f64) -> Self {
-        let w = 2.0 * PI * f / fs;
-        let (c, a) = (w.cos(), w.sin() / (2.0 * q));
-        Self::from_coeffs(
-            (1.0 - c) / 2.0,
-            1.0 - c,
-            (1.0 - c) / 2.0,
-            1.0 + a,
-            -2.0 * c,
-            1.0 - a,
-        )
     }
 
     fn highpass(fs: f64, f: f64, q: f64) -> Self {
@@ -135,12 +119,6 @@ impl Delay {
             buf: vec![0.0; len.max(1)],
             idx: 0,
         }
-    }
-
-    /// The sample `push` would return next.
-    #[inline]
-    fn peek(&self) -> f32 {
-        self.buf[self.idx]
     }
 
     /// Writes `x` and returns the sample written `len` frames ago.
@@ -677,38 +655,6 @@ impl Chorus {
     }
 }
 
-struct Echo {
-    delay: [Delay; 2],
-    damp: [Biquad; 2],
-}
-
-impl Echo {
-    fn new(fs: u32) -> Self {
-        let f = fs as f64;
-        let len = |ms: f64| (f * ms / 1000.0).round() as usize;
-        Self {
-            // Slightly different times so the repeats bounce between ears.
-            delay: [Delay::new(len(330.0)), Delay::new(len(495.0))],
-            damp: [
-                Biquad::lowpass(f, 3500.0, 0.7),
-                Biquad::lowpass(f, 3500.0, 0.7),
-            ],
-        }
-    }
-
-    #[inline]
-    fn process(&mut self, l: f32, r: f32) -> (f32, f32) {
-        // Ping-pong: each tap feeds the other side.
-        let tail_l = self.delay[0].peek();
-        let tail_r = self.delay[1].peek();
-        let fb_l = self.damp[0].process(tail_r) * 0.42;
-        let fb_r = self.damp[1].process(tail_l) * 0.42;
-        self.delay[0].push(l + fb_l);
-        self.delay[1].push(r + fb_r);
-        (l + tail_l * 0.38, r + tail_r * 0.38)
-    }
-}
-
 struct Dream {
     chorus: Chorus,
     reverb: Reverb,
@@ -747,7 +693,6 @@ pub struct EffectChain {
     live: Option<LiveHouse>,
     exciter: Option<Exciter>,
     chorus: Option<Chorus>,
-    echo: Option<Echo>,
     dream: Option<Dream>,
 }
 
@@ -761,7 +706,6 @@ impl EffectChain {
             live: None,
             exciter: None,
             chorus: None,
-            echo: None,
             dream: None,
         }
     }
@@ -781,7 +725,6 @@ impl EffectChain {
         self.live = (kind == Effect::LiveHouse).then(|| LiveHouse::new(self.fs));
         self.exciter = (kind == Effect::Exciter).then(|| Exciter::new(self.fs));
         self.chorus = (kind == Effect::Chorus).then(|| Chorus::new(self.fs, 18.0, 8.0, 0.35, 1.0));
-        self.echo = (kind == Effect::Echo).then(|| Echo::new(self.fs));
         self.dream = (kind == Effect::Dream).then(|| Dream::new(self.fs));
     }
 
@@ -805,7 +748,6 @@ impl EffectChain {
             Effect::LiveHouse => run!(self.live),
             Effect::Exciter => run!(self.exciter),
             Effect::Chorus => run!(self.chorus),
-            Effect::Echo => run!(self.echo),
             Effect::Dream => run!(self.dream),
         }
     }
@@ -883,7 +825,6 @@ mod tests {
             Effect::LiveHouse,
             Effect::Exciter,
             Effect::Chorus,
-            Effect::Echo,
             Effect::Dream,
         ] {
             let out = run(e, &input);
@@ -1019,20 +960,6 @@ mod tests {
             let db = 20.0 * (rms(&out, 0) / rms(&input, 0)).log10();
             assert!(db.abs() < 5.0, "{e:?} level moved {db:.1} dB");
         }
-    }
-
-    #[test]
-    fn echo_repeats_decay_and_bounce() {
-        let mut input = vec![0.0f32; FS as usize * 3 * 2];
-        input[0] = 0.9; // left impulse only
-        let out = run(Effect::Echo, &input);
-        let win = |from: f64, to: f64, ch: usize| {
-            let (a, b) = ((FS as f64 * from) as usize * 2, (FS as f64 * to) as usize * 2);
-            rms(&out[a..b], ch)
-        };
-        assert!(win(0.32, 0.34, 0) > 1e-3, "no first echo on the left");
-        assert!(win(0.82, 0.86, 1) > 1e-4, "no bounce on the right");
-        assert!(win(2.5, 3.0, 0) < win(0.32, 0.34, 0), "echoes do not decay");
     }
 
     #[test]

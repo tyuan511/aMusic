@@ -241,7 +241,7 @@ class SoundEffect {
   final List<EqBand> bands;
 
   /// The engine's DSP effect: 0 none, 1 3D surround, 2 360 rotation,
-  /// 3 LiveHouse, 4 harmonic exciter, 5 chorus, 8 echo, 9 dream.
+  /// 3 LiveHouse, 4 harmonic exciter, 5 chorus, 9 dream.
   final int dsp;
 }
 
@@ -375,12 +375,6 @@ class SoundEffects {
       name: '梦幻',
       description: '缓慢的调制与悠长明亮的混响，如同漂浮在云端',
       dsp: 9,
-    ),
-    SoundEffect(
-      id: 'echo',
-      name: '回声',
-      description: '左右来回弹跳的回响，逐渐变暗并消散',
-      dsp: 8,
     ),
   ];
 

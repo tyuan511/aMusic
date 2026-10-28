@@ -80,7 +80,6 @@ fn main() {
         ("LiveHouse", Effect::LiveHouse),
         ("exciter", Effect::Exciter),
         ("chorus", Effect::Chorus),
-        ("echo", Effect::Echo),
         ("dream", Effect::Dream),
     ] {
         bench_pipeline(
