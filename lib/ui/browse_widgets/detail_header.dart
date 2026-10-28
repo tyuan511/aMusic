@@ -26,9 +26,9 @@ double headerBarTopInset(BuildContext context) {
 double collapseProgress(double offset, double threshold, {double band = 64}) =>
     ((offset - (threshold - band)) / band).clamp(0.0, 1.0);
 
-/// Floating top bar of detail pages: back button, a compact title that fades
-/// in once the hero scrolled away, and actions. Rebuilds only itself on
-/// scroll.
+/// Top bar of detail pages on a solid background: back button, a compact
+/// title that fades in once the hero scrolled away, and actions. Rebuilds only
+/// itself on scroll.
 class CollapsingHeaderBar extends StatelessWidget {
   const CollapsingHeaderBar({
     super.key,
@@ -42,7 +42,7 @@ class CollapsingHeaderBar extends StatelessWidget {
   final String title;
   final List<Widget> actions;
 
-  /// Scroll offset at which the bar is fully opaque.
+  /// Scroll offset at which the title is fully visible.
   final double threshold;
 
   @override
@@ -55,14 +55,9 @@ class CollapsingHeaderBar extends StatelessWidget {
       builder: (context, _) {
         final offset = controller.hasClients ? controller.offset : 0.0;
         final t = collapseProgress(offset, threshold);
-        final buttonFill = Color.lerp(
-          Colors.black.withValues(alpha: 0.28),
-          s.chip,
-          t,
-        );
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: context.scaffoldBackground.withValues(alpha: t),
+            color: context.scaffoldBackground,
             border: Border(
               bottom: BorderSide(
                 color: s.hairline.withValues(alpha: s.hairline.a * t),
@@ -85,8 +80,7 @@ class CollapsingHeaderBar extends StatelessWidget {
                           icon: Icons.arrow_back_rounded,
                           tooltip: '返回',
                           size: 42,
-                          color: buttonFill,
-                          iconColor: t < 0.5 ? Colors.white : null,
+                          color: s.chip,
                           onPressed: () => Navigator.of(context).maybePop(),
                         ),
                       const SizedBox(width: 14),
