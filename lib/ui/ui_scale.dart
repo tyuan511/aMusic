@@ -8,8 +8,10 @@ import '../core/prefs.dart';
 /// Scales the whole UI by a factor without touching individual widgets.
 ///
 /// The subtree is laid out at `size / scale` and painted scaled back up, so a
-/// scale of 1.35 makes every widget 35 % larger (car head units), and 0.85
-/// fits more on a small laptop. Pointer events are transformed by the
+/// scale of 1.35 makes every widget 35 % larger, and 0.85
+/// fits more on a small laptop. Car head units are left at 1: they are short
+/// and wide, and zooming them shrinks the layout area so far that the player
+/// falls back to its phone layout. Pointer events are transformed by the
 /// framework, so hit testing stays exact.
 class UiScale extends StatelessWidget {
   const UiScale({super.key, required this.settings, required this.child});
@@ -20,21 +22,8 @@ class UiScale extends StatelessWidget {
   static const double min = 0.8;
   static const double max = 1.75;
 
-  /// Car head units: Android, landscape, low density but a wide panel.
-  /// Best effort (a cheap landscape tablet may match too), which is why the
-  /// manual scale always wins once the user turns auto off.
-  static bool looksLikeCarDisplay(MediaQueryData media) {
-    if (!Platforms.isAndroid) return false;
-    final physical = media.size * media.devicePixelRatio;
-    return media.devicePixelRatio <= 1.5 &&
-        physical.width >= 960 &&
-        physical.height >= 540 &&
-        media.size.width > media.size.height;
-  }
-
   /// Scale picked when "auto" is on.
   static double autoScaleFor(MediaQueryData media) {
-    if (looksLikeCarDisplay(media)) return 1.35;
     if (Platforms.isDesktop) {
       // Grow gently on very large windows, never shrink below 1.
       final area = media.size.width * media.size.height;

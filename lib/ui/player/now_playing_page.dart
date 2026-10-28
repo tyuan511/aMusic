@@ -185,9 +185,14 @@ class _NowPlayingPageState extends State<NowPlayingPage>
             child: LayoutBuilder(
               builder: (context, constraints) {
                 _height = constraints.maxHeight;
+                // Short, wide screens (car head units) get the side by side
+                // layout too; it scales itself down to fit.
                 _wide =
                     constraints.maxWidth >= Breakpoints.compact &&
-                    constraints.maxHeight >= 520;
+                    (constraints.maxHeight >= 520 ||
+                        (constraints.maxHeight >= 420 &&
+                            constraints.maxWidth / constraints.maxHeight >=
+                                1.5));
                 final body = SafeArea(
                   child: ValueListenableBuilder(
                     valueListenable: app.player.currentSongId,
@@ -1359,20 +1364,28 @@ class _WideInfo extends StatelessWidget {
         return Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 460),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularCover(size: cover),
-                const SizedBox(height: 28),
-                PlayerEntrance(delay: 0.1, child: _TitleBlock(song: song)),
-                const SizedBox(height: 18),
-                const PlayerEntrance(delay: 0.18, child: _Transport()),
-                const SizedBox(height: 22),
-                PlayerEntrance(
-                  delay: 0.26,
-                  child: _SecondaryActions(song: song),
+            // Shrinks the column when the height cannot hold it, instead of
+            // overflowing.
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: SizedBox(
+                width: math.min(constraints.maxWidth, 460),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularCover(size: cover),
+                    const SizedBox(height: 28),
+                    PlayerEntrance(delay: 0.1, child: _TitleBlock(song: song)),
+                    const SizedBox(height: 18),
+                    const PlayerEntrance(delay: 0.18, child: _Transport()),
+                    const SizedBox(height: 22),
+                    PlayerEntrance(
+                      delay: 0.26,
+                      child: _SecondaryActions(song: song),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         );

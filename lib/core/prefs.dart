@@ -123,7 +123,7 @@ class SettingsState {
   /// Global UI scale, 0.8 - 1.75. Ignored while [autoUiScale] is on.
   final double uiScale;
 
-  /// Derive the UI scale from the screen (car head units get 1.35).
+  /// Derive the UI scale from the screen (large desktop windows grow a little).
   final bool autoUiScale;
 
   /// Report finished plays to NetEase (listening history / recommendations).
