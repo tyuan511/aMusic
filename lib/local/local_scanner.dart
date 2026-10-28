@@ -54,7 +54,6 @@ class LocalScanner {
     'm4a',
     'aac',
     'ogg',
-    'opus',
     'wav',
   };
 

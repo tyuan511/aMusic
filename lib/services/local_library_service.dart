@@ -377,7 +377,7 @@ class LocalLibraryService extends ChangeNotifier {
 
   static const XTypeGroup _audioTypes = XTypeGroup(
     label: '音频',
-    extensions: ['mp3', 'flac', 'm4a', 'aac', 'ogg', 'opus', 'wav'],
+    extensions: ['mp3', 'flac', 'm4a', 'aac', 'ogg', 'wav'],
     mimeTypes: [
       'audio/mpeg',
       'audio/flac',
@@ -386,7 +386,6 @@ class LocalLibraryService extends ChangeNotifier {
       'audio/x-m4a',
       'audio/aac',
       'audio/ogg',
-      'audio/opus',
       'audio/wav',
       'audio/x-wav',
     ],

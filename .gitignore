@@ -48,3 +48,7 @@ app.*.map.json
 /packages/amusic_engine/rust/target/
 /packages/amusic_engine/build/
 /packages/amusic_engine/pubspec.lock
+
+# Local environment files
+.env
+.env.*
