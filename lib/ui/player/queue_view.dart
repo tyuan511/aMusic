@@ -238,7 +238,7 @@ class _QueueRow extends StatelessWidget {
       duration: AppMotion.standard,
       curve: AppMotion.enter,
       decoration: BoxDecoration(
-        color: isCurrent ? s.lime.withValues(alpha: 0.12) : Colors.transparent,
+        color: s.lime.withValues(alpha: isCurrent ? 0.12 : 0),
         borderRadius: BorderRadius.circular(AppMetrics.radiusMd),
       ),
       child: Pressable(

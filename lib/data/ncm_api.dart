@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart' as crypto;
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../core/errors.dart';
 import '../models/album.dart';
@@ -110,14 +111,42 @@ class NcmApi {
   static const int songDetailConcurrency = 4;
 
   /// Sends a request and rejects a non-200 business code.
+  /// [webFallback] sends the request as the PC client first (eapi) and only
+  /// retries as the web client (weapi) when the PC call is rejected: the web
+  /// scheme is the one NetEase risk-controls (-462) most often.
   Future<Map<String, dynamic>> _call(
     String uri,
     Map<String, dynamic> data, {
     CryptoMode crypto = CryptoMode.eapi,
     Set<int> allowedCodes = const {200},
     bool notifyExpiry = true,
+    bool webFallback = false,
   }) async {
-    final body = await _client.request(uri, data, crypto: crypto);
+    if (webFallback) {
+      try {
+        return await _send(
+          uri,
+          data,
+          CryptoMode.eapi,
+          allowedCodes,
+          notifyExpiry: false,
+        );
+      } on ApiException catch (error) {
+        debugPrint('[api] $uri eapi rejected ($error), retrying as weapi');
+      }
+      crypto = CryptoMode.weapi;
+    }
+    return _send(uri, data, crypto, allowedCodes, notifyExpiry: notifyExpiry);
+  }
+
+  Future<Map<String, dynamic>> _send(
+    String uri,
+    Map<String, dynamic> data,
+    CryptoMode crypto,
+    Set<int> allowedCodes, {
+    required bool notifyExpiry,
+  }) async {
+    final body = await _client.request(uri, Map.of(data), crypto: crypto);
     final code =
         jsonIntOrNull(body['code']) ?? jsonIntOrNull(body['status']) ?? 200;
     if (!allowedCodes.contains(code)) {
@@ -276,11 +305,7 @@ class NcmApi {
   // ---------------------------------------------------------------- user
 
   Future<UserDetail> userDetail(int uid) async {
-    final body = await _call(
-      '/api/v1/user/detail/$uid',
-      {},
-      crypto: CryptoMode.weapi,
-    );
+    final body = await _call('/api/v1/user/detail/$uid', {}, webFallback: true);
     return UserDetail.fromJson(body);
   }
 
@@ -296,7 +321,7 @@ class NcmApi {
         'limit': limit,
         'offset': offset,
         'includeVideo': true,
-      }, crypto: CryptoMode.weapi);
+      }, webFallback: true);
       final page = Playlist.listFrom(body['playlist']);
       for (final playlist in page) {
         if (seen.add(playlist.id)) result.add(playlist);
@@ -317,7 +342,7 @@ class NcmApi {
       'name': trimmed,
       'privacy': private ? '10' : '0',
       'type': 'NORMAL',
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
     final raw = jsonMap(body['playlist']);
     final id = jsonInt(raw?['id'] ?? body['id']);
     if (id <= 0) throw const ApiException(null, '创建歌单失败');
@@ -327,9 +352,7 @@ class NcmApi {
   }
 
   Future<void> deletePlaylist(int id) async {
-    await _call('/api/playlist/remove', {
-      'ids': '[$id]',
-    }, crypto: CryptoMode.weapi);
+    await _call('/api/playlist/remove', {'ids': '[$id]'}, webFallback: true);
   }
 
   Future<void> addToPlaylist(int playlistId, List<int> songIds) =>
@@ -352,7 +375,7 @@ class NcmApi {
           // A JSON array as a string, not a form list.
           'trackIds': jsonEncode(trackIds),
           'imme': 'true',
-        }, crypto: CryptoMode.weapi);
+        }, webFallback: true);
     try {
       await send(ids);
     } on ApiException catch (error) {
@@ -370,7 +393,7 @@ class NcmApi {
     await _call(
       subscribe ? '/api/playlist/subscribe' : '/api/playlist/unsubscribe',
       {'id': id},
-      crypto: CryptoMode.weapi,
+      webFallback: true,
     );
   }
 
@@ -380,7 +403,7 @@ class NcmApi {
     final body = await _call('/api/v1/play/record', {
       'uid': uid,
       'type': week ? 1 : 0,
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
     return parsePlayRecord(week ? body['weekData'] : body['allData']);
   }
 
@@ -405,7 +428,7 @@ class NcmApi {
           },
         },
       ]),
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
   }
 
   // ------------------------------------------------------------ library
@@ -501,7 +524,7 @@ class NcmApi {
     final body = await _call(
       '/api/v1/discovery/recommend/resource',
       {},
-      crypto: CryptoMode.weapi,
+      webFallback: true,
     );
     return Playlist.listFrom(body['recommend']);
   }
@@ -512,14 +535,14 @@ class NcmApi {
       'limit': limit,
       'total': true,
       'n': 1000,
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
     return Playlist.listFrom(body['result']);
   }
 
   Future<List<Song>> dailyRecommendSongs() async {
     final body = await _call('/api/v3/discovery/recommend/songs', {
       'afresh': false,
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
     final data = jsonMap(body['data']);
     return Song.listWithPrivileges(data?['dailySongs'], data?['privileges']);
   }
@@ -528,7 +551,7 @@ class NcmApi {
 
   /// Personal FM batch (needs login, a guest gets a generic batch).
   Future<List<Song>> personalFm() async {
-    final body = await _call('/api/v1/radio/get', {}, crypto: CryptoMode.weapi);
+    final body = await _call('/api/v1/radio/get', {}, webFallback: true);
     return Song.listFrom(body['data']);
   }
 
@@ -536,7 +559,7 @@ class NcmApi {
   Future<void> fmTrash(int songId, {int seconds = 25}) async {
     await _call('/api/radio/trash/add?alg=RT&songId=$songId&time=$seconds', {
       'songId': songId,
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
   }
 
   /// Heart mode (心动模式) continuation for [songId] inside [playlistId]
@@ -547,8 +570,8 @@ class NcmApi {
       'type': 'fromPlayOne',
       'playlistId': playlistId,
       'startMusicId': songId,
-      'count': 1,
-    });
+      'count': 20,
+    }, webFallback: true);
     return [
       for (final item in jsonMaps(body['data']))
         Song.fromJson(
@@ -560,11 +583,7 @@ class NcmApi {
 
   /// Every chart, official ones first as NetEase orders them.
   Future<List<Toplist>> toplists() async {
-    final body = await _call(
-      '/api/toplist/detail',
-      {},
-      crypto: CryptoMode.weapi,
-    );
+    final body = await _call('/api/toplist/detail', {}, webFallback: true);
     return Toplist.listFrom(body['list']);
   }
 
@@ -586,7 +605,7 @@ class NcmApi {
       'limit': limit,
       'offset': offset,
       'total': true,
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
     final items = Playlist.listFrom(body['playlists']);
     final total = jsonInt(body['total']);
     return PagedList(
@@ -613,7 +632,7 @@ class NcmApi {
       'limit': limit,
       'lasttime': before ?? 0,
       'total': true,
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
     final items = Playlist.listFrom(body['playlists']);
     return PagedList(
       items: items,
@@ -629,7 +648,7 @@ class NcmApi {
       final body = await _call('/api/v1/discovery/new/songs', {
         'areaId': areaId,
         'total': true,
-      }, crypto: CryptoMode.weapi);
+      }, webFallback: true);
       final songs = Song.listFrom(body['data']);
       if (songs.isNotEmpty) return songs;
     } on ApiException catch (error) {
@@ -639,7 +658,7 @@ class NcmApi {
       'type': 'recommend',
       'limit': 50,
       'areaId': areaId,
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
     return [
       for (final item in jsonMaps(body['result']))
         Song.fromJson(jsonMap(item['song']) ?? item),
@@ -657,7 +676,7 @@ class NcmApi {
       'offset': offset,
       'total': true,
       'area': area,
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
     final items = Album.listFrom(body['albums']);
     final total = jsonInt(body['total']);
     return PagedList(
@@ -679,11 +698,7 @@ class NcmApi {
   // ------------------------------------------------------------- search
 
   Future<List<String>> hotSearchWords({int limit = 12}) async {
-    final body = await _call(
-      '/api/hotsearchlist/get',
-      {},
-      crypto: CryptoMode.weapi,
-    );
+    final body = await _call('/api/hotsearchlist/get', {}, webFallback: true);
     final data = body['data'];
     if (data is! List) return const [];
     return data
@@ -700,7 +715,7 @@ class NcmApi {
     try {
       final body = await _call('/api/search/suggest/keyword', {
         's': keywords.trim(),
-      }, crypto: CryptoMode.weapi);
+      }, webFallback: true);
       return [
         for (final item in jsonMaps(jsonMap(body['result'])?['allMatch']))
           ?jsonText(item['keyword']),
@@ -847,11 +862,7 @@ class NcmApi {
       if (error is SessionExpiredException) rethrow;
     }
     // Legacy shape: `artist` at the top level (+ hotSongs, ignored here).
-    final body = await _call(
-      '/api/v1/artist/$id',
-      {},
-      crypto: CryptoMode.weapi,
-    );
+    final body = await _call('/api/v1/artist/$id', {}, webFallback: true);
     return ArtistDetail.fromJson(body);
   }
 
@@ -859,7 +870,7 @@ class NcmApi {
   Future<List<Song>> artistTopSongs(int id) async {
     final body = await _call('/api/artist/top/song', {
       'id': id,
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
     return Song.listFrom(body['songs']);
   }
 
@@ -896,7 +907,7 @@ class NcmApi {
       'limit': limit,
       'offset': offset,
       'total': true,
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
     return parseArtistAlbums(body);
   }
 
@@ -913,7 +924,7 @@ class NcmApi {
   Future<ArtistDescription> artistDescription(int id) async {
     final body = await _call('/api/artist/introduction', {
       'id': id,
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
     return ArtistDescription.fromJson(body);
   }
 
@@ -923,7 +934,7 @@ class NcmApi {
       final body = await _call(
         '/api/discovery/simiArtist',
         {'artistid': id},
-        crypto: CryptoMode.weapi,
+        webFallback: true,
         notifyExpiry: false,
       );
       return Artist.listFrom(body['artists']);
@@ -935,7 +946,7 @@ class NcmApi {
   // --------------------------------------------------------------- album
 
   Future<Album> albumDetail(int id) async {
-    final body = await _call('/api/v1/album/$id', {}, crypto: CryptoMode.weapi);
+    final body = await _call('/api/v1/album/$id', {}, webFallback: true);
     if (jsonMap(body['album']) == null) {
       throw const ApiException(null, '专辑不存在');
     }
@@ -1097,7 +1108,7 @@ class NcmApi {
         'offset': (pageNo - 1) * pageSize,
         'beforeTime': sort == CommentSort.latest ? (cursor ?? 0) : 0,
       },
-      crypto: CryptoMode.weapi,
+      webFallback: true,
       notifyExpiry: false,
     );
     final page = CommentPage.fromV1(body);
@@ -1117,7 +1128,7 @@ class NcmApi {
       final body = await _call(
         '/api/v1/resource/hotcomments/${target.threadId}',
         {'rid': target.id, 'limit': 15, 'offset': 0, 'beforeTime': 0},
-        crypto: CryptoMode.weapi,
+        webFallback: true,
         notifyExpiry: false,
       );
       return Comment.listFrom(body['hotComments']);
@@ -1135,7 +1146,7 @@ class NcmApi {
     await _call(like ? '/api/v1/comment/like' : '/api/v1/comment/unlike', {
       'threadId': target.threadId,
       'commentId': commentId,
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
   }
 
   /// Posts a comment (or a reply to [replyToCommentId]). [content] is trimmed
@@ -1157,7 +1168,7 @@ class NcmApi {
         'content': text,
         'commentId': ?replyToCommentId,
       },
-      crypto: CryptoMode.weapi,
+      webFallback: true,
     );
     final raw = jsonMap(body['comment']);
     return raw == null ? null : Comment.fromJson(raw);
@@ -1168,11 +1179,12 @@ class NcmApi {
     await _call('/api/resource/comments/delete', {
       'threadId': target.threadId,
       'commentId': commentId,
-    }, crypto: CryptoMode.weapi);
+    }, webFallback: true);
   }
 
   // -------------------------------------------------------------- like
 
+  /// eapi: the weapi variant is answered with -462 (risk control).
   Future<void> like(int id, {required bool like, int? uid}) async {
     await _call('/api/radio/like', {
       'alg': 'itembased',
@@ -1180,7 +1192,7 @@ class NcmApi {
       'like': like,
       'time': '3',
       'userid': ?uid,
-    }, crypto: CryptoMode.weapi);
+    });
   }
 
   Future<List<int>> likedList(int uid) async {

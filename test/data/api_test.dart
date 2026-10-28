@@ -458,7 +458,7 @@ void main() {
     expect(client.calls[0].data['op'], 'add');
     expect(client.calls[1].data['op'], 'del');
     expect(client.calls[2].uri, '/api/playlist/unsubscribe');
-    expect(client.calls.every((c) => c.crypto == CryptoMode.weapi), isTrue);
+    expect(client.calls.every((c) => c.crypto == CryptoMode.eapi), isTrue);
   });
 
   test('scrobble posts a play log', () async {

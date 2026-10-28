@@ -27,7 +27,6 @@ class HeroItem {
     this.play,
     this.onLike,
     this.liked = false,
-    this.onDownload,
     this.onMore,
   });
 
@@ -45,7 +44,6 @@ class HeroItem {
   final Widget? play;
   final VoidCallback? onLike;
   final bool liked;
-  final VoidCallback? onDownload;
   final VoidCallback? onMore;
 }
 
@@ -78,8 +76,6 @@ List<HeroItem> buildHeroItems(
               (await app.library.playlistDetail(Playlist.dailyRecommendId))
                   .tracks,
         ),
-        onDownload: () =>
-            _downloadPlaylist(context, Playlist.dailyRecommendId, '每日推荐'),
       ),
       HeroItem(
         eyebrow: 'Personal FM',
@@ -91,18 +87,6 @@ List<HeroItem> buildHeroItems(
         play: _AsyncPlayButton(
           color: const Color(0xFF5A2A10),
           onStart: app.player.startPersonalFm,
-        ),
-      ),
-      HeroItem(
-        eyebrow: 'Heart mode',
-        title: '心动模式',
-        description: '以你正在听的歌为起点，延续这份心动',
-        color: s.lime,
-        icon: Icons.favorite_rounded,
-        onTap: () => _start(context, app.player.startHeartMode),
-        play: _AsyncPlayButton(
-          color: s.onLime,
-          onStart: app.player.startHeartMode,
         ),
       ),
     ] else
@@ -140,8 +124,6 @@ List<HeroItem> buildHeroItems(
               (await app.library.playlistDetail(playlist.id)).tracks,
         ),
         onLike: loggedIn ? () => _subscribe(context, playlist) : null,
-        onDownload: () =>
-            _downloadPlaylist(context, playlist.id, playlist.name),
         onMore: () => openPlaylist(context, playlist),
       ),
   ];
@@ -165,24 +147,6 @@ Future<void> _subscribe(BuildContext context, Playlist playlist) async {
   }
 }
 
-Future<void> _downloadPlaylist(
-  BuildContext context,
-  int id,
-  String name,
-) async {
-  try {
-    final tracks = (await app.library.playlistDetail(id)).tracks
-        .where((song) => song.playable)
-        .toList();
-    await app.downloads.enqueue(tracks, folder: name);
-    if (context.mounted) {
-      showToast(context, '已将 ${tracks.length} 首歌加入下载队列');
-    }
-  } on Object catch (error) {
-    if (context.mounted) showToast(context, describeError(error));
-  }
-}
-
 /// Round play button with a spinner while [onStart] runs.
 class _AsyncPlayButton extends StatefulWidget {
   const _AsyncPlayButton({
@@ -192,6 +156,7 @@ class _AsyncPlayButton extends StatefulWidget {
   });
 
   final Color color;
+
   final Future<Object?> Function() onStart;
   final IconData icon;
 
@@ -463,13 +428,6 @@ class HeroCard extends StatelessWidget {
                             tooltip: '收藏',
                             color: fg,
                             onTap: item.onLike!,
-                          ),
-                        if (item.onDownload != null)
-                          _CardIcon(
-                            icon: Icons.download_rounded,
-                            tooltip: '下载',
-                            color: fg,
-                            onTap: item.onDownload!,
                           ),
                         if (item.onMore != null)
                           _CardIcon(

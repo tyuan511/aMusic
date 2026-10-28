@@ -66,14 +66,6 @@ Future<void> showSongMenu(
         onSelected: () => showAddToPlaylist(pageContext, [song]),
       ),
       SheetAction(
-        icon: Icons.download_rounded,
-        label: '下载',
-        onSelected: () {
-          unawaited(app.downloads.enqueue([song]));
-          toast('已加入下载队列');
-        },
-      ),
-      SheetAction(
         icon: Icons.chat_bubble_outline_rounded,
         label: '评论',
         onSelected: () => showComments(

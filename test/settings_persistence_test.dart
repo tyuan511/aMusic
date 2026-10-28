@@ -24,11 +24,6 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 450));
     expect(prefs.getDouble(PrefsKeys.volume), 1.0);
 
-    settings.update((s) => s.copyWith(downloadDirectory: '/tmp/x'));
-    expect(prefs.getString(PrefsKeys.downloadDirectory), '/tmp/x');
-    settings.update((s) => s.copyWith(clearDownloadDirectory: true));
-    expect(prefs.containsKey(PrefsKeys.downloadDirectory), isFalse);
-
     // Reading back yields the same state.
     final restored = readSettings(prefs);
     expect(restored.themeMode, ThemeMode.light);

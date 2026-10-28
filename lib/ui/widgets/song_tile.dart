@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/config.dart';
 import '../../core/format.dart';
 import '../../models/playlist.dart';
 import '../../models/song.dart';
@@ -14,13 +13,53 @@ import 'like_button.dart';
 import 'playing_indicator.dart';
 import 'song_menu.dart';
 
+/// Widest the album column gets; it shrinks down to [_kAlbumColumnMinWidth]
+/// before being dropped, so the column fades out while the window is resized
+/// instead of popping out at one specific width.
+const double _kAlbumColumnMaxWidth = 180;
+const double _kAlbumColumnMinWidth = 104;
+
+/// Width of the duration column.
+const double _kDurationColumnWidth = 52;
+
+/// Title space the optional columns may never eat into, so the title always
+/// renders a few characters plus its tags.
+const double _kMinTitleWidth = 96;
+
+/// Width of the trailing "more" button (icon 20 + padding 8).
+const double _kMoreButtonWidth = 36;
+
+/// Width of the like button (icon 19 + 16 padding); zero when hidden.
+const double _kLikeButtonWidth = 35;
+
+/// Horizontal row padding.
+const double _kRowPadding = 10 * 2;
+
+/// Gap between the leading cover/number and the title.
+const double _kLeadingGap = 14;
+
+/// Gap in front of the album column.
+const double _kAlbumGap = 12;
+
+/// Gap in front of the like button.
+const double _kTrailingGap = 6;
+
+/// Space set aside for the quality tags (the widest pair of them plus their
+/// gap). Reserved even for songs without tags so every row of a grid keeps its
+/// columns aligned.
+const double _kBadgeReserve = 118;
+
 /// One row of a song list.
 ///
 /// Cover (or track number) + title with badges + artists, an album column on
-/// wide windows, duration, like and more. The row listens to
+/// rows wide enough for it, duration, like and more. The row listens to
 /// `player.currentSongId` only (so a track change re-tints the two affected
 /// rows and position ticks never reach it); the playing indicator inside the
 /// current row is the only thing bound to the play/pause state.
+///
+/// Every optional column is decided from the row's own width (never from the
+/// window width) so the same row works inside a multi-column grid, and so a
+/// resize can never leave a column in a space that cannot hold it.
 class SongTile extends StatefulWidget {
   const SongTile({
     super.key,
@@ -68,7 +107,47 @@ class _SongTileState extends State<SongTile> {
   @override
   Widget build(BuildContext context) {
     final song = widget.song;
-    final wide = MediaQuery.sizeOf(context).width >= Breakpoints.compact;
+    return LayoutBuilder(
+      builder: (context, constraints) => _build(context, song, constraints),
+    );
+  }
+
+  Widget _build(BuildContext context, Song song, BoxConstraints constraints) {
+    // A row inside a grid gets its column width here, in the very same layout
+    // pass that paints it: no stale window width, so nothing overflows while
+    // the window is being resized.
+    final width = constraints.hasBoundedWidth
+        ? constraints.maxWidth
+        : MediaQuery.sizeOf(context).width;
+
+    // The optional columns are filled in order of importance — title, its
+    // tags, duration, album — and only with the space that is actually left.
+    final leading = (widget.height - 16).clamp(36.0, 52.0);
+    final like = LocalLibraryService.isLocalId(song.id)
+        ? 0.0
+        : _kLikeButtonWidth;
+    final fixed =
+        _kRowPadding +
+        leading +
+        _kLeadingGap +
+        _kTrailingGap +
+        like +
+        _kMoreButtonWidth;
+    var free = width - fixed;
+
+    final showDuration =
+        widget.showDuration &&
+        free >= _kBadgeReserve + _kMinTitleWidth + _kDurationColumnWidth;
+    if (showDuration) free -= _kDurationColumnWidth;
+
+    final albumWidth = widget.showAlbum
+        ? (free - _kBadgeReserve - _kMinTitleWidth - _kAlbumGap).clamp(
+            0.0,
+            _kAlbumColumnMaxWidth,
+          )
+        : 0.0;
+    final showAlbum = albumWidth >= _kAlbumColumnMinWidth;
+
     return ValueListenableBuilder(
       valueListenable: app.player.currentSongId,
       builder: (context, currentId, _) {
@@ -76,7 +155,10 @@ class _SongTileState extends State<SongTile> {
         final s = context.surfaces;
         final tint = isCurrent
             ? s.lime.withValues(alpha: context.isDark ? 0.10 : 0.16)
-            : (_hovering ? s.cardHover : Colors.transparent);
+            // Fade from/to the hover colour at zero alpha, not
+            // Colors.transparent (transparent black): lerping through that
+            // flashes a darker tint before the hover colour settles.
+            : s.cardHover.withValues(alpha: _hovering ? null : 0);
         return MouseRegion(
           onEnter: (_) => setState(() => _hovering = true),
           onExit: (_) => setState(() => _hovering = false),
@@ -97,7 +179,9 @@ class _SongTileState extends State<SongTile> {
                 duration: AppMotion.standard,
                 opacity: song.playable ? 1 : 0.45,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: _kRowPadding / 2,
+                  ),
                   child: Row(
                     children: [
                       _Leading(
@@ -106,19 +190,22 @@ class _SongTileState extends State<SongTile> {
                         numberLabel: widget.numberLabel,
                         isCurrent: isCurrent,
                         hovering: _hovering,
-                        size: (widget.height - 16).clamp(36.0, 52.0),
+                        size: leading,
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: _kLeadingGap),
                       Expanded(
                         child: _Titles(song: song, isCurrent: isCurrent),
                       ),
-                      if (widget.showAlbum && wide) ...[
-                        const SizedBox(width: 12),
-                        SizedBox(width: 200, child: _AlbumLink(song: song)),
-                      ],
-                      if (widget.showDuration && wide)
+                      if (showAlbum) ...[
+                        const SizedBox(width: _kAlbumGap),
                         SizedBox(
-                          width: 52,
+                          width: albumWidth,
+                          child: _AlbumLink(song: song),
+                        ),
+                      ],
+                      if (showDuration)
+                        SizedBox(
+                          width: _kDurationColumnWidth,
                           child: Text(
                             song.duration == Duration.zero
                                 ? ''
@@ -132,7 +219,7 @@ class _SongTileState extends State<SongTile> {
                             ),
                           ),
                         ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: _kTrailingGap),
                       if (!LocalLibraryService.isLocalId(song.id))
                         LikeButton(songId: song.id, size: 19),
                       _MoreButton(onPressed: _openMenu),
@@ -288,6 +375,27 @@ class _Titles extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.surfaces;
     final alias = song.alias.isEmpty ? null : song.alias.first;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Tags only render when the title keeps at least [_kMinTitleWidth]
+        // next to them: a row whose column is too narrow silently drops the
+        // tags instead of overflowing by their width.
+        final badgeWidth = SongBadge.measureWidth(context, song);
+        final showBadge =
+            badgeWidth > 0 &&
+            (!constraints.hasBoundedWidth ||
+                constraints.maxWidth >= badgeWidth + 6 + _kMinTitleWidth);
+        return _column(context, s, alias, showBadge: showBadge);
+      },
+    );
+  }
+
+  Widget _column(
+    BuildContext context,
+    AppSurfaces s,
+    String? alias, {
+    required bool showBadge,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -320,10 +428,7 @@ class _Titles extends StatelessWidget {
                 ),
               ),
             ),
-            if (songBadgeLabels(song).isNotEmpty) ...[
-              const SizedBox(width: 6),
-              SongBadge(song: song),
-            ],
+            if (showBadge) ...[const SizedBox(width: 6), SongBadge(song: song)],
           ],
         ),
         const SizedBox(height: 3),

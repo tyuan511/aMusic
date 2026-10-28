@@ -109,10 +109,34 @@ class _AmusicAppState extends State<AmusicApp> with WidgetsBindingObserver {
           routerConfig: _router,
           builder: (context, child) => UiScale(
             settings: settings,
-            child: child ?? const SizedBox.shrink(),
+            child: _MacTitleInset(child: child ?? const SizedBox.shrink()),
           ),
         );
       },
+    );
+  }
+}
+
+/// With the macOS title bar hidden the traffic lights float over the content;
+/// reporting a top padding keeps every page header clear of them.
+class _MacTitleInset extends StatelessWidget {
+  const _MacTitleInset({required this.child});
+
+  static const double height = 28;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!Platforms.isMacOS) return child;
+    final media = MediaQuery.of(context);
+    if (media.padding.top >= height) return child;
+    return MediaQuery(
+      data: media.copyWith(
+        padding: media.padding.copyWith(top: height),
+        viewPadding: media.viewPadding.copyWith(top: height),
+      ),
+      child: child,
     );
   }
 }

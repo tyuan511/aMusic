@@ -37,10 +37,6 @@ class SettingsService extends ValueNotifier<SettingsState> {
       (s) => s.audioLevel.value,
       (v) => _prefs.setString(PrefsKeys.audioLevel, v),
     );
-    put(
-      (s) => s.downloadLevel.value,
-      (v) => _prefs.setString(PrefsKeys.downloadLevel, v),
-    );
     put((s) => s.autoPlay, (v) => _prefs.setBool(PrefsKeys.autoPlay, v));
     put((s) => s.immersive, (v) => _prefs.setBool(PrefsKeys.immersive, v));
     put(
@@ -81,11 +77,6 @@ class SettingsService extends ValueNotifier<SettingsState> {
       (s) => s.checkUpdates,
       (v) => _prefs.setBool(PrefsKeys.checkUpdates, v),
     );
-    put((s) => s.downloadDirectory, (String? v) {
-      v == null
-          ? _prefs.remove(PrefsKeys.downloadDirectory)
-          : _prefs.setString(PrefsKeys.downloadDirectory, v);
-    });
     if (next.volume != prev.volume) _scheduleVolumeWrite();
   }
 

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui' show ImageFilter;
 
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -15,9 +14,9 @@ import '../../models/song.dart';
 import '../../models/playlist.dart' show UserProfile;
 import '../../models/user.dart';
 import '../../services/app.dart';
-import '../../services/download_service.dart';
 import '../../services/update_service.dart';
 import '../../theme/app_theme.dart';
+import '../eq/equalizer_sheet.dart';
 import '../login/login_dialog.dart';
 import '../shell.dart';
 import '../ui_scale.dart';
@@ -56,9 +55,8 @@ class SettingsPage extends StatelessWidget {
                         _AppearanceGroup(settings: settings, index: 1),
                         _PlaybackGroup(settings: settings, index: 2),
                         _LyricsGroup(settings: settings, index: 3),
-                        _DownloadGroup(settings: settings, index: 4),
-                        _StorageGroup(settings: settings, index: 5),
-                        _AboutGroup(settings: settings, index: 6),
+                        _StorageGroup(settings: settings, index: 4),
+                        _AboutGroup(settings: settings, index: 5),
                       ],
                     ),
                   ),
@@ -351,9 +349,18 @@ class _AppearanceGroupState extends State<_AppearanceGroup> {
           trailing: SegmentedButton<ThemeMode>(
             showSelectedIcon: false,
             segments: const [
-              ButtonSegment(value: ThemeMode.dark, label: Text('深色')),
-              ButtonSegment(value: ThemeMode.light, label: Text('浅色')),
-              ButtonSegment(value: ThemeMode.system, label: Text('跟随系统')),
+              ButtonSegment(
+                value: ThemeMode.dark,
+                label: Text('深色', maxLines: 1, softWrap: false),
+              ),
+              ButtonSegment(
+                value: ThemeMode.light,
+                label: Text('浅色', maxLines: 1, softWrap: false),
+              ),
+              ButtonSegment(
+                value: ThemeMode.system,
+                label: Text('跟随系统', maxLines: 1, softWrap: false),
+              ),
             ],
             selected: {settings.themeMode},
             onSelectionChanged: (v) =>
@@ -367,7 +374,10 @@ class _AppearanceGroupState extends State<_AppearanceGroup> {
             showSelectedIcon: false,
             segments: [
               for (final mode in LayoutMode.values)
-                ButtonSegment(value: mode, label: Text(mode.label)),
+                ButtonSegment(
+                  value: mode,
+                  label: Text(mode.label, maxLines: 1, softWrap: false),
+                ),
             ],
             selected: {settings.layoutMode},
             onSelectionChanged: (v) =>
@@ -450,18 +460,19 @@ class _PlaybackGroup extends StatelessWidget {
                 _update((s) => s.copyWith(audioLevel: level)),
           ),
         ),
-        SettingsTile(
-          label: '下载音质',
-          subtitle: _levelHint(settings.downloadLevel),
-          trailing: ChoiceButton<AudioLevel>(
-            value: settings.downloadLevel,
-            values: AudioLevel.values,
-            labelOf: (level) => level.label,
-            onSelected: (level) =>
-                _update((s) => s.copyWith(downloadLevel: level)),
+        _SpeedTile(speed: settings.playbackSpeed),
+        ValueListenableBuilder(
+          valueListenable: app.eq,
+          builder: (context, eq, _) => SettingsTile(
+            label: '音效与均衡器',
+            subtitle: soundSummary(eq),
+            trailing: Icon(
+              Icons.chevron_right_rounded,
+              color: context.surfaces.textTertiary,
+            ),
+            onTap: () => showEqualizerSheet(context),
           ),
         ),
-        _SpeedTile(speed: settings.playbackSpeed),
         SettingsTile(
           label: '启动后自动播放',
           subtitle: '打开应用时继续播放上次的歌曲',
@@ -730,141 +741,6 @@ class _LyricPreview extends StatelessWidget {
   }
 }
 
-// ----------------------------------------------------------------- download
-
-class _DownloadGroup extends StatefulWidget {
-  const _DownloadGroup({required this.settings, required this.index});
-
-  final SettingsState settings;
-  final int index;
-
-  @override
-  State<_DownloadGroup> createState() => _DownloadGroupState();
-}
-
-class _DownloadGroupState extends State<_DownloadGroup> {
-  late Future<String> _path = _resolve();
-
-  Future<String> _resolve() async =>
-      (await app.downloads.downloadDirectory()).path;
-
-  @override
-  void didUpdateWidget(_DownloadGroup oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.settings.downloadDirectory !=
-        widget.settings.downloadDirectory) {
-      _path = _resolve();
-    }
-  }
-
-  Future<void> _pick() async {
-    final current = await _path;
-    final picked = await getDirectoryPath(
-      initialDirectory: current,
-      confirmButtonText: '选择',
-    );
-    if (picked == null || !mounted) return;
-    try {
-      await DownloadService.probeWritable(Directory(picked));
-    } on Object catch (error) {
-      if (mounted) _toast(context, '$error');
-      return;
-    }
-    _update((s) => s.copyWith(downloadDirectory: picked));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final s = context.surfaces;
-    final custom = widget.settings.downloadDirectory != null;
-    return SettingsGroup(
-      title: '下载',
-      icon: Icons.download_rounded,
-      index: widget.index,
-      children: [
-        SettingsTile(
-          label: '下载目录',
-          below: FutureBuilder<String>(
-            future: _path,
-            builder: (context, snapshot) => AnimatedSwitcher(
-              duration: AppMotion.standard,
-              child: Container(
-                key: ValueKey(snapshot.data),
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: s.chip.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(AppMetrics.radiusSm),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.folder_rounded, size: 18, color: s.lime),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: SelectableText(
-                        snapshot.data ?? '…',
-                        maxLines: 2,
-                        style: context.text.bodySmall?.copyWith(
-                          color: s.textSecondary,
-                        ),
-                      ),
-                    ),
-                    if (!custom)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: TagBadge('默认', color: s.textTertiary),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (Platforms.isDesktop)
-                PillChip(
-                  label: '更改目录',
-                  icon: Icons.drive_folder_upload_rounded,
-                  selected: false,
-                  dense: true,
-                  onTap: _pick,
-                ),
-              if (custom)
-                PillChip(
-                  label: '恢复默认',
-                  icon: Icons.restart_alt_rounded,
-                  selected: false,
-                  dense: true,
-                  onTap: () =>
-                      _update((s) => s.copyWith(clearDownloadDirectory: true)),
-                ),
-              if (Platforms.isDesktop)
-                PillChip(
-                  label: '打开文件夹',
-                  icon: Icons.open_in_new_rounded,
-                  selected: false,
-                  dense: true,
-                  onTap: () async {
-                    final ok = await app.downloads.openFolder();
-                    if (!ok && context.mounted) _toast(context, '无法打开文件夹');
-                  },
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 // ------------------------------------------------------------------ storage
 
 String _bytes(int bytes) {
@@ -998,12 +874,12 @@ class _StorageGroupState extends State<_StorageGroup> {
       children: [
         SettingsTile(
           label: '图片缓存',
-          below: _size(_images),
+          subtitleWidget: _size(_images),
           trailing: _clearButton(_clearingImages, _clearImages),
         ),
         SettingsTile(
           label: '音频缓存',
-          below: _size(_audio),
+          subtitleWidget: _size(_audio),
           trailing: _clearButton(_clearingAudio, _clearAudio),
         ),
         SettingsTile(

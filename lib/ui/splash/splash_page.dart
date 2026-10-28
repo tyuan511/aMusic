@@ -1,12 +1,10 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 import '../widgets/kit.dart';
 
-/// Shown while the persisted session and playback queue are restored: a lime
-/// disc with a breathing glow over the ambient backdrop, the wordmark and a
+/// Shown while the persisted session and playback queue are restored: the logo
+/// with a breathing glow over the ambient backdrop, the wordmark and a
 /// slim loader.
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -56,20 +54,25 @@ class _SplashPageState extends State<SplashPage>
                         width: 96,
                         height: 96,
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: s.lime,
+                          borderRadius: BorderRadius.circular(26),
                           boxShadow: [
                             BoxShadow(
-                              color: s.lime.withValues(alpha: 0.25 + 0.3 * t),
+                              color: s.lime.withValues(alpha: 0.2 + 0.25 * t),
                               blurRadius: 30 + 26 * t,
-                              spreadRadius: 2 + 8 * t,
+                              spreadRadius: 0 + 6 * t,
                             ),
                           ],
                         ),
                         child: child,
                       );
                     },
-                    child: CustomPaint(painter: _DiscPainter(s.onLime, s.lime)),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(26),
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        filterQuality: FilterQuality.medium,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 28),
                   Text(
@@ -108,31 +111,4 @@ class _SplashPageState extends State<SplashPage>
       ),
     );
   }
-}
-
-/// Vinyl grooves and a centre hole on the lime disc.
-class _DiscPainter extends CustomPainter {
-  const _DiscPainter(this.color, this.disc);
-
-  final Color color;
-  final Color disc;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = size.center(Offset.zero);
-    final radius = math.min(size.width, size.height) / 2;
-    final groove = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..color = color.withValues(alpha: 0.18);
-    for (final f in const [0.82, 0.68, 0.54]) {
-      canvas.drawCircle(center, radius * f, groove);
-    }
-    canvas.drawCircle(center, radius * 0.24, Paint()..color = color);
-    canvas.drawCircle(center, radius * 0.07, Paint()..color = disc);
-  }
-
-  @override
-  bool shouldRepaint(_DiscPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.disc != disc;
 }

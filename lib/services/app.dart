@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:amusic_engine/amusic_engine.dart';
+
+import '../audio/eq/eq_dsp.dart';
+import '../audio/eq/eq_service.dart';
 import '../core/prefs.dart';
 import 'accent_service.dart';
 import 'api_host.dart';
-import 'download_service.dart';
 import 'library_service.dart';
 import 'local_library_service.dart';
 import 'lyric_service.dart';
@@ -15,6 +18,22 @@ import 'recent_service.dart';
 import 'session_service.dart';
 import 'settings_service.dart';
 import 'update_service.dart';
+
+/// Hands the equalizer to the Rust engine, which runs the biquads itself and
+/// has a real limiter, so it takes the bands and the bare preamp.
+Future<void> _applyEq(EqEngineConfig config) async {
+  final active =
+      config.bands.isNotEmpty || config.preampDb != 0 || config.effect != 0;
+  AmusicJustAudio.setEq(
+    AmusicEq(
+      bands: [for (final b in config.bands) (b.freq, b.q, b.gain)],
+      gainDb: config.preampDb,
+      // Stay bit-transparent while the equalizer is off.
+      limiter: active,
+      effect: config.effect,
+    ),
+  );
+}
 
 /// Composition root.
 ///
@@ -26,13 +45,13 @@ class AppServices {
   AppServices._({
     required this.prefs,
     required this.settings,
+    required this.eq,
     required this.apiHost,
     required this.session,
     required this.library,
     required this.lyrics,
     required this.accent,
     required this.player,
-    required this.downloads,
     required this.localLibrary,
     required this.recent,
     required this.updates,
@@ -41,16 +60,13 @@ class AppServices {
   static Future<AppServices> bootstrap() async {
     final prefs = await SharedPreferences.getInstance();
     final settings = SettingsService(prefs, readSettings(prefs));
+    // Built before the player so the first engine instance already has the chain.
+    final eq = EqService(prefs: prefs, sink: _applyEq);
     final apiHost = ApiHost(prefs: prefs);
     final session = SessionService(apiHost);
     final library = LibraryService(apiHost, session);
     final lyrics = LyricService(apiHost);
     final accent = AccentService();
-    final downloads = DownloadService(
-      host: apiHost,
-      settings: settings,
-      prefs: prefs,
-    );
     final localLibrary = LocalLibraryService(prefs: prefs);
     final recent = RecentService(prefs: prefs);
     final updates = UpdateService(prefs: prefs);
@@ -59,20 +75,19 @@ class AppServices {
       settings: settings,
       lyrics: lyrics,
       accent: accent,
-      downloads: downloads,
       localLibrary: localLibrary,
       recent: recent,
     );
     return AppServices._(
       prefs: prefs,
       settings: settings,
+      eq: eq,
       apiHost: apiHost,
       session: session,
       library: library,
       lyrics: lyrics,
       accent: accent,
       player: player,
-      downloads: downloads,
       localLibrary: localLibrary,
       recent: recent,
       updates: updates,
@@ -81,13 +96,13 @@ class AppServices {
 
   final SharedPreferences prefs;
   final SettingsService settings;
+  final EqService eq;
   final ApiHost apiHost;
   final SessionService session;
   final LibraryService library;
   final LyricService lyrics;
   final AccentService accent;
   final PlayerService player;
-  final DownloadService downloads;
   final LocalLibraryService localLibrary;
   final RecentService recent;
   final UpdateService updates;
@@ -100,9 +115,9 @@ class AppServices {
   Future<void> warmUp() async {
     final snapshot = settings.readPlayback();
     try {
-      // Local stores first: restoring the queue may point at downloaded or
-      // local files.
-      await Future.wait([downloads.init(), localLibrary.init(), recent.init()]);
+      // Local stores first: restoring the queue may point at local
+      // files.
+      await Future.wait([localLibrary.init(), recent.init()]);
       await Future.wait([session.restore(), player.init(snapshot: snapshot)]);
       await library.refreshLikedIds();
     } finally {
@@ -115,7 +130,7 @@ class AppServices {
 
   void dispose() {
     player.dispose();
-    downloads.dispose();
+    eq.dispose();
     localLibrary.dispose();
     library.dispose();
     session.dispose();

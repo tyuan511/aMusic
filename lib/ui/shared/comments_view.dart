@@ -9,6 +9,7 @@ import '../../models/comment.dart';
 import '../../models/comment_target.dart';
 import '../../services/app.dart';
 import '../../theme/app_theme.dart';
+import '../browse_widgets/sheets.dart';
 import '../login/login_dialog.dart';
 import '../widgets/cover_image.dart';
 import '../widgets/kit.dart';
@@ -503,8 +504,8 @@ class _CommentRow extends StatelessWidget {
   }
 
   void _showActions(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
+    showAppSheet<void>(
+      context,
       builder: (sheet) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -932,10 +933,9 @@ class _Message extends StatelessWidget {
 
 /// Opens [CommentsView] as a tall bottom sheet.
 Future<void> showComments(BuildContext context, CommentTarget target) {
-  return showModalBottomSheet<void>(
-    context: context,
+  return showAppSheet<void>(
+    context,
     isScrollControlled: true,
-    useSafeArea: true,
     builder: (context) => FractionallySizedBox(
       heightFactor: 0.88,
       child: CommentsView(target: target),

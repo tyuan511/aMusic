@@ -139,7 +139,7 @@ class _TrackCollectionViewState extends State<TrackCollectionView> {
 
   /// Floating chrome above / below the list, captured during build so the
   /// scroll listener never performs inherited lookups.
-  double _topInset = kHeaderBarHeight;
+  double _topInset = kHeaderBarHeight + kHeaderBarTopGap;
   double _bottomInset = 24;
 
   void _updateLocate() {
@@ -196,7 +196,7 @@ class _TrackCollectionViewState extends State<TrackCollectionView> {
 
   @override
   Widget build(BuildContext context) {
-    _topInset = MediaQuery.paddingOf(context).top + kHeaderBarHeight;
+    _topInset = headerBarTopInset(context) + kHeaderBarHeight;
     _bottomInset = ShellLayout.bottomInsetOf(context);
     _ensureEntries();
     final tracks = widget.tracks;

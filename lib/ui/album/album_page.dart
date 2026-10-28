@@ -86,15 +86,6 @@ class _AlbumPageState extends State<AlbumPage> {
     );
   }
 
-  void _download() {
-    final tracks = (_detail?.tracks ?? const <Song>[])
-        .where((song) => song.playable)
-        .toList();
-    if (tracks.isEmpty) return;
-    unawaited(app.downloads.enqueue(tracks, folder: _album.name));
-    showToast(context, '已将 ${tracks.length} 首歌加入下载队列');
-  }
-
   void _more() {
     final tracks = _detail?.tracks ?? const <Song>[];
     unawaited(
@@ -181,11 +172,6 @@ class _AlbumPageState extends State<AlbumPage> {
               icon: Icons.shuffle_rounded,
               tooltip: '随机播放',
               onPressed: hasTracks ? () => _play(shuffle: true) : null,
-            ),
-            RoundIconButton(
-              icon: Icons.download_rounded,
-              tooltip: '全部下载',
-              onPressed: hasTracks ? _download : null,
             ),
             RoundIconButton(
               icon: Icons.chat_bubble_outline_rounded,

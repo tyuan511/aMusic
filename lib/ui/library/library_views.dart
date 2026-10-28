@@ -165,16 +165,6 @@ class LibraryShortcuts extends StatelessWidget {
             onTap: () => openLocalMusic(context),
           ),
         ),
-        ListenableBuilder(
-          listenable: app.downloads,
-          builder: (context, _) => EntryCard(
-            icon: Icons.download_done_rounded,
-            title: '下载管理',
-            subtitle: '离线收听已下载的歌曲',
-            tint: s.lime,
-            onTap: () => openDownloads(context),
-          ),
-        ),
         ValueListenableBuilder<List<Song>>(
           valueListenable: app.recent.tracks,
           builder: (context, tracks, _) => EntryCard(

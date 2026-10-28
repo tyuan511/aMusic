@@ -1,21 +1,21 @@
 PODS:
-  - FlutterMacOS (1.0.0)
-  - media_kit_libs_macos_audio (1.0.4):
+  - amusic_engine (0.1.0):
     - FlutterMacOS
+  - FlutterMacOS (1.0.0)
 
 DEPENDENCIES:
+  - amusic_engine (from `Flutter/ephemeral/.symlinks/plugins/amusic_engine/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
-  - media_kit_libs_macos_audio (from `Flutter/ephemeral/.symlinks/plugins/media_kit_libs_macos_audio/macos`)
 
 EXTERNAL SOURCES:
+  amusic_engine:
+    :path: Flutter/ephemeral/.symlinks/plugins/amusic_engine/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
-  media_kit_libs_macos_audio:
-    :path: Flutter/ephemeral/.symlinks/plugins/media_kit_libs_macos_audio/macos
 
 SPEC CHECKSUMS:
+  amusic_engine: 8ad44c33df1a7b69b43939a9e094d959562df98a
   FlutterMacOS: c232990155153907050900a2e175c7773903ba4e
-  media_kit_libs_macos_audio: 06f3cf88d6d89c7c3c87eae57689d1c6adb335b2
 
 PODFILE CHECKSUM: 1e95c36afbfd1cb6423ceca4de7a8e1b256fb6ac
 

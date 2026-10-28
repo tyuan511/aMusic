@@ -1,0 +1,34 @@
+name: amusic_engine
+description: "aMusic's own audio engine, written in Rust, behind a just_audio platform backend."
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=3.3.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  ffi: ^2.1.0
+  just_audio_platform_interface: ^4.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  just_audio: ^0.10.6
+
+flutter:
+  plugin:
+    platforms:
+      macos:
+        ffiPlugin: true
+      ios:
+        ffiPlugin: true
+      android:
+        package: com.tangge.amusic_engine
+        pluginClass: AmusicEnginePlugin
+      windows:
+        ffiPlugin: true
+      linux:
+        ffiPlugin: true

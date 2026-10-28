@@ -559,7 +559,7 @@ class _HoverWashState extends State<_HoverWash> {
     final s = context.surfaces;
     final color = widget.highlighted
         ? s.lime.withValues(alpha: context.isDark ? 0.10 : 0.16)
-        : (_hovering ? s.cardHover : Colors.transparent);
+        : s.cardHover.withValues(alpha: _hovering ? null : 0);
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
@@ -583,6 +583,16 @@ class TagBadge extends StatelessWidget {
   final String label;
   final Color? color;
 
+  /// Text style of a tag label; shared with `SongBadge.measureWidth`.
+  static const TextStyle textStyle = TextStyle(
+    fontSize: 9.5,
+    fontWeight: FontWeight.w700,
+    height: 1.25,
+  );
+
+  /// Horizontal padding plus border of one tag.
+  static const double horizontalInset = 6 * 2 + 0.8 * 2;
+
   @override
   Widget build(BuildContext context) {
     final tint = color ?? context.colors.primary;
@@ -594,12 +604,10 @@ class TagBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: tint,
-          fontSize: 9.5,
-          fontWeight: FontWeight.w700,
-          height: 1.25,
-        ),
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.clip,
+        style: textStyle.copyWith(color: tint),
       ),
     );
   }

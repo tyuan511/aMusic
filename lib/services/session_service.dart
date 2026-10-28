@@ -101,6 +101,15 @@ class SessionService extends ValueNotifier<SessionState> {
     }
   }
 
+  /// True when signed in. A saved cookie without a loaded profile (the
+  /// start-up check failed on a flaky network) is re-checked once here.
+  Future<bool> ensureSignedIn() async {
+    if (value.isLoggedIn) return true;
+    if (!_host.cookies.isLoggedIn || value.loading) return false;
+    await restore();
+    return value.isLoggedIn;
+  }
+
   /// Extends the `MUSIC_U` lifetime. Silent: failures are ignored, a really
   /// expired session is detected by the next 301.
   Future<bool> refreshToken() async {

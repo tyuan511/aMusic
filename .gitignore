@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Rust audio engine build output
+/packages/amusic_engine/rust/target/
+/packages/amusic_engine/build/
+/packages/amusic_engine/pubspec.lock

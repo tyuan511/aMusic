@@ -25,9 +25,10 @@ dependencies:
   just_audio: ^0.10.6
   just_audio_background: ^0.0.1-beta.17
   audio_session: ^0.2.4
-  # Windows / Linux backend (no-op on other platforms)
-  just_audio_media_kit: ^2.1.0
-  media_kit_libs_audio: ^1.0.7
+  # Rust audio engine, the just_audio backend on every platform
+  # (see packages/amusic_engine).
+  amusic_engine:
+    path: packages/amusic_engine
 
   # storage
   shared_preferences: ^2.5.6
@@ -50,6 +51,8 @@ dependencies:
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
   flutter_lints: ^6.0.0
 

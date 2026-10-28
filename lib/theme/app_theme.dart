@@ -188,23 +188,23 @@ class AppMetrics {
 class AppTheme {
   AppTheme._();
 
-  /// Acid lime: the single accent. Kept as `seed` for older call sites.
-  static const Color seed = Color(0xFFC8F04A);
+  /// Logo red: the single accent. Kept as `seed` for older call sites.
+  static const Color seed = Color(0xFFFF4B45);
   static const Color lime = seed;
 
   /// Deeper lime that stays legible as text on light surfaces.
-  static const Color limeInk = Color(0xFF5C7A00);
-  static const Color lavender = Color(0xFFC9A0F2);
-  static const Color plum = Color(0xFF4B1D5E);
+  static const Color limeInk = Color(0xFFC4161C);
+  static const Color lavender = Color(0xFFF4A3A8);
+  static const Color plum = Color(0xFF5E0F1A);
   static const Color peach = Color(0xFFF6A97C);
-  static const Color pink = Color(0xFFE56FB4);
+  static const Color pink = Color(0xFFE5566B);
 
   /// Kept for call sites that sweep an album accent into a cool tone.
   static const Color violet = Color(0xFF8B5CF6);
 
   static const List<Color> _ambient = [
-    Color(0xFF9B6BE0),
-    Color(0xFFE56FB4),
+    Color(0xFFD7263D),
+    Color(0xFFFF5A4D),
     Color(0xFFF6A97C),
   ];
 
@@ -220,12 +220,12 @@ class AppTheme {
     hairline: Color(0x14FFFFFF),
     scrim: Color(0xCC000000),
     lime: lime,
-    onLime: Color(0xFF0E1200),
+    onLime: Colors.white,
     lavender: lavender,
     plum: plum,
     peach: peach,
     brandGradient: _ambient,
-    glow: Color(0x55C8F04A),
+    glow: Color(0x55FF4B45),
   );
 
   static const AppSurfaces _lightSurfaces = AppSurfaces(
@@ -240,12 +240,12 @@ class AppTheme {
     hairline: Color(0x14000000),
     scrim: Color(0xB3FFFFFF),
     lime: lime,
-    onLime: Color(0xFF0E1200),
+    onLime: Colors.white,
     lavender: lavender,
     plum: plum,
     peach: peach,
     brandGradient: _ambient,
-    glow: Color(0x405C7A00),
+    glow: Color(0x40C4161C),
   );
 
   static ThemeData build(Brightness brightness) {
@@ -265,9 +265,9 @@ class AppTheme {
           primary: dark ? lime : limeInk,
           onPrimary: dark ? surfaces.onLime : Colors.white,
           primaryContainer: dark
-              ? const Color(0xFF2B3410)
-              : const Color(0xFFE6F5B5),
-          onPrimaryContainer: dark ? lime : const Color(0xFF2B3A00),
+              ? const Color(0xFF3A1014)
+              : const Color(0xFFFFD9D6),
+          onPrimaryContainer: dark ? lime : const Color(0xFF5A0008),
           secondary: lavender,
           onSecondary: plum,
           tertiary: peach,
@@ -644,5 +644,9 @@ extension AppThemeContext on BuildContext {
   ColorScheme get colors => Theme.of(this).colorScheme;
   TextTheme get text => Theme.of(this).textTheme;
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
+
+  /// Foreground of the now playing screen: white on the dark backdrop, the
+  /// theme's ink on the light one.
+  Color get playerInk => isDark ? Colors.white : const Color(0xFF111114);
   Color get scaffoldBackground => Theme.of(this).scaffoldBackgroundColor;
 }

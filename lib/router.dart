@@ -10,12 +10,12 @@ import 'ui/artist/artist_albums_page.dart';
 import 'ui/artist/artist_page.dart';
 import 'ui/artist/artist_songs_page.dart';
 import 'ui/charts/charts_page.dart';
-import 'ui/downloads/downloads_page.dart';
 import 'ui/home/home_page.dart';
 import 'ui/library/history_page.dart';
 import 'ui/library/library_page.dart';
 import 'ui/local/local_music_page.dart';
 import 'ui/player/now_playing_page.dart';
+import 'ui/player/player_transition.dart';
 import 'ui/playlist/playlist_page.dart';
 import 'ui/search/search_page.dart';
 import 'ui/settings/settings_page.dart';
@@ -91,10 +91,6 @@ List<RouteBase> _detailRoutes() => [
         builder: (context, state) => ArtistAlbumsPage(artistId: _id(state)),
       ),
     ],
-  ),
-  GoRoute(
-    path: 'downloads',
-    builder: (context, state) => const DownloadsPage(),
   ),
   GoRoute(path: 'local', builder: (context, state) => const LocalMusicPage()),
   GoRoute(path: 'history', builder: (context, state) => const HistoryPage()),
@@ -188,30 +184,11 @@ GoRouter createRouter() {
           child: NowPlayingPage(
             panel: PlayerPanel.fromName(state.uri.queryParameters['panel']),
           ),
-          transitionDuration: AppMotion.page,
-          reverseTransitionDuration: const Duration(milliseconds: 320),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            // Slides up from the mini player like a sheet, with a fade so the
-            // backdrop does not pop in.
-            final curved = CurvedAnimation(
-              parent: animation,
-              curve: AppMotion.enter,
-              reverseCurve: AppMotion.exit,
-            );
-            return FadeTransition(
-              opacity: CurvedAnimation(
-                parent: animation,
-                curve: const Interval(0, 0.6),
-              ),
-              child: SlideTransition(
-                position: Tween(
-                  begin: const Offset(0, 0.12),
-                  end: Offset.zero,
-                ).animate(curved),
-                child: child,
-              ),
-            );
-          },
+          transitionDuration: PlayerMotion.open,
+          reverseTransitionDuration: PlayerMotion.close,
+          // Grows out of the mini player bar; the cover flies along as a hero.
+          transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+              PlayerRouteTransition(animation: animation, child: child),
         ),
       ),
     ],
@@ -265,9 +242,6 @@ void openArtistSongs(BuildContext context, int id) =>
 
 void openArtistAlbums(BuildContext context, int id) =>
     context.push('${_branchRoot(context)}/artist/$id/albums');
-
-void openDownloads(BuildContext context) =>
-    context.push('${_branchRoot(context)}/downloads');
 
 void openLocalMusic(BuildContext context) =>
     context.push('${_branchRoot(context)}/local');

@@ -4,6 +4,7 @@ import '../../core/format.dart';
 import '../../models/comment_target.dart';
 import '../../services/app.dart';
 import '../../theme/app_theme.dart';
+import '../browse_widgets/sheets.dart';
 import '../shared/comments_view.dart';
 import '../widgets/kit.dart';
 import 'queue_view.dart';
@@ -15,9 +16,8 @@ const List<int> sleepPresets = [15, 30, 45, 60, 90];
 const List<double> speedPresets = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 
 Future<T?> _sheet<T>(BuildContext context, Widget child, {double? height}) {
-  return showModalBottomSheet<T>(
-    context: context,
-    useSafeArea: true,
+  return showAppSheet<T>(
+    context,
     isScrollControlled: height != null,
     builder: (context) => height == null
         ? SafeArea(top: false, child: child)

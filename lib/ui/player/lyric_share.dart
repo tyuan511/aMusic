@@ -12,6 +12,7 @@ import '../../models/lyric.dart';
 import '../../models/song.dart';
 import '../../services/app.dart';
 import '../../theme/app_theme.dart';
+import '../browse_widgets/sheets.dart';
 import '../widgets/cover_image.dart';
 import '../widgets/kit.dart';
 
@@ -46,10 +47,9 @@ Future<void> showLyricShareSheet(
     for (final i in indices)
       if (i >= 0 && i < lyric.lines.length) lyric.lines[i],
   ];
-  return showModalBottomSheet<void>(
-    context: context,
+  return showAppSheet<void>(
+    context,
     isScrollControlled: true,
-    useSafeArea: true,
     builder: (context) => _ShareSheet(song: song, lines: lines),
   );
 }

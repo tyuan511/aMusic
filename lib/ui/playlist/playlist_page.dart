@@ -133,14 +133,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
     }
   }
 
-  void _downloadAll() {
-    final tracks = _detail?.tracks ?? const [];
-    final playable = tracks.where((song) => song.playable).toList();
-    if (playable.isEmpty) return;
-    unawaited(app.downloads.enqueue(playable, folder: _playlist.name));
-    showToast(context, '已将 ${playable.length} 首歌加入下载队列');
-  }
-
   void _openComments() => showComments(
     context,
     CommentTarget(
@@ -247,7 +239,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
             ? null
             : () => _play(shuffle: true),
         onSubscribe: _toggleSubscribe,
-        onDownload: tracks == null || tracks.isEmpty ? null : _downloadAll,
         onComments: _isDaily ? null : _openComments,
       ),
     );
@@ -263,7 +254,6 @@ class _PlaylistHero extends StatelessWidget {
     required this.onPlay,
     required this.onShuffle,
     required this.onSubscribe,
-    required this.onDownload,
     required this.onComments,
   });
 
@@ -274,7 +264,6 @@ class _PlaylistHero extends StatelessWidget {
   final VoidCallback? onPlay;
   final VoidCallback? onShuffle;
   final VoidCallback onSubscribe;
-  final VoidCallback? onDownload;
   final VoidCallback? onComments;
 
   @override
@@ -327,11 +316,6 @@ class _PlaylistHero extends StatelessWidget {
               active: subscribed,
               onPressed: onSubscribe,
             ),
-          RoundIconButton(
-            icon: Icons.download_rounded,
-            tooltip: '全部下载',
-            onPressed: onDownload,
-          ),
           if (onComments != null)
             RoundIconButton(
               icon: Icons.chat_bubble_outline_rounded,

@@ -94,8 +94,25 @@ class _LocalMusicPageState extends State<LocalMusicPage> {
     }
   }
 
+  // The filtered / sorted list is memoised: build() runs for every scan tick
+  // and keystroke, and sorting thousands of tracks allocates a lowercase
+  // string per comparison.
+  List<Song>? _memoSource;
+  String? _memoQuery;
+  String? _memoGroup;
+  _View? _memoView;
+  _Sort? _memoSort;
+  List<Song> _memoResult = const [];
+
   List<Song> _filtered(List<Song> songs) {
     final query = _filter.text.trim().toLowerCase();
+    if (identical(songs, _memoSource) &&
+        query == _memoQuery &&
+        _group == _memoGroup &&
+        _view == _memoView &&
+        _sort == _memoSort) {
+      return _memoResult;
+    }
     Iterable<Song> result = songs;
     if (_group != null) {
       result = result.where(
@@ -112,26 +129,38 @@ class _LocalMusicPageState extends State<LocalMusicPage> {
             song.album.name.toLowerCase().contains(query),
       );
     }
-    final list = result.toList();
+    var list = result.toList();
     switch (_sort) {
       case _Sort.added:
         break; // Service order: most recently added first.
       case _Sort.title:
-        list.sort(
-          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-        );
+        list = _sortedByKey(list, (song) => song.name.toLowerCase());
       case _Sort.artist:
-        list.sort(
-          (a, b) =>
-              a.artistText.toLowerCase().compareTo(b.artistText.toLowerCase()),
-        );
+        list = _sortedByKey(list, (song) => song.artistText.toLowerCase());
       case _Sort.duration:
         list.sort((a, b) => a.duration.compareTo(b.duration));
     }
     if (_group != null && _view == _View.albums && _sort == _Sort.added) {
       list.sort((a, b) => (a.no ?? 999).compareTo(b.no ?? 999));
     }
-    return list;
+    _memoSource = songs;
+    _memoQuery = query;
+    _memoGroup = _group;
+    _memoView = _view;
+    _memoSort = _sort;
+    return _memoResult = list;
+  }
+
+  /// Sorts by a string key computed once per song (stable, like List.sort is
+  /// not guaranteed to be, so ties keep their service order).
+  static List<Song> _sortedByKey(List<Song> songs, String Function(Song) key) {
+    final keyed =
+        [for (var i = 0; i < songs.length; i++) (key(songs[i]), i, songs[i])]
+          ..sort((a, b) {
+            final byKey = a.$1.compareTo(b.$1);
+            return byKey != 0 ? byKey : a.$2.compareTo(b.$2);
+          });
+    return [for (final entry in keyed) entry.$3];
   }
 
   @override

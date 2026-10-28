@@ -24,7 +24,6 @@ enum LibraryChip {
   collected('收藏'),
   liked('喜欢'),
   local('本地'),
-  downloads('下载'),
   recent('最近');
 
   const LibraryChip(this.label);
@@ -260,15 +259,6 @@ class _LibraryPageState extends State<LibraryPage> {
               tint: context.surfaces.peach,
               onTap: () => openLocalMusic(context),
             ),
-          ),
-        );
-      case LibraryChip.downloads:
-        return SummaryChipView(
-          card: EntryCard(
-            icon: Icons.download_done_rounded,
-            title: '下载管理',
-            subtitle: '查看下载队列和已下载的歌曲',
-            onTap: () => openDownloads(context),
           ),
         );
       case LibraryChip.recent:

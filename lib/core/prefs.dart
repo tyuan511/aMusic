@@ -12,7 +12,6 @@ class PrefsKeys {
 
   static const themeMode = 'settings.theme_mode';
   static const audioLevel = 'settings.audio_level';
-  static const downloadLevel = 'settings.download_level';
   static const autoPlay = 'settings.auto_play';
   static const immersive = 'settings.immersive';
   static const volume = 'settings.volume';
@@ -29,8 +28,9 @@ class PrefsKeys {
   static const autoUiScale = 'settings.auto_ui_scale';
   static const reportPlays = 'settings.report_plays';
   static const audioCacheMb = 'settings.audio_cache_mb';
-  static const downloadDirectory = 'settings.download_directory';
   static const checkUpdates = 'settings.check_updates';
+  static const eq = 'settings.eq';
+  static const eqPresets = 'settings.eq_presets';
   static const cookie = 'auth.cookie';
   static const deviceProfile = 'auth.device';
   static const playback = 'playback.snapshot';
@@ -55,16 +55,15 @@ enum LayoutMode {
 
 /// Everything the user can change in the settings screen.
 ///
-/// Services that persist their own data (downloads, local library, play
+/// Services that persist their own data (local library, play
 /// reports, recent tracks, update checks) do NOT add fields here: they use
-/// `app.prefs` directly with their own key prefix (`dl.`, `local.`, `scrobble.`,
+/// `app.prefs` directly with their own key prefix (`local.`, `scrobble.`,
 /// `recent.`, `update.`).
 @immutable
 class SettingsState {
   const SettingsState({
     this.themeMode = ThemeMode.dark,
     this.audioLevel = AudioLevel.exhigh,
-    this.downloadLevel = AudioLevel.exhigh,
     this.autoPlay = false,
     this.immersive = false,
     this.volume = 1.0,
@@ -81,14 +80,12 @@ class SettingsState {
     this.autoUiScale = true,
     this.reportPlays = true,
     this.audioCacheMb = 512,
-    this.downloadDirectory,
     this.checkUpdates = true,
   });
 
   /// Dark by default: the design is built dark-first.
   final ThemeMode themeMode;
   final AudioLevel audioLevel;
-  final AudioLevel downloadLevel;
   final bool autoPlay;
 
   /// Hide the system UI (phone / tablet only).
@@ -128,14 +125,11 @@ class SettingsState {
   /// Disk budget for cached audio, 0 disables caching.
   final int audioCacheMb;
 
-  /// `null` uses the platform default download folder.
-  final String? downloadDirectory;
   final bool checkUpdates;
 
   SettingsState copyWith({
     ThemeMode? themeMode,
     AudioLevel? audioLevel,
-    AudioLevel? downloadLevel,
     bool? autoPlay,
     bool? immersive,
     double? volume,
@@ -152,13 +146,10 @@ class SettingsState {
     bool? autoUiScale,
     bool? reportPlays,
     int? audioCacheMb,
-    String? downloadDirectory,
-    bool clearDownloadDirectory = false,
     bool? checkUpdates,
   }) => SettingsState(
     themeMode: themeMode ?? this.themeMode,
     audioLevel: audioLevel ?? this.audioLevel,
-    downloadLevel: downloadLevel ?? this.downloadLevel,
     autoPlay: autoPlay ?? this.autoPlay,
     immersive: immersive ?? this.immersive,
     volume: volume ?? this.volume,
@@ -175,9 +166,6 @@ class SettingsState {
     autoUiScale: autoUiScale ?? this.autoUiScale,
     reportPlays: reportPlays ?? this.reportPlays,
     audioCacheMb: audioCacheMb ?? this.audioCacheMb,
-    downloadDirectory: clearDownloadDirectory
-        ? null
-        : (downloadDirectory ?? this.downloadDirectory),
     checkUpdates: checkUpdates ?? this.checkUpdates,
   );
 }
@@ -195,9 +183,6 @@ SettingsState readSettings(SharedPreferences prefs) {
       _ => ThemeMode.dark,
     },
     audioLevel: AudioLevel.fromValue(prefs.getString(PrefsKeys.audioLevel)),
-    downloadLevel: AudioLevel.fromValue(
-      prefs.getString(PrefsKeys.downloadLevel),
-    ),
     autoPlay: prefs.getBool(PrefsKeys.autoPlay) ?? defaults.autoPlay,
     immersive: prefs.getBool(PrefsKeys.immersive) ?? defaults.immersive,
     volume: clampDouble(PrefsKeys.volume, 1.0, 0, 1),
@@ -233,7 +218,6 @@ SettingsState readSettings(SharedPreferences prefs) {
           0,
           8192,
         ),
-    downloadDirectory: prefs.getString(PrefsKeys.downloadDirectory),
     checkUpdates:
         prefs.getBool(PrefsKeys.checkUpdates) ?? defaults.checkUpdates,
   );

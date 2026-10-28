@@ -85,12 +85,6 @@ class _HomePageState extends State<HomePage> {
     final top = MediaQuery.paddingOf(context).top;
     return Stack(
       children: [
-        const Positioned(
-          left: 0,
-          right: 0,
-          top: 0,
-          child: AmbientBackdrop(height: 520),
-        ),
         RefreshIndicator(
           onRefresh: _refresh,
           edgeOffset: top,

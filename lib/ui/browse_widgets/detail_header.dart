@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
@@ -7,9 +5,22 @@ import '../shell.dart';
 import '../widgets/cover_image.dart';
 import '../widgets/kit.dart';
 import 'layout.dart';
+import 'sheets.dart';
 
 /// Height of [CollapsingHeaderBar] below the status bar.
 const double kHeaderBarHeight = 64;
+
+/// Gap kept between the window edge and the floating header bar when the
+/// platform reports no top inset. Desktop windows draw their own title bar, so
+/// `MediaQuery.padding.top` is 0 and the round buttons would hug the very top.
+const double kHeaderBarTopGap = 12;
+
+/// Top inset the header bar (and the hero under it) must clear: the system
+/// status bar when there is one, otherwise [kHeaderBarTopGap].
+double headerBarTopInset(BuildContext context) {
+  final top = MediaQuery.paddingOf(context).top;
+  return top > 0 ? top : kHeaderBarTopGap;
+}
 
 /// 0 → 1 as [offset] scrolls through the last [band] px before [threshold].
 double collapseProgress(double offset, double threshold, {double band = 64}) =>
@@ -36,7 +47,7 @@ class CollapsingHeaderBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.paddingOf(context).top;
+    final top = headerBarTopInset(context);
     final s = context.surfaces;
     final canPop = Navigator.of(context).canPop();
     return ListenableBuilder(
@@ -51,9 +62,11 @@ class CollapsingHeaderBar extends StatelessWidget {
         );
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: context.scaffoldBackground.withValues(alpha: 0.92 * t),
+            color: context.scaffoldBackground.withValues(alpha: t),
             border: Border(
-              bottom: BorderSide(color: s.hairline.withValues(alpha: t)),
+              bottom: BorderSide(
+                color: s.hairline.withValues(alpha: s.hairline.a * t),
+              ),
             ),
           ),
           child: Padding(
@@ -105,49 +118,6 @@ class CollapsingHeaderBar extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-/// Blurred, darkened copy of the cover filling its parent; fades into the
-/// page background at the bottom.
-class BlurredCoverBackdrop extends StatelessWidget {
-  const BlurredCoverBackdrop({super.key, required this.url});
-
-  final String? url;
-
-  @override
-  Widget build(BuildContext context) {
-    final background = context.scaffoldBackground;
-    return IgnorePointer(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          if (url != null && url!.isNotEmpty)
-            RepaintBoundary(
-              child: ImageFiltered(
-                imageFilter: ui.ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                child: CoverImage(url: url, size: 120, radius: 0),
-              ),
-            )
-          else
-            const AmbientBackdrop(animate: false),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withValues(alpha: context.isDark ? 0.35 : 0.1),
-                  background.withValues(alpha: 0.78),
-                  background,
-                ],
-                stops: const [0, 0.65, 1],
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -236,10 +206,9 @@ class DetailHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.paddingOf(context).top + kHeaderBarHeight;
+    final top = headerBarTopInset(context) + kHeaderBarHeight;
     return Stack(
       children: [
-        Positioned.fill(child: BlurredCoverBackdrop(url: coverUrl)),
         ContentBox(
           padding: EdgeInsets.fromLTRB(
             AppMetrics.gutter,
@@ -405,9 +374,8 @@ Future<void> showTextSheet(
   required String title,
   required String text,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    useSafeArea: true,
+  return showAppSheet<void>(
+    context,
     isScrollControlled: true,
     builder: (context) => FractionallySizedBox(
       heightFactor: 0.7,

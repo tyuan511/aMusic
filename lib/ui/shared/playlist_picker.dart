@@ -25,9 +25,8 @@ Future<void> showAddToPlaylist(BuildContext context, List<Song> songs) async {
     final ok = await showLoginDialog(context);
     if (!ok || !context.mounted) return;
   }
-  final target = await showModalBottomSheet<Playlist>(
-    context: context,
-    useSafeArea: true,
+  final target = await showAppSheet<Playlist>(
+    context,
     isScrollControlled: true,
     builder: (context) => _PickerSheet(count: ids.length),
   );

@@ -12,6 +12,7 @@ import '../../router.dart';
 import '../../services/app.dart';
 import '../../services/player_service.dart';
 import '../../theme/app_theme.dart';
+import '../eq/equalizer_sheet.dart';
 import '../shared/comments_view.dart';
 import '../shared/playlist_picker.dart';
 import '../shortcuts.dart';
@@ -23,6 +24,7 @@ import 'lyrics_view.dart';
 import 'player_backdrop.dart';
 import 'player_panel_controller.dart';
 import 'player_sheets.dart';
+import 'player_transition.dart';
 import 'queue_view.dart';
 
 /// Full screen player.
@@ -44,8 +46,6 @@ class NowPlayingPage extends StatefulWidget {
 
 class _NowPlayingPageState extends State<NowPlayingPage>
     with SingleTickerProviderStateMixin {
-  static final ThemeData _darkTheme = AppTheme.build(Brightness.dark);
-
   late PlayerPanel _panel = widget.panel;
   bool _wide = false;
 
@@ -141,11 +141,8 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     final velocity = details.velocity.pixelsPerSecond.dy;
     if (_pull.value > _height * 0.22 || velocity > 900) {
       _closing = true;
-      _pull.animateTo(
-        _height,
-        duration: AppMotion.standard,
-        curve: AppMotion.exit,
-      );
+      // Leave the page where the finger let go: the route transition shrinks
+      // it (and flies the cover) back into the mini player from there.
       Navigator.of(context).maybePop();
       return;
     }
@@ -180,7 +177,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
   @override
   Widget build(BuildContext context) {
     Widget page = Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: context.isDark ? Colors.black : Colors.white,
       body: Stack(
         children: [
           const Positioned.fill(child: PlayerBackdrop()),
@@ -226,7 +223,7 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     if (Platforms.isDesktop) {
       page = Focus(autofocus: true, onKeyEvent: _onKey, child: page);
     }
-    return Theme(data: _darkTheme, child: page);
+    return page;
   }
 
   // ---------------------------------------------------------------- compact
@@ -235,7 +232,13 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     final lyrics = _compactPanel == PlayerPanel.lyrics;
     return Column(
       children: [
-        _pullRegion(_Header(song: song)),
+        _pullRegion(
+          PlayerEntrance(
+            delay: 0,
+            offset: const Offset(0, -16),
+            child: _Header(song: song),
+          ),
+        ),
         Expanded(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 280),
@@ -251,10 +254,13 @@ class _NowPlayingPageState extends State<NowPlayingPage>
             child: song == null
                 ? const _NothingPlaying(key: ValueKey('empty'))
                 : lyrics
-                ? _CompactLyrics(
+                ? PlayerEntrance(
                     key: const ValueKey('lyrics'),
-                    song: song,
-                    onBack: () => _select(PlayerPanel.cover),
+                    delay: 0.1,
+                    child: _CompactLyrics(
+                      song: song,
+                      onBack: () => _select(PlayerPanel.cover),
+                    ),
                   )
                 : _pullRegion(
                     _CompactCover(
@@ -265,15 +271,21 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                   ),
           ),
         ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(28, 4, 28, 0),
-          child: _Transport(),
+        const PlayerEntrance(
+          delay: 0.22,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(28, 4, 28, 0),
+            child: _Transport(),
+          ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-          child: _SecondaryActions(
-            song: song,
-            onComments: () => _openSheet(PlayerPanel.comments),
+        PlayerEntrance(
+          delay: 0.3,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+            child: _SecondaryActions(
+              song: song,
+              onComments: () => _openSheet(PlayerPanel.comments),
+            ),
           ),
         ),
       ],
@@ -286,7 +298,11 @@ class _NowPlayingPageState extends State<NowPlayingPage>
     final panel = _widePanel;
     return Column(
       children: [
-        _Header(song: song),
+        PlayerEntrance(
+          delay: 0,
+          offset: const Offset(0, -16),
+          child: _Header(song: song),
+        ),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(40, 8, 24, 24),
@@ -304,48 +320,52 @@ class _NowPlayingPageState extends State<NowPlayingPage>
                 const SizedBox(width: 36),
                 Expanded(
                   flex: 6,
-                  child: Column(
-                    children: [
-                      ChipBar<PlayerPanel>(
-                        values: const [
-                          PlayerPanel.lyrics,
-                          PlayerPanel.queue,
-                          PlayerPanel.comments,
-                        ],
-                        selected: panel,
-                        dense: true,
-                        padding: EdgeInsets.zero,
-                        labelOf: (panel) => switch (panel) {
-                          PlayerPanel.queue => '播放队列',
-                          PlayerPanel.comments => '评论',
-                          _ => '歌词',
-                        },
-                        onSelected: _select,
-                      ),
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: AnimatedSwitcher(
-                          duration: AppMotion.standard,
-                          switchInCurve: AppMotion.enter,
-                          switchOutCurve: AppMotion.exit,
-                          transitionBuilder: (child, animation) =>
-                              FadeTransition(
-                                opacity: animation,
-                                child: SlideTransition(
-                                  position: Tween(
-                                    begin: const Offset(0.025, 0),
-                                    end: Offset.zero,
-                                  ).animate(animation),
-                                  child: child,
+                  child: PlayerEntrance(
+                    delay: 0.16,
+                    offset: const Offset(36, 0),
+                    child: Column(
+                      children: [
+                        ChipBar<PlayerPanel>(
+                          values: const [
+                            PlayerPanel.lyrics,
+                            PlayerPanel.queue,
+                            PlayerPanel.comments,
+                          ],
+                          selected: panel,
+                          dense: true,
+                          padding: EdgeInsets.zero,
+                          labelOf: (panel) => switch (panel) {
+                            PlayerPanel.queue => '播放队列',
+                            PlayerPanel.comments => '评论',
+                            _ => '歌词',
+                          },
+                          onSelected: _select,
+                        ),
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: AnimatedSwitcher(
+                            duration: AppMotion.standard,
+                            switchInCurve: AppMotion.enter,
+                            switchOutCurve: AppMotion.exit,
+                            transitionBuilder: (child, animation) =>
+                                FadeTransition(
+                                  opacity: animation,
+                                  child: SlideTransition(
+                                    position: Tween(
+                                      begin: const Offset(0.025, 0),
+                                      end: Offset.zero,
+                                    ).animate(animation),
+                                    child: child,
+                                  ),
                                 ),
-                              ),
-                          child: KeyedSubtree(
-                            key: ValueKey(panel),
-                            child: _widePanelBody(panel, song),
+                            child: KeyedSubtree(
+                              key: ValueKey(panel),
+                              child: _widePanelBody(panel, song),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -396,10 +416,10 @@ class _Header extends StatelessWidget {
         child: Row(
           children: [
             RoundIconButton(
-              icon: Icons.arrow_back_rounded,
+              icon: Icons.keyboard_arrow_down_rounded,
               tooltip: '收起',
-              color: Colors.white.withValues(alpha: 0.12),
-              iconColor: Colors.white,
+              color: context.playerInk.withValues(alpha: 0.12),
+              iconColor: context.playerInk,
               onPressed: () => Navigator.of(context).maybePop(),
             ),
             Expanded(
@@ -408,10 +428,10 @@ class _Header extends StatelessWidget {
                 builder: (context, queue, _) => Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       '正在播放',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: context.playerInk,
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
                       ),
@@ -424,7 +444,7 @@ class _Header extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.55),
+                            color: context.playerInk.withValues(alpha: 0.55),
                             fontSize: 12,
                           ),
                         ),
@@ -458,8 +478,8 @@ class _LikeRoundButton extends StatelessWidget {
               ? Icons.favorite_rounded
               : Icons.favorite_border_rounded,
           tooltip: isLiked ? '取消喜欢' : '喜欢',
-          color: Colors.white.withValues(alpha: 0.12),
-          iconColor: isLiked ? const Color(0xFFFF5C8A) : Colors.white,
+          color: context.playerInk.withValues(alpha: 0.12),
+          iconColor: isLiked ? const Color(0xFFFF5C8A) : context.playerInk,
           onPressed: song == null || song.id <= 0
               ? null
               : () async {
@@ -502,12 +522,15 @@ class _CompactCover extends StatelessWidget {
             const Spacer(),
             CircularCover(size: math.min(size, 380), onTap: onLyrics),
             const Spacer(),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: _TitleBlock(song: song),
+            PlayerEntrance(
+              delay: 0.12,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: _TitleBlock(song: song),
+              ),
             ),
             const SizedBox(height: 10),
-            LyricsPreview(onTap: onLyrics),
+            PlayerEntrance(delay: 0.18, child: LyricsPreview(onTap: onLyrics)),
             const SizedBox(height: 4),
           ],
         );
@@ -517,7 +540,7 @@ class _CompactCover extends StatelessWidget {
 }
 
 class _CompactLyrics extends StatelessWidget {
-  const _CompactLyrics({super.key, required this.song, required this.onBack});
+  const _CompactLyrics({required this.song, required this.onBack});
 
   final Song song;
   final VoidCallback onBack;
@@ -533,14 +556,12 @@ class _CompactLyrics extends StatelessWidget {
             pressedScale: 0.98,
             child: Row(
               children: [
-                ClipOval(
-                  child: CoverImage(
-                    url: song.album.picUrl,
-                    size: 160,
-                    width: 48,
-                    height: 48,
-                    radius: 0,
-                  ),
+                CoverImage(
+                  url: song.album.picUrl,
+                  size: 160,
+                  width: 48,
+                  height: 48,
+                  radius: AppMetrics.radiusSm,
                 ),
                 const SizedBox(width: 12),
                 Expanded(child: _TitleBlock(song: song, compact: true)),
@@ -554,7 +575,7 @@ class _CompactLyrics extends StatelessWidget {
   }
 }
 
-/// Big round album art. Scales to 0.92 when paused with a spring and
+/// Big rounded-square album art. Scales to 0.92 when paused with a spring and
 /// cross-fades on track change.
 class CircularCover extends StatelessWidget {
   const CircularCover({super.key, required this.size, this.onTap});
@@ -573,20 +594,26 @@ class CircularCover extends StatelessWidget {
           pressedScale: 0.97,
           semanticLabel: '查看歌词',
           child: _PlayingSpring(
-            child: SizedBox.square(
-              dimension: size,
-              child: AnimatedSwitcher(
-                duration: AppMotion.emphasized,
-                switchInCurve: AppMotion.enter,
-                switchOutCurve: AppMotion.exit,
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: ScaleTransition(
-                    scale: Tween(begin: 0.9, end: 1.0).animate(animation),
-                    child: child,
+            // Flies to / from the mini player's cover.
+            child: NowPlayingCoverHero(
+              url: url,
+              isPlayer: true,
+              accent: AccentScope.maybeOf(context) ?? context.surfaces.lavender,
+              child: SizedBox.square(
+                dimension: size,
+                child: AnimatedSwitcher(
+                  duration: AppMotion.emphasized,
+                  switchInCurve: AppMotion.enter,
+                  switchOutCurve: AppMotion.exit,
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: ScaleTransition(
+                      scale: Tween(begin: 0.9, end: 1.0).animate(animation),
+                      child: child,
+                    ),
                   ),
+                  child: _Disc(key: ValueKey(url), url: url, size: size),
                 ),
-                child: _Disc(key: ValueKey(url), url: url, size: size),
               ),
             ),
           ),
@@ -605,9 +632,10 @@ class _Disc extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = AccentScope.maybeOf(context) ?? context.surfaces.lavender;
+    final radius = BorderRadius.circular(AppMetrics.radiusLg);
     return DecoratedBox(
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
+        borderRadius: radius,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.5),
@@ -622,13 +650,14 @@ class _Disc extends StatelessWidget {
         ],
       ),
       position: DecorationPosition.background,
-      child: ClipOval(
+      child: ClipRRect(
+        borderRadius: radius,
         child: DecoratedBox(
           position: DecorationPosition.foreground,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
+            borderRadius: radius,
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.08),
+              color: context.playerInk.withValues(alpha: 0.08),
               width: 1,
             ),
           ),
@@ -645,7 +674,8 @@ class _Disc extends StatelessWidget {
   }
 }
 
-/// 1.0 while playing, 0.92 when paused, moved by a spring.
+/// 1.0 while playing, 0.92 when paused, moved by a spring. While playing the
+/// cover also breathes by a subtle ~2%.
 class _PlayingSpring extends StatefulWidget {
   const _PlayingSpring({required this.child});
 
@@ -656,7 +686,7 @@ class _PlayingSpring extends StatefulWidget {
 }
 
 class _PlayingSpringState extends State<_PlayingSpring>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static final SpringDescription _spring = SpringDescription.withDampingRatio(
     mass: 1,
     stiffness: 180,
@@ -668,35 +698,66 @@ class _PlayingSpringState extends State<_PlayingSpring>
     value: _target,
   );
 
+  late final AnimationController _breath = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 3200),
+  );
+
   double get _target => app.player.playback.value.playing ? 1.0 : 0.92;
 
   @override
   void initState() {
     super.initState();
     app.player.playback.addListener(_onPlayback);
+    if (app.player.playback.value.playing) _breath.repeat(reverse: true);
   }
 
   @override
   void dispose() {
     app.player.playback.removeListener(_onPlayback);
+    _breath.dispose();
     _scale.dispose();
     super.dispose();
   }
 
   double _last = -1;
 
+  // Hot reload keeps the old state without re-running initState.
+  @override
+  void reassemble() {
+    super.reassemble();
+    if (app.player.playback.value.playing && !_breath.isAnimating) {
+      _breath.repeat(reverse: true);
+    }
+  }
+
   void _onPlayback() {
     final target = _target;
     if (target == _last) return;
     _last = target;
+    if (target == 1.0) {
+      _breath.repeat(reverse: true);
+    } else {
+      _breath.animateTo(0, duration: AppMotion.standard, curve: Curves.easeOut);
+    }
     _scale.animateWith(
       SpringSimulation(_spring, _scale.value, target, _scale.velocity),
     );
   }
 
   @override
-  Widget build(BuildContext context) =>
-      ScaleTransition(scale: _scale, child: widget.child);
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([_scale, _breath]),
+      child: widget.child,
+      builder: (context, child) => Transform.scale(
+        scale:
+            _scale.value *
+            (1 + 0.02 * Curves.easeInOut.transform(_breath.value)),
+        child: child,
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------- titles
@@ -737,7 +798,7 @@ class _TitleBlock extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: centred ? TextAlign.center : TextAlign.start,
             style: TextStyle(
-              color: Colors.white,
+              color: context.playerInk,
               fontSize: compact ? 16 : 22,
               fontWeight: FontWeight.w500,
               letterSpacing: -0.3,
@@ -775,7 +836,7 @@ class _ArtistLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = TextStyle(
-      color: Colors.white.withValues(alpha: 0.68),
+      color: context.playerInk.withValues(alpha: 0.68),
       fontSize: small ? 12.5 : 14.5,
       fontWeight: FontWeight.w500,
     );
@@ -883,12 +944,11 @@ class _Transport extends StatelessWidget {
         SeekBar(
           color: s.lime,
           height: 28,
-          trackColor: Colors.white.withValues(alpha: 0.18),
+          trackColor: context.playerInk.withValues(alpha: 0.18),
         ),
         SeekTimeRow(
-          remaining: true,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.6),
+            color: context.playerInk.withValues(alpha: 0.6),
             fontSize: 12,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
@@ -919,7 +979,7 @@ class _MainControls extends StatelessWidget {
                   tooltip: '不喜欢',
                   size: 46,
                   color: Colors.transparent,
-                  iconColor: Colors.white.withValues(alpha: 0.8),
+                  iconColor: context.playerInk.withValues(alpha: 0.8),
                   onPressed: player.fmTrash,
                 )
               : RoundIconButton(
@@ -929,7 +989,7 @@ class _MainControls extends StatelessWidget {
                   color: Colors.transparent,
                   iconColor: queue.shuffle
                       ? s.lime
-                      : Colors.white.withValues(alpha: 0.7),
+                      : context.playerInk.withValues(alpha: 0.7),
                   onPressed: empty || radio != null
                       ? null
                       : player.toggleShuffle,
@@ -942,8 +1002,8 @@ class _MainControls extends StatelessWidget {
                 icon: Icons.skip_previous_rounded,
                 tooltip: '上一首',
                 size: 58,
-                color: Colors.white.withValues(alpha: 0.1),
-                iconColor: Colors.white,
+                color: context.playerInk.withValues(alpha: 0.1),
+                iconColor: context.playerInk,
                 onPressed: empty ? null : player.previous,
               ),
               ValueListenableBuilder(
@@ -959,8 +1019,8 @@ class _MainControls extends StatelessWidget {
                 icon: Icons.skip_next_rounded,
                 tooltip: '下一首',
                 size: 58,
-                color: Colors.white.withValues(alpha: 0.1),
-                iconColor: Colors.white,
+                color: context.playerInk.withValues(alpha: 0.1),
+                iconColor: context.playerInk,
                 onPressed: empty ? null : player.next,
               ),
               Builder(
@@ -969,7 +1029,7 @@ class _MainControls extends StatelessWidget {
                   tooltip: '播放队列',
                   size: 46,
                   color: Colors.transparent,
-                  iconColor: Colors.white.withValues(alpha: 0.7),
+                  iconColor: context.playerInk.withValues(alpha: 0.7),
                   onPressed: () => showPlayerPanel(PlayerPanel.queue),
                 ),
               ),
@@ -981,7 +1041,7 @@ class _MainControls extends StatelessWidget {
   }
 }
 
-/// Repeat · download · add to playlist · comments · sleep · speed · more.
+/// Repeat · add to playlist · comments · sleep · speed · more.
 class _SecondaryActions extends StatelessWidget {
   const _SecondaryActions({required this.song, required this.onComments});
 
@@ -1011,28 +1071,18 @@ class _SecondaryActions extends StatelessWidget {
             ),
           ),
         ),
-        ListenableBuilder(
-          listenable: app.downloads,
-          builder: (context, _) {
-            final progress = online ? app.downloads.progressOf(song.id) : null;
-            final done = online && app.downloads.isDownloaded(song.id);
-            return _IconAction(
-              icon: done ? Icons.download_done_rounded : Icons.download_rounded,
-              tooltip: done ? '已下载' : '下载',
-              color: done ? s.lime : null,
-              progress: !done && progress != null && progress < 1
-                  ? progress
-                  : null,
-              onTap: !online || done
-                  ? null
-                  : () {
-                      app.downloads.enqueue([song]);
-                      ScaffoldMessenger.maybeOf(
-                        context,
-                      )?.showSnackBar(const SnackBar(content: Text('已加入下载队列')));
-                    },
-            );
-          },
+        ValueListenableBuilder(
+          valueListenable: player.radioKind,
+          builder: (context, radio, _) => _IconAction(
+            icon: radio == RadioKind.heart
+                ? Icons.favorite_rounded
+                : Icons.favorite_border_rounded,
+            tooltip: radio == RadioKind.heart ? '关闭心动模式' : '心动模式',
+            color: radio == RadioKind.heart ? s.lime : null,
+            onTap: radio == RadioKind.fm || !app.session.value.isLoggedIn
+                ? null
+                : player.toggleHeartMode,
+          ),
         ),
         _IconAction(
           icon: Icons.playlist_add_rounded,
@@ -1058,6 +1108,15 @@ class _SecondaryActions extends StatelessWidget {
                     onTap: () => showSleepTimerSheet(context),
                   )
                 : const SleepCountdownChip(key: ValueKey('sleep-on')),
+          ),
+        ),
+        ValueListenableBuilder(
+          valueListenable: app.eq,
+          builder: (context, eq, _) => _IconAction(
+            icon: Icons.equalizer_rounded,
+            tooltip: '音效与均衡器',
+            color: eq.settings.isActive ? s.lime : null,
+            onTap: () => showEqualizerSheet(context),
           ),
         ),
         ValueListenableBuilder(
@@ -1100,7 +1159,6 @@ class _IconAction extends StatelessWidget {
     required this.tooltip,
     this.onTap,
     this.color,
-    this.progress,
   });
 
   final IconData icon;
@@ -1108,14 +1166,11 @@ class _IconAction extends StatelessWidget {
   final VoidCallback? onTap;
   final Color? color;
 
-  /// Shows a thin ring (download progress).
-  final double? progress;
-
   @override
   Widget build(BuildContext context) {
     final fg = onTap == null
-        ? Colors.white.withValues(alpha: 0.3)
-        : (color ?? Colors.white.withValues(alpha: 0.78));
+        ? context.playerInk.withValues(alpha: 0.3)
+        : (color ?? context.playerInk.withValues(alpha: 0.78));
     return Tooltip(
       message: tooltip,
       child: Pressable(
@@ -1139,21 +1194,6 @@ class _IconAction extends StatelessWidget {
                 ),
                 child: Icon(icon, key: ValueKey(icon), size: 22, color: fg),
               ),
-              if (progress != null)
-                SizedBox(
-                  width: 34,
-                  height: 34,
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween(end: progress),
-                    duration: AppMotion.standard,
-                    builder: (context, value, _) => CircularProgressIndicator(
-                      value: value,
-                      strokeWidth: 2,
-                      color: context.surfaces.lime,
-                      backgroundColor: Colors.white12,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
@@ -1189,11 +1229,14 @@ class _WideInfo extends StatelessWidget {
               children: [
                 CircularCover(size: cover),
                 const SizedBox(height: 28),
-                _TitleBlock(song: song),
+                PlayerEntrance(delay: 0.1, child: _TitleBlock(song: song)),
                 const SizedBox(height: 18),
-                const _Transport(),
+                const PlayerEntrance(delay: 0.18, child: _Transport()),
                 const SizedBox(height: 8),
-                _SecondaryActions(song: song, onComments: onComments),
+                PlayerEntrance(
+                  delay: 0.26,
+                  child: _SecondaryActions(song: song, onComments: onComments),
+                ),
               ],
             ),
           ),
@@ -1215,13 +1258,13 @@ class _NothingPlaying extends StatelessWidget {
           Icon(
             Icons.music_note_rounded,
             size: 48,
-            color: Colors.white.withValues(alpha: 0.35),
+            color: context.playerInk.withValues(alpha: 0.35),
           ),
           const SizedBox(height: 12),
           Text(
             '选首歌开始吧',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: context.playerInk.withValues(alpha: 0.7),
               fontSize: 15,
             ),
           ),

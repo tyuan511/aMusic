@@ -160,7 +160,8 @@ class LibraryService {
       final likedPlaylist = _likedPlaylistId;
       if (likedPlaylist != null) invalidatePlaylist(likedPlaylist);
       return true;
-    } on AppException {
+    } catch (error, stack) {
+      debugPrint('[like] $songId like=$like failed: $error\n$stack');
       likedIds.value = previous;
       return false;
     }

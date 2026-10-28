@@ -20,7 +20,6 @@ import '../models/song.dart';
 import '../models/user.dart';
 import 'accent_service.dart';
 import 'api_host.dart';
-import 'download_service.dart';
 import 'local_library_service.dart';
 import 'lyric_service.dart';
 import 'recent_service.dart';
@@ -201,7 +200,6 @@ class PlayerService {
     required this._settings,
     required this._lyrics,
     required this._accent,
-    required this._downloads,
     required this._localLibrary,
     required this._recent,
   }) {
@@ -213,7 +211,6 @@ class PlayerService {
   final SettingsService _settings;
   final LyricService _lyrics;
   final AccentService _accent;
-  final DownloadService _downloads;
   final LocalLibraryService _localLibrary;
   final RecentService _recent;
 
@@ -307,16 +304,21 @@ class PlayerService {
       _reportError('心动模式需要先登录');
       return;
     }
-    final seed = seedSongId ?? currentSong?.id;
-    if (seed == null) {
-      _reportError('先播放一首歌再开启心动模式');
-      return;
-    }
     try {
       final pid = playlistId ?? await _likedPlaylistId();
       if (pid == null) {
         _reportError('没有找到“我喜欢的音乐”歌单');
         return;
+      }
+      var seed = seedSongId ?? currentSong?.id;
+      if (seed == null) {
+        // Nothing playing: seed from a random liked song.
+        final liked = (await _host.api.playlistDetail(pid)).tracks;
+        if (liked.isEmpty) {
+          _reportError('“我喜欢的音乐”还没有歌曲，先收藏几首吧');
+          return;
+        }
+        seed = liked[DateTime.now().millisecond % liked.length].id;
       }
       _heartPlaylistId = pid;
       final more = await _host.api.heartModeList(seed, pid);
@@ -338,6 +340,73 @@ class PlayerService {
     } on Object catch (error) {
       _reportError('心动模式加载失败：${describeError(error)}');
     }
+  }
+
+  /// Heart mode as a play mode: on → recommendations seeded by the current
+  /// song, off → back to the queue, repeat and shuffle it replaced.
+  Future<void> toggleHeartMode() async {
+    if (radioKind.value == RadioKind.heart) {
+      await _leaveHeartMode();
+      return;
+    }
+    if (radioKind.value == null && !queue.value.isEmpty) {
+      _preHeart = queue.value;
+    }
+    await startHeartMode();
+    if (radioKind.value != RadioKind.heart) _preHeart = null;
+  }
+
+  PlayQueue? _preHeart;
+
+  Future<void> _leaveHeartMode() async {
+    final saved = _preHeart;
+    _preHeart = null;
+    _setRadio(null);
+    final current = currentSong;
+    if (saved == null || saved.isEmpty || current == null) {
+      queue.value = PlayQueue(
+        songs: queue.value.songs,
+        index: queue.value.index,
+        repeat: queue.value.repeat,
+        shuffle: queue.value.shuffle,
+        sourceId: queue.value.sourceId,
+      );
+      _persistNow();
+      return;
+    }
+    // The song that is playing stays; the rest goes back to how it was. A
+    // heart mode song that was not in the old queue slots in after the
+    // position the user left.
+    var songs = saved.songs;
+    var at = songs.indexWhere((song) => song.id == current.id);
+    if (at < 0) {
+      final after = saved.index.clamp(0, songs.length - 1) + 1;
+      songs = [...songs.take(after), current, ...songs.skip(after)];
+      at = after;
+    }
+    final index = queue.value.index;
+    final length = queue.value.length;
+    if (index + 1 < length) {
+      await _player.removeAudioSourceRange(index + 1, length);
+    }
+    if (index > 0) await _player.removeAudioSourceRange(0, index);
+    if (at > 0) {
+      await _player.insertAudioSources(0, _buildSources(songs.sublist(0, at)));
+    }
+    if (at + 1 < songs.length) {
+      await _player.addAudioSources(_buildSources(songs.sublist(at + 1)));
+    }
+    queue.value = PlayQueue(
+      songs: List.unmodifiable(songs),
+      index: at,
+      repeat: saved.repeat,
+      shuffle: saved.shuffle,
+      sourceTitle: saved.sourceTitle,
+      sourceId: saved.sourceId,
+    );
+    await _player.setLoopMode(saved.repeat);
+    await _player.setShuffleModeEnabled(saved.shuffle);
+    _persistNow();
   }
 
   Future<int?> _likedPlaylistId() async {
@@ -574,7 +643,7 @@ class PlayerService {
   AudioSource _sourceFor(Song song) {
     final path = LocalLibraryService.isLocalId(song.id)
         ? _localLibrary.pathFor(song.id)
-        : _downloads.verifiedPathFor(song.id);
+        : null;
     if (path != null) {
       return AudioSource.file(path, tag: mediaItemFor(song));
     }
@@ -641,6 +710,7 @@ class PlayerService {
     _pendingRestore = null;
     _userStarted = true;
     _endSession();
+    if (radio != RadioKind.heart) _preHeart = null;
     _setRadio(radio);
 
     queue.value = PlayQueue(

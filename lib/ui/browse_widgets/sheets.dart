@@ -20,6 +20,28 @@ class SheetAction {
   final bool enabled;
 }
 
+/// Shows [builder] as a bottom sheet on the ROOT navigator.
+///
+/// The shell draws the mini player and the floating navigation inside the
+/// page tree (a `Stack` under the `Scaffold` body), so a sheet pushed on a
+/// branch navigator — or on the shell's own navigator — renders *below* that
+/// chrome and gets covered by it. Pushing on the root navigator puts the sheet
+/// in the app-wide overlay, above everything the shell floats.
+Future<T?> showAppSheet<T>(
+  BuildContext context, {
+  required WidgetBuilder builder,
+  bool isScrollControlled = false,
+  bool useSafeArea = true,
+}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    useRootNavigator: true,
+    useSafeArea: useSafeArea,
+    isScrollControlled: isScrollControlled,
+    builder: builder,
+  );
+}
+
 /// Row used by action sheets: round charcoal icon + label, press scale.
 class SheetActionRow extends StatelessWidget {
   const SheetActionRow({super.key, required this.action, this.index = 0});
@@ -74,9 +96,8 @@ Future<void> showActionSheet(
   Widget? header,
   required List<SheetAction> actions,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    useSafeArea: true,
+  return showAppSheet<void>(
+    context,
     isScrollControlled: true,
     builder: (sheetContext) {
       return SafeArea(

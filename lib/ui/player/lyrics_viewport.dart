@@ -960,7 +960,7 @@ class _LyricLineView extends StatelessWidget {
       fontSize: config.fontSize,
       fontWeight: config.weight,
       height: 1.32,
-      color: Colors.white,
+      color: context.playerInk,
       letterSpacing: preview ? 0 : -0.2,
     );
     final crossAxis = switch (textAlign) {
@@ -985,7 +985,7 @@ class _LyricLineView extends StatelessWidget {
         clock: clock,
         textAlign: textAlign,
         maxLines: maxLines,
-        dimColor: Colors.white.withValues(alpha: 0.42),
+        dimColor: context.playerInk.withValues(alpha: 0.42),
       );
     } else {
       main = Text(
@@ -1000,7 +1000,7 @@ class _LyricLineView extends StatelessWidget {
       fontSize: config.fontSize * 0.62,
       fontWeight: FontWeight.w500,
       height: 1.3,
-      color: Colors.white.withValues(alpha: 0.72),
+      color: context.playerInk.withValues(alpha: 0.72),
     );
     Widget content = Column(
       mainAxisSize: MainAxisSize.min,
@@ -1023,9 +1023,7 @@ class _LyricLineView extends StatelessWidget {
       curve: AppMotion.enter,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: selected
-            ? Colors.white.withValues(alpha: 0.14)
-            : Colors.transparent,
+        color: context.playerInk.withValues(alpha: selected ? 0.14 : 0),
         borderRadius: BorderRadius.circular(AppMetrics.radiusSm),
       ),
       child: content,
@@ -1067,6 +1065,7 @@ class _InterludeDots extends StatelessWidget {
                 start: start,
                 end: end,
                 dot: size,
+                color: context.playerInk,
               ),
             )
           : CustomPaint(
@@ -1075,6 +1074,7 @@ class _InterludeDots extends StatelessWidget {
                 start: start,
                 end: end,
                 dot: size,
+                color: context.playerInk,
               ),
             ),
     );
@@ -1087,12 +1087,14 @@ class _DotsPainter extends CustomPainter {
     required this.start,
     required this.end,
     required this.dot,
+    required this.color,
   }) : super(repaint: clock);
 
   final ValueNotifier<Duration>? clock;
   final Duration start;
   final Duration end;
   final double dot;
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1105,8 +1107,7 @@ class _DotsPainter extends CustomPainter {
         : 1 + 0.12 * math.sin(clock!.value.inMilliseconds / 260);
     for (var i = 0; i < 3; i++) {
       final fill = (progress * 3 - i).clamp(0.0, 1.0);
-      final paint = Paint()
-        ..color = Colors.white.withValues(alpha: 0.3 + 0.7 * fill);
+      final paint = Paint()..color = color.withValues(alpha: 0.3 + 0.7 * fill);
       canvas.drawCircle(
         Offset(dot + i * dot * 2.4, size.height / 2),
         dot / 2 * breathe,
@@ -1117,7 +1118,10 @@ class _DotsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_DotsPainter old) =>
-      old.clock != clock || old.start != start || old.end != end;
+      old.color != color ||
+      old.clock != clock ||
+      old.start != start ||
+      old.end != end;
 }
 
 class _CreditsFooter extends StatelessWidget {
@@ -1131,7 +1135,7 @@ class _CreditsFooter extends StatelessWidget {
     final style = TextStyle(
       fontSize: 13,
       height: 1.6,
-      color: Colors.white.withValues(alpha: 0.8),
+      color: context.playerInk.withValues(alpha: 0.8),
     );
     return Text(
       [
@@ -1157,7 +1161,7 @@ class _ResumeChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.14),
+          color: context.playerInk.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(AppMetrics.radiusPill),
         ),
         child: Row(
@@ -1165,9 +1169,9 @@ class _ResumeChip extends StatelessWidget {
           children: [
             Icon(Icons.my_location_rounded, size: 15, color: s.lime),
             const SizedBox(width: 6),
-            const Text(
+            Text(
               '回到当前',
-              style: TextStyle(color: Colors.white, fontSize: 12.5),
+              style: TextStyle(color: context.playerInk, fontSize: 12.5),
             ),
           ],
         ),

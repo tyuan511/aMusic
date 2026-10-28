@@ -1,9 +1,9 @@
 import 'dart:async';
 
+import 'package:amusic_engine/amusic_engine.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio_background/just_audio_background.dart';
-import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'core/config.dart';
@@ -12,26 +12,30 @@ import 'core/config.dart';
 ///
 /// Must run before any `AudioPlayer` is created.
 Future<void> initPlatform() async {
-  if (Platforms.isWindows || Platforms.isLinux) {
-    JustAudioMediaKit.ensureInitialized(windows: true, linux: true);
-  }
+  // Every platform plays through aMusic's own Rust engine, so decoding, the
+  // equalizer and the limiter behave identically everywhere.
+  AmusicJustAudio.ensureInitialized();
 
   // Android / iOS: notification + lock screen. macOS: Now Playing widget
-  // and media keys through MPNowPlayingInfoCenter. Windows / Linux go
-  // through media_kit, which has no just_audio_background backend; media
-  // keys there are handled by the in-app shortcuts only.
+  // and media keys through MPNowPlayingInfoCenter. Windows / Linux have
+  // no just_audio_background backend; media keys there are handled by the
+  // in-app shortcuts only.
   if (Platforms.supportsAudioService) {
     await _initBackground();
   }
 
   if (Platforms.isDesktop) {
     await windowManager.ensureInitialized();
-    const options = WindowOptions(
-      size: Size(1240, 820),
-      minimumSize: Size(420, 620),
+    final options = WindowOptions(
+      size: const Size(1240, 820),
+      minimumSize: const Size(420, 620),
       center: true,
       title: AppConfig.appName,
-      titleBarStyle: TitleBarStyle.normal,
+      // macOS: no title bar; the traffic lights float over the sidebar.
+      titleBarStyle: Platforms.isMacOS
+          ? TitleBarStyle.hidden
+          : TitleBarStyle.normal,
+      windowButtonVisibility: true,
     );
     // Not awaited: the callback fires when the native window is ready, and
     // awaiting it here would delay (or block) the first Flutter frame.
@@ -69,7 +73,7 @@ Future<void> _initBackground() async {
       androidStopForegroundOnPause: true,
       androidResumeOnClick: true,
       androidNotificationIcon: 'mipmap/ic_launcher',
-      notificationColor: const Color(0xFFC8F04A),
+      notificationColor: const Color(0xFFFF4B45),
     );
     backgroundAudioEnabled = true;
   } on Object catch (error) {

@@ -116,6 +116,7 @@ class _PlayerBackdropState extends State<PlayerBackdrop>
             fade: _fade,
             from: _from.isEmpty ? fallback : _from,
             to: _to.isEmpty ? fallback : _to,
+            dark: context.isDark,
           ),
         ),
       ),
@@ -129,14 +130,17 @@ class _MeshPainter extends CustomPainter {
     required this.fade,
     required this.from,
     required this.to,
+    required this.dark,
   }) : super(repaint: Listenable.merge([phase, fade]));
 
   final ValueNotifier<double> phase;
   final Animation<double> fade;
   final List<Color> from;
   final List<Color> to;
+  final bool dark;
 
   static const Color _base = Color(0xFF07070A);
+  static const Color _lightBase = Color(0xFFF7F7F3);
 
   // Integer frequencies keep every path closed over one loop.
   static const List<(double, double, int, int, double, double)> _paths = [
@@ -151,7 +155,7 @@ class _MeshPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
     final rect = Offset.zero & size;
-    canvas.drawRect(rect, Paint()..color = _base);
+    canvas.drawRect(rect, Paint()..color = dark ? _base : _lightBase);
     final t = fade.value;
     final angle = phase.value * 2 * math.pi;
     final extent = math.max(size.width, size.height);
@@ -176,6 +180,21 @@ class _MeshPainter extends CustomPainter {
             stops: const [0, 0.45, 1],
           ).createShader(Rect.fromCircle(center: center, radius: radius)),
       );
+    }
+    if (!dark) {
+      // Light theme: wash the colour fields out so dark text stays legible.
+      canvas.drawRect(rect, Paint()..color = const Color(0x8CFFFFFF));
+      canvas.drawRect(
+        rect,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0x00FFFFFF), Color(0x00FFFFFF), Color(0x99FFFFFF)],
+            stops: [0, 0.55, 1],
+          ).createShader(rect),
+      );
+      return;
     }
     // Legibility: an overall dim, a vignette and a darker bottom for the
     // controls.
@@ -204,5 +223,5 @@ class _MeshPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_MeshPainter old) =>
-      !identical(old.from, from) || !identical(old.to, to);
+      old.dark != dark || !identical(old.from, from) || !identical(old.to, to);
 }

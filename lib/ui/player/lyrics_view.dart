@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/lyric.dart';
 import '../../services/app.dart';
 import '../../theme/app_theme.dart';
+import '../browse_widgets/sheets.dart';
 import '../widgets/kit.dart';
 import 'lyric_share.dart';
 import 'lyric_source.dart';
@@ -118,8 +119,8 @@ class _LyricMenuButton extends StatelessWidget {
       icon: Icons.more_horiz_rounded,
       tooltip: '歌词选项',
       size: 36,
-      color: Colors.white.withValues(alpha: 0.1),
-      iconColor: Colors.white.withValues(alpha: 0.85),
+      color: context.playerInk.withValues(alpha: 0.1),
+      iconColor: context.playerInk.withValues(alpha: 0.85),
       onPressed: () => showLyricOptions(context, lyric),
     );
   }
@@ -128,9 +129,8 @@ class _LyricMenuButton extends StatelessWidget {
 /// Bottom sheet with lyric options for the current song.
 Future<void> showLyricOptions(BuildContext context, Lyric lyric) {
   final song = app.player.currentSong;
-  return showModalBottomSheet<void>(
-    context: context,
-    useSafeArea: true,
+  return showAppSheet<void>(
+    context,
     builder: (sheetContext) => ValueListenableBuilder(
       valueListenable: app.settings,
       builder: (context, settings, _) => SafeArea(
@@ -206,7 +206,7 @@ class LyricsPreview extends StatelessWidget {
                 child: Text(
                   lyric == null ? '' : (lyric.pureMusic ? '纯音乐，请欣赏' : '暂无歌词'),
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: context.playerInk.withValues(alpha: 0.5),
                     fontSize: 14,
                   ),
                 ),
@@ -254,12 +254,12 @@ class _LyricMessage extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 40, color: Colors.white.withValues(alpha: 0.4)),
+          Icon(icon, size: 40, color: context.playerInk.withValues(alpha: 0.4)),
           const SizedBox(height: 12),
           Text(
             text,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: context.playerInk.withValues(alpha: 0.7),
               fontSize: 15,
             ),
           ),

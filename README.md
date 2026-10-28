@@ -2,14 +2,20 @@
 
 ## 简介
 
-第三方网易云音乐平板客户端，可安装在各品牌安卓平板以及安卓车机上，直接连接网易云音乐接口，不缓存任何私人数据
+第三方网易云音乐客户端，2.0 版本使用 Flutter 全新重写：一套代码覆盖 Android、iOS、macOS、Windows 与 Linux，可安装在各品牌安卓平板以及安卓车机上；播放内核为自研 Rust 音频引擎（`packages/amusic_engine`）。直接连接网易云音乐接口，不在服务端缓存任何私人数据。
+
+## 功能
+
+- 首页：每日推荐、私人漫游、精选歌单与最近播放
+- 发现：排行榜、搜索，歌单 / 专辑 / 艺人详情
+- 我的音乐：创建与收藏的歌单、红心、播放历史
+- 本地音乐：扫描本地音频文件，纯 Dart 读写标签
+- 正在播放：逐字卡拉OK歌词、播放队列、评论、歌词分享为图片、均衡器
+- 登录：网易云音乐 App 扫码登录，同步歌单与红心
+- 桌面端：窗口管理与全局键盘快捷键
 
 ## 界面预览
 
-![歌单](./screenshots/playlist.png)
+![首页](./screenshots/home.png)
 
-![搜索](./screenshots/search.png)
-
-![设置](./screenshots/setting.png)
-
-![歌曲列表](./screenshots/songs.png)
+![正在播放](./screenshots/now_playing.jpg)

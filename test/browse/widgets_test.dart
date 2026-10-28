@@ -88,7 +88,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('SongTile hides album and duration on compact widths', (
+  testWidgets('SongTile hides album and duration on narrow rows', (
     tester,
   ) async {
     tester.view
@@ -97,13 +97,38 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       _host(
-        SongTile(song: _song(1, '晴天'), showAlbum: true),
+        SizedBox(
+          width: 340,
+          child: SongTile(song: _song(1, '晴天'), showAlbum: true),
+        ),
         size: const Size(400, 800),
       ),
     );
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('叶惠美'), findsNothing);
     expect(find.text('4:05'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('SongTile columns follow the row width, not the window', (
+    tester,
+  ) async {
+    tester.view
+      ..physicalSize = const Size(1400, 800)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _host(
+        // A wide window with a narrow column: the album must not appear.
+        SizedBox(
+          width: 480,
+          child: SongTile(song: _song(1, '晴天'), showAlbum: true),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('叶惠美'), findsNothing);
+    expect(find.text('4:05'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

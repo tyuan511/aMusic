@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../core/config.dart';
 import '../core/prefs.dart';
@@ -115,14 +116,22 @@ class AppShell extends StatelessWidget {
         Expanded(
           child: ShellLayout(
             compact: false,
-            bottomInset: 124,
+            bottomInset: 96,
             child: Stack(
               children: [
                 Positioned.fill(child: navigationShell),
+                if (Platforms.isMacOS)
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    height: 14,
+                    child: DragToMoveArea(child: SizedBox.expand()),
+                  ),
                 const Positioned(
-                  left: 20,
-                  right: 20,
-                  bottom: 18,
+                  left: 10,
+                  right: 10,
+                  bottom: 8,
                   child: MiniPlayer(),
                 ),
               ],

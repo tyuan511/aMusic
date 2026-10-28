@@ -1,0 +1,22 @@
+PODS:
+  - amusic_engine (0.1.0):
+    - Flutter
+  - Flutter (1.0.0)
+
+DEPENDENCIES:
+  - amusic_engine (from `.symlinks/plugins/amusic_engine/ios`)
+  - Flutter (from `Flutter`)
+
+EXTERNAL SOURCES:
+  amusic_engine:
+    :path: ".symlinks/plugins/amusic_engine/ios"
+  Flutter:
+    :path: Flutter
+
+SPEC CHECKSUMS:
+  amusic_engine: 155c5e72cd78870c0f6d5ff1ebf60de7efda55ab
+  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
+
+PODFILE CHECKSUM: 3ba3a73b1b12adcf321a227a745625fe0888cc82
+
+COCOAPODS: 1.17.0

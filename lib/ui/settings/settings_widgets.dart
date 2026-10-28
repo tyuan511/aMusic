@@ -88,6 +88,7 @@ class SettingsTile extends StatelessWidget {
     super.key,
     required this.label,
     this.subtitle,
+    this.subtitleWidget,
     this.trailing,
     this.below,
     this.onTap,
@@ -95,6 +96,10 @@ class SettingsTile extends StatelessWidget {
 
   final String label;
   final String? subtitle;
+
+  /// Widget variant of [subtitle], laid out in the same slot (tight under the
+  /// label) for async content such as cache sizes.
+  final Widget? subtitleWidget;
   final Widget? trailing;
   final Widget? below;
   final VoidCallback? onTap;
@@ -134,13 +139,23 @@ class SettingsTile extends StatelessWidget {
                         ),
                       ),
                     ],
+                    if (subtitleWidget != null) ...[
+                      const SizedBox(height: 3),
+                      subtitleWidget!,
+                    ],
                   ],
                 ),
               ),
               if (trailing != null) ...[const SizedBox(width: 14), trailing!],
             ],
           ),
-          if (below != null) ...[const SizedBox(height: 8), below!],
+          if (below != null) ...[
+            const SizedBox(height: 8),
+            // Loosen the cross-axis constraints so shrink-wrapping children
+            // (AnimatedSwitcher's centered Stack, AnimatedSize, ...) align to
+            // the start instead of being centered across the full row.
+            Align(alignment: Alignment.centerLeft, child: below!),
+          ],
         ],
       ),
     );

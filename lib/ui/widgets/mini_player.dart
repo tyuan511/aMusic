@@ -10,6 +10,7 @@ import '../../services/app.dart';
 import '../../services/player_service.dart';
 import '../../theme/app_theme.dart';
 import '../player/player_panel_controller.dart';
+import '../player/player_transition.dart';
 import '../player/player_sheets.dart';
 import 'cover_image.dart';
 import 'kit.dart';
@@ -27,15 +28,17 @@ class MiniPlayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // A Material ancestor is required by Slider / InkWell inside the bar.
-    return GlassPanel(
-      radius: AppMetrics.radiusLg,
-      child: Material(
-        type: MaterialType.transparency,
-        child: LayoutBuilder(
-          builder: (context, constraints) =>
-              constraints.maxWidth >= Breakpoints.compact
-              ? const _WideBar()
-              : const _CompactBar(),
+    return MiniPlayerAnchor(
+      child: GlassPanel(
+        radius: AppMetrics.radiusLg,
+        child: Material(
+          type: MaterialType.transparency,
+          child: LayoutBuilder(
+            builder: (context, constraints) =>
+                constraints.maxWidth >= Breakpoints.compact
+                ? const _WideBar()
+                : const _CompactBar(),
+          ),
         ),
       ),
     );
@@ -117,7 +120,7 @@ class _CompactBarState extends State<_CompactBar>
                           ),
                           child: Row(
                             children: [
-                              _Cover(song: song, size: 44),
+                              _Cover(song: song, size: 44, inset: 9),
                               const SizedBox(width: 11),
                               Expanded(child: _TitleSwitcher(song: song)),
                             ],
@@ -164,14 +167,14 @@ class _WideBar extends StatelessWidget {
       valueListenable: app.player.queue,
       builder: (context, queue, _) {
         final song = queue.current;
-        if (song == null) return const _EmptyBar(height: 86);
+        if (song == null) return const _EmptyBar(height: 74);
         return SizedBox(
-          height: 86,
+          height: 74,
           child: Row(
             children: [
               Expanded(flex: 3, child: _WideTrackInfo(song: song)),
               Expanded(flex: 5, child: _WideCenter(queue: queue)),
-              const Expanded(flex: 3, child: _WideTrailing()),
+              Expanded(flex: 3, child: _WideTrailing(song: song)),
             ],
           ),
         );
@@ -192,13 +195,12 @@ class _WideTrackInfo extends StatelessWidget {
       pressedScale: 0.98,
       semanticLabel: '打开播放页',
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
         child: Row(
           children: [
-            _Cover(song: song, size: 58),
+            _Cover(song: song, size: 58, inset: 8),
             const SizedBox(width: 14),
             Expanded(child: _TitleSwitcher(song: song, large: true)),
-            if (song.id > 0) LikeButton(songId: song.id, size: 20),
           ],
         ),
       ),
@@ -271,6 +273,18 @@ class _WideCenter extends StatelessWidget {
                   iconColor: queue.repeat == LoopMode.off ? null : s.lime,
                   onPressed: radio == null ? player.toggleRepeat : null,
                 ),
+                RoundIconButton(
+                  icon: radio == RadioKind.heart
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  tooltip: radio == RadioKind.heart ? '关闭心动模式' : '心动模式',
+                  size: 34,
+                  color: Colors.transparent,
+                  iconColor: radio == RadioKind.heart ? s.lime : null,
+                  onPressed: radio == RadioKind.fm
+                      ? null
+                      : player.toggleHeartMode,
+                ),
               ],
             ),
           ),
@@ -306,13 +320,23 @@ class _WideSeek extends StatelessWidget {
               child: Text(
                 state.position.clock,
                 textAlign: TextAlign.right,
+                maxLines: 1,
+                softWrap: false,
                 style: style,
               ),
             ),
             const SizedBox(width: 8),
             Expanded(child: child!),
             const SizedBox(width: 8),
-            SizedBox(width: 42, child: Text(duration.clock, style: style)),
+            SizedBox(
+              width: 42,
+              child: Text(
+                duration.clock,
+                maxLines: 1,
+                softWrap: false,
+                style: style,
+              ),
+            ),
           ],
         );
       },
@@ -322,7 +346,9 @@ class _WideSeek extends StatelessWidget {
 }
 
 class _WideTrailing extends StatelessWidget {
-  const _WideTrailing();
+  const _WideTrailing({required this.song});
+
+  final Song song;
 
   @override
   Widget build(BuildContext context) {
@@ -334,13 +360,7 @@ class _WideTrailing extends StatelessWidget {
         children: [
           const SleepCountdownChip(),
           const SizedBox(width: 4),
-          RoundIconButton(
-            icon: Icons.lyrics_outlined,
-            tooltip: '歌词 (L)',
-            size: 36,
-            color: Colors.transparent,
-            onPressed: () => _open(PlayerPanel.lyrics),
-          ),
+          if (song.id > 0) LikeButton(songId: song.id, size: 20),
           RoundIconButton(
             icon: Icons.queue_music_rounded,
             tooltip: '播放队列 (Q)',
@@ -403,24 +423,36 @@ class _VolumeSlider extends StatelessWidget {
 // ----------------------------------------------------------------- shared
 
 class _Cover extends StatelessWidget {
-  const _Cover({required this.song, required this.size});
+  const _Cover({required this.song, required this.size, required this.inset});
 
   final Song song;
   final double size;
 
+  /// Gap between the cover and the bar's edge; the corner radius is the bar's
+  /// minus this so both curves share a centre.
+  final double inset;
+
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: AppMotion.emphasized,
-      switchInCurve: AppMotion.enter,
-      switchOutCurve: AppMotion.exit,
-      child: CoverImage(
-        key: ValueKey(song.album.picUrl),
-        url: song.album.picUrl,
-        size: 160,
-        width: size,
-        height: size,
-        radius: AppMetrics.radiusSm,
+    // Flies to / from the disc on the now playing page.
+    return NowPlayingCoverHero(
+      url: song.album.picUrl,
+      isPlayer: false,
+      child: SizedBox.square(
+        dimension: size,
+        child: AnimatedSwitcher(
+          duration: AppMotion.emphasized,
+          switchInCurve: AppMotion.enter,
+          switchOutCurve: AppMotion.exit,
+          child: CoverImage(
+            key: ValueKey(song.album.picUrl),
+            url: song.album.picUrl,
+            size: 160,
+            width: size,
+            height: size,
+            radius: AppMetrics.radiusLg - inset,
+          ),
+        ),
       ),
     );
   }
@@ -617,7 +649,7 @@ class _EmptyBar extends StatelessWidget {
             height: height - 22,
             decoration: BoxDecoration(
               color: s.chip,
-              borderRadius: BorderRadius.circular(AppMetrics.radiusSm),
+              borderRadius: BorderRadius.circular(AppMetrics.radiusLg - 11),
             ),
             child: Icon(Icons.music_note_rounded, color: s.textTertiary),
           ),

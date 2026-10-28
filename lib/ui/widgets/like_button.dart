@@ -50,7 +50,7 @@ class _LikeButtonState extends State<LikeButton>
 
   Future<void> _toggle(bool isLiked) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
-    if (!app.session.value.isLoggedIn) {
+    if (!await app.session.ensureSignedIn()) {
       messenger
         ?..hideCurrentSnackBar()
         ..showSnackBar(
@@ -64,6 +64,7 @@ class _LikeButtonState extends State<LikeButton>
         );
       return;
     }
+    if (!mounted) return;
     if (!isLiked) _burst.forward(from: 0);
     final ok = await app.library.toggleLike(widget.songId, like: !isLiked);
     widget.onToggled?.call(ok ? !isLiked : isLiked);
@@ -215,6 +216,28 @@ class SongBadge extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  /// Horizontal space the tags of [song] need under the current theme, font
+  /// and text scale, so a row can decide whether they still fit next to the
+  /// title instead of letting them overflow the row.
+  static double measureWidth(BuildContext context, Song song) {
+    final labels = songBadgeLabels(song);
+    if (labels.isEmpty) return 0;
+    final style = DefaultTextStyle.of(context).style.merge(TagBadge.textStyle);
+    final scaler = MediaQuery.textScalerOf(context);
+    var width = 0.0;
+    for (var i = 0; i < labels.length; i++) {
+      final painter = TextPainter(
+        text: TextSpan(text: labels[i], style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: scaler,
+        maxLines: 1,
+      )..layout();
+      width += painter.width + TagBadge.horizontalInset;
+      if (i > 0) width += 4;
+    }
+    return width;
   }
 
   /// Tint of a badge label.

@@ -8,6 +8,7 @@ import 'package:amusic/ui/player/lyrics_view.dart';
 import 'package:amusic/ui/player/now_playing_page.dart';
 import 'package:amusic/ui/player/player_panel_controller.dart';
 import 'package:amusic/ui/player/player_sheets.dart';
+import 'package:amusic/ui/player/player_transition.dart';
 import 'package:amusic/ui/player/queue_view.dart';
 import 'package:amusic/ui/shared/comments_view.dart';
 import 'package:amusic/ui/widgets/mini_player.dart';
@@ -167,6 +168,71 @@ void main() {
           await _unmount(tester);
         });
       }
+    }
+
+    for (final size in const [Size(400, 860), Size(1440, 900)]) {
+      testWidgets('mini player ⇄ player transition flies the cover '
+          '@${size.width.toInt()}', (tester) async {
+        tester.view
+          ..physicalSize = size
+          ..devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        app.player.queue.value = PlayQueue(
+          songs: [
+            _songs.first.copyWith(
+              album: const AlbumRef(
+                id: 18905,
+                name: '叶惠美',
+                picUrl: 'https://example.com/cover.jpg',
+              ),
+            ),
+          ],
+        );
+        app.player.currentSongId.value = _songs.first.id;
+        final nav = GlobalKey<NavigatorState>();
+        await tester.pumpWidget(
+          MaterialApp(
+            navigatorKey: nav,
+            theme: AppTheme.build(Brightness.dark),
+            home: const Scaffold(
+              body: Align(
+                alignment: Alignment.bottomCenter,
+                child: MiniPlayer(),
+              ),
+            ),
+          ),
+        );
+        await _settle(tester);
+        final heroes = find.byType(NowPlayingCoverHero);
+        expect(heroes, findsOneWidget);
+
+        nav.currentState!.push(
+          PageRouteBuilder<void>(
+            transitionDuration: PlayerMotion.open,
+            reverseTransitionDuration: PlayerMotion.close,
+            pageBuilder: (_, _, _) => const NowPlayingPage(),
+            transitionsBuilder: (_, animation, _, child) =>
+                PlayerRouteTransition(animation: animation, child: child),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+        // Mid flight: the shared cover is in the overlay, both ends hidden.
+        expect(find.byType(Hero), findsNWidgets(2));
+        expect(tester.takeException(), isNull);
+        await _settle(tester);
+        expect(find.byType(CircularCover), findsOneWidget);
+
+        nav.currentState!.pop();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 160));
+        expect(tester.takeException(), isNull);
+        await _settle(tester);
+        expect(find.byType(CircularCover), findsNothing);
+        expect(heroes, findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await _unmount(tester);
+      });
     }
 
     testWidgets('compact cover tap swaps to lyrics and panel requests switch '

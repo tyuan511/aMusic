@@ -70,7 +70,7 @@ class _SearchFieldState extends State<SearchField> {
         color: _focused ? s.cardHover : s.chip,
         borderRadius: BorderRadius.circular(AppMetrics.radiusPill),
         border: Border.all(
-          color: _focused ? s.lime.withValues(alpha: 0.85) : Colors.transparent,
+          color: s.lime.withValues(alpha: _focused ? 0.85 : 0),
           width: 1.4,
         ),
         boxShadow: [
@@ -110,6 +110,7 @@ class _SearchFieldState extends State<SearchField> {
                 hintMaxLines: 1,
                 filled: false,
                 isCollapsed: true,
+                contentPadding: EdgeInsets.zero,
                 border: none,
                 enabledBorder: none,
                 focusedBorder: none,

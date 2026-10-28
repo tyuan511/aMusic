@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:window_manager/window_manager.dart';
 
+import '../../core/config.dart';
 import '../../core/format.dart';
 import '../../data/net_image.dart';
 import '../../services/app.dart';
@@ -75,17 +77,23 @@ class Sidebar extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // The same ambient haze as the home header, so the sidebar and the
-          // page read as one surface.
-          const Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            child: AmbientBackdrop(height: 260, intensity: 0.45),
-          ),
+          if (Platforms.isMacOS)
+            const Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              height: 40,
+              child: DragToMoveArea(child: SizedBox.expand()),
+            ),
           Column(
             children: [
-              SizedBox(height: MediaQuery.paddingOf(context).top + 18),
+              // On macOS the traffic lights sit in the sidebar's top-left, so
+              // the brand starts below them.
+              SizedBox(
+                height: Platforms.isMacOS
+                    ? 44
+                    : MediaQuery.paddingOf(context).top + 18,
+              ),
               _Brand(expanded: expanded),
               const SizedBox(height: 28),
               Padding(
@@ -160,13 +168,15 @@ class _Brand extends StatelessWidget {
       width: 40,
       height: 40,
       decoration: BoxDecoration(
-        color: s.lime,
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(11),
         boxShadow: [
           BoxShadow(color: s.glow, blurRadius: 16, offset: const Offset(0, 5)),
         ],
       ),
-      child: Icon(Icons.graphic_eq_rounded, color: s.onLime, size: 22),
+      child: Image.asset(
+        'assets/images/logo.png',
+        filterQuality: FilterQuality.medium,
+      ),
     );
     if (!expanded) return Center(child: logo);
     return Padding(
@@ -224,7 +234,7 @@ class _NavItemState extends State<_NavItem> {
       height: widget.height,
       padding: EdgeInsets.symmetric(horizontal: widget.expanded ? 18 : 0),
       decoration: BoxDecoration(
-        color: !selected && _hovering ? s.chip : Colors.transparent,
+        color: s.chip.withValues(alpha: !selected && _hovering ? null : 0),
         borderRadius: BorderRadius.circular(AppMetrics.radiusPill),
       ),
       child: Row(

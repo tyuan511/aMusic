@@ -156,12 +156,6 @@ class _SearchPageState extends State<SearchPage> {
     final top = MediaQuery.paddingOf(context).top;
     return Stack(
       children: [
-        const Positioned(
-          left: 0,
-          right: 0,
-          top: 0,
-          child: AmbientBackdrop(height: 320, intensity: 0.55),
-        ),
         Column(
           children: [
             ContentBox(
