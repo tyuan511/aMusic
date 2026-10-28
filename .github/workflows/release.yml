@@ -32,7 +32,7 @@ jobs:
           cache: true
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android
+          targets: aarch64-linux-android,armv7-linux-androideabi
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: ${{ env.ENGINE_CRATE }}
@@ -45,7 +45,7 @@ jobs:
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
           export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/release.jks"
-          flutter build apk --release --split-per-abi --target-platform android-arm64
+          flutter build apk --release --split-per-abi --target-platform android-arm64,android-arm
       - uses: actions/upload-artifact@v7
         with:
           name: android
