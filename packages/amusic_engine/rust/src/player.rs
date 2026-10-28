@@ -659,8 +659,8 @@ mod cpal_out {
 mod oboe_out {
     use super::*;
     use oboe::{
-        AudioOutputCallback, AudioOutputStreamSafe, AudioStream, AudioStreamAsync,
-        AudioStreamBuilder, DataCallbackResult, Output as OboeOutput, PerformanceMode,
+        AudioOutputCallback, AudioOutputStream, AudioOutputStreamSafe, AudioStream,
+        AudioStreamAsync, AudioStreamBuilder, DataCallbackResult, Output as OboeOutput, PerformanceMode,
         SampleRateConversionQuality, Stereo,
     };
 
