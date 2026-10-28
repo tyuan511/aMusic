@@ -130,38 +130,39 @@ class AppShell extends StatelessWidget {
   }
 
   Widget _wide(BuildContext context, BoxConstraints constraints) {
-    return Row(
+    return Column(
       children: [
-        Sidebar(
-          expanded: constraints.maxWidth >= Breakpoints.medium,
-          selectedIndex: navigationShell.currentIndex,
-          onDestinationSelected: _select,
-        ),
         Expanded(
-          child: ShellLayout(
-            compact: false,
-            bottomInset: 96,
-            child: Stack(
-              children: [
-                Positioned.fill(child: navigationShell),
-                if (Platforms.isMacOS)
-                  const Positioned(
-                    left: 0,
-                    right: 0,
-                    top: 0,
-                    height: 14,
-                    child: DragToMoveArea(child: SizedBox.expand()),
+          child: Row(
+            children: [
+              Sidebar(
+                expanded: constraints.maxWidth >= Breakpoints.medium,
+                selectedIndex: navigationShell.currentIndex,
+                onDestinationSelected: _select,
+              ),
+              Expanded(
+                child: ShellLayout(
+                  compact: false,
+                  bottomInset: 24,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(child: navigationShell),
+                      if (Platforms.isMacOS)
+                        const Positioned(
+                          left: 0,
+                          right: 0,
+                          top: 0,
+                          height: 14,
+                          child: DragToMoveArea(child: SizedBox.expand()),
+                        ),
+                    ],
                   ),
-                const Positioned(
-                  left: 10,
-                  right: 10,
-                  bottom: 8,
-                  child: MiniPlayer(),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+        const MiniPlayer(docked: true),
       ],
     );
   }

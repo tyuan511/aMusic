@@ -70,6 +70,7 @@ class SeekBar extends StatefulWidget {
     this.onSeekStart,
     this.trackColor,
     this.spectrum = false,
+    this.edge = false,
   });
 
   /// Unplayed part of the track; defaults to a faint grey.
@@ -87,6 +88,11 @@ class SeekBar extends StatefulWidget {
   /// Paints Rust-computed frequency bars instead of the compact line. This is
   /// enabled by the full-screen player; the mini player keeps the thin bar.
   final bool spectrum;
+
+  /// A flat line glued to the top edge of the box (the docked mini player):
+  /// square ends, with a thumb while hovered or dragged. The box is the hit
+  /// area, so make it taller than the line.
+  final bool edge;
 
   @override
   State<SeekBar> createState() => _SeekBarState();
@@ -223,39 +229,45 @@ class _SeekBarState extends State<SeekBar> {
           child: RepaintBoundary(
             child: SizedBox(
               height: widget.height,
-              child: AnimatedBuilder(
-                animation: _repaint,
-                builder: (context, _) {
-                  final clock = app.player.clock;
-                  final fraction = _dragging
-                      ? _dragFraction
-                      : _fractionOf(clock.now(), _duration);
-                  return CustomPaint(
-                    size: Size(width, widget.height),
-                    painter: _SeekBarPainter(
-                      fraction: fraction,
-                      buffered: _dragging ? 0 : _bufferedFraction(),
-                      accent: accent,
-                      trackColor:
-                          widget.trackColor ??
-                          context.surfaces.textTertiary.withValues(alpha: 0.22),
-                      compact: widget.compact,
-                      dragging: _dragging,
-                      hovering: _hovering,
-                      thumbColor: accent,
-                      spectrum: widget.spectrum,
-                      spectrumValues: widget.spectrum
-                          ? app.player.spectrum.value
-                          : null,
-                      glow: !lowPerformance,
-                    ),
-                  );
-                },
+              child: _thumbAnimated(
+                (thumb) => AnimatedBuilder(
+                  animation: _repaint,
+                  builder: (context, _) {
+                    final clock = app.player.clock;
+                    final fraction = _dragging
+                        ? _dragFraction
+                        : _fractionOf(clock.now(), _duration);
+                    return CustomPaint(
+                      size: Size(width, widget.height),
+                      painter: _SeekBarPainter(
+                        fraction: fraction,
+                        buffered: _dragging ? 0 : _bufferedFraction(),
+                        accent: accent,
+                        trackColor:
+                            widget.trackColor ??
+                            context.surfaces.textTertiary.withValues(
+                              alpha: 0.22,
+                            ),
+                        compact: widget.compact,
+                        dragging: _dragging,
+                        hovering: _hovering,
+                        thumbColor: accent,
+                        spectrum: widget.spectrum,
+                        spectrumValues: widget.spectrum
+                            ? app.player.spectrum.value
+                            : null,
+                        glow: !lowPerformance,
+                        edge: widget.edge,
+                        thumb: thumb,
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
           ),
         );
-        if (widget.compact) return gesture;
+        if (widget.compact && !widget.edge) return gesture;
         return MouseRegion(
           cursor: SystemMouseCursors.click,
           onEnter: (_) => setState(() => _hovering = true),
@@ -263,6 +275,17 @@ class _SeekBarState extends State<SeekBar> {
           child: gesture,
         );
       },
+    );
+  }
+
+  /// Animates the edge style's thumb in and out; other styles get a constant.
+  Widget _thumbAnimated(Widget Function(double thumb) builder) {
+    if (!widget.edge) return builder(0);
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: _dragging || _hovering ? 1.0 : 0.0),
+      duration: AppMotion.quick,
+      curve: AppMotion.enter,
+      builder: (context, t, _) => builder(t),
     );
   }
 
@@ -333,6 +356,8 @@ class _SeekBarPainter extends CustomPainter {
     required this.spectrum,
     required this.spectrumValues,
     required this.glow,
+    required this.edge,
+    required this.thumb,
   });
 
   final bool hovering;
@@ -348,11 +373,37 @@ class _SeekBarPainter extends CustomPainter {
 
   /// Blurred bloom under the played spectrum (off in low performance mode).
   final bool glow;
+  final bool edge;
+
+  /// 0 - 1 appearance of the edge style's thumb.
+  final double thumb;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (spectrum) {
       _paintSpectrum(canvas, size);
+      return;
+    }
+    if (edge) {
+      const thickness = 2.5;
+      canvas
+        ..drawRect(
+          Rect.fromLTWH(0, 0, size.width, thickness),
+          Paint()..color = trackColor,
+        )
+        ..drawRect(
+          Rect.fromLTWH(0, 0, size.width * fraction, thickness),
+          Paint()..color = accent,
+        );
+      if (thumb > 0) {
+        // Centred on the line, so the upper half spills over the bar's edge.
+        final thumbRadius = (dragging ? 7.0 : 6.0) * thumb;
+        canvas.drawCircle(
+          Offset(size.width * fraction, thickness / 2),
+          thumbRadius,
+          Paint()..color = thumbColor.withValues(alpha: thumb),
+        );
+      }
       return;
     }
     final thickness = compact ? 2.5 : (dragging || hovering ? 5.0 : 4.0);
@@ -547,7 +598,9 @@ class _SeekBarPainter extends CustomPainter {
       old.trackColor != trackColor ||
       old.spectrum != spectrum ||
       old.spectrumValues != spectrumValues ||
-      old.glow != glow;
+      old.glow != glow ||
+      old.edge != edge ||
+      old.thumb != thumb;
 }
 
 /// `-2:15`; clamps negative remainders to `-0:00`.

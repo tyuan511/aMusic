@@ -23,10 +23,15 @@ import 'seek_bar.dart';
 /// changes; position updates go straight to the painters in [SeekBar] and
 /// [_ProgressLine].
 class MiniPlayer extends StatelessWidget {
-  const MiniPlayer({super.key});
+  const MiniPlayer({super.key, this.docked = false});
+
+  /// A full width bar fixed to the bottom of the window (wide layouts) with
+  /// the progress line on its top edge, instead of the floating glass panel.
+  final bool docked;
 
   @override
   Widget build(BuildContext context) {
+    if (docked) return const _DockedBar();
     // A Material ancestor is required by Slider / InkWell inside the bar.
     return MiniPlayerAnchor(
       child: GlassPanel(
@@ -38,6 +43,42 @@ class MiniPlayer extends StatelessWidget {
                 constraints.maxWidth >= Breakpoints.compact
                 ? const _WideBar()
                 : const _CompactBar(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Edge to edge transport bar: opaque (no backdrop blur to re-run, cheap in low
+/// performance mode too) with the seekable progress line glued to its top
+/// edge; a thumb shows on hover.
+class _DockedBar extends StatelessWidget {
+  const _DockedBar();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.surfaces;
+    // Nothing queued (first launch): no bar at all.
+    return ValueListenableBuilder(
+      valueListenable: app.player.queue,
+      builder: (context, queue, child) =>
+          queue.current == null ? const SizedBox.shrink() : child!,
+      child: MiniPlayerAnchor(
+        child: Material(
+          color: s.card,
+          child: Stack(
+            // The seek thumb is centred on the top edge and spills over it.
+            clipBehavior: Clip.none,
+            children: [
+              const _WideBar(docked: true),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                child: SeekBar(color: s.lime, edge: true, height: 14),
+              ),
+            ],
           ),
         ),
       ),
@@ -159,7 +200,10 @@ class _CompactBarState extends State<_CompactBar>
 // ------------------------------------------------------------------- wide
 
 class _WideBar extends StatelessWidget {
-  const _WideBar();
+  const _WideBar({this.docked = false});
+
+  /// The progress lives on the bar's top edge, so the centre has no seek row.
+  final bool docked;
 
   @override
   Widget build(BuildContext context) {
@@ -173,8 +217,14 @@ class _WideBar extends StatelessWidget {
           child: Row(
             children: [
               Expanded(flex: 3, child: _WideTrackInfo(song: song)),
-              Expanded(flex: 5, child: _WideCenter(queue: queue)),
-              Expanded(flex: 3, child: _WideTrailing(song: song)),
+              Expanded(
+                flex: 5,
+                child: _WideCenter(queue: queue, seek: !docked),
+              ),
+              Expanded(
+                flex: 3,
+                child: _WideTrailing(song: song, time: docked),
+              ),
             ],
           ),
         );
@@ -209,9 +259,10 @@ class _WideTrackInfo extends StatelessWidget {
 }
 
 class _WideCenter extends StatelessWidget {
-  const _WideCenter({required this.queue});
+  const _WideCenter({required this.queue, this.seek = true});
 
   final PlayQueue queue;
+  final bool seek;
 
   @override
   Widget build(BuildContext context) {
@@ -253,7 +304,7 @@ class _WideCenter extends StatelessWidget {
                   onPressed: player.previous,
                 ),
                 const SizedBox(width: 8),
-                _PlayButton(size: 36, color: s.lime),
+                _PlayButton(size: 42, color: s.lime),
                 const SizedBox(width: 8),
                 RoundIconButton(
                   icon: Icons.skip_next_rounded,
@@ -276,8 +327,7 @@ class _WideCenter extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 2),
-          const _WideSeek(),
+          if (seek) ...[const SizedBox(height: 2), const _WideSeek()],
         ],
       ),
     );
@@ -334,9 +384,12 @@ class _WideSeek extends StatelessWidget {
 }
 
 class _WideTrailing extends StatelessWidget {
-  const _WideTrailing({required this.song});
+  const _WideTrailing({required this.song, this.time = false});
 
   final Song song;
+
+  /// Shows "elapsed / total" (the docked bar has no seek row for it).
+  final bool time;
 
   @override
   Widget build(BuildContext context) {
@@ -346,6 +399,7 @@ class _WideTrailing extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
+          if (time) ...[const _TimeLabel(), const SizedBox(width: 10)],
           const SleepCountdownChip(),
           const SizedBox(width: 4),
           if (song.id > 0) LikeButton(songId: song.id, size: 20),
@@ -378,6 +432,33 @@ class _WideTrailing extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _TimeLabel extends StatelessWidget {
+  const _TimeLabel();
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TextStyle(
+      fontSize: 11.5,
+      color: context.surfaces.textTertiary,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    return ValueListenableBuilder(
+      valueListenable: app.player.position,
+      builder: (context, state, _) {
+        final duration = state.duration > Duration.zero
+            ? state.duration
+            : (app.player.currentSong?.duration ?? Duration.zero);
+        return Text(
+          '${state.position.clock} / ${duration.clock}',
+          maxLines: 1,
+          softWrap: false,
+          style: style,
+        );
+      },
     );
   }
 }
