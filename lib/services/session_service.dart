@@ -269,9 +269,20 @@ class SessionService extends ValueNotifier<SessionState> {
     _check();
   }
 
+  bool _checking = false;
+
   Future<void> _check() async {
     final key = qrTicket.value.key;
-    if (key == null) return;
+    if (key == null || _checking) return;
+    _checking = true;
+    try {
+      await _checkOnce(key);
+    } finally {
+      _checking = false;
+    }
+  }
+
+  Future<void> _checkOnce(String key) async {
     QrLoginResult result;
     try {
       result = await _host.api.checkQrLogin(key);
@@ -284,6 +295,8 @@ class SessionService extends ValueNotifier<SessionState> {
       _complete(false);
       return;
     }
+    // The login was cancelled or restarted while the request was in flight.
+    if (_pollTimer == null || qrTicket.value.key != key) return;
     switch (result.state) {
       case QrLoginState.riskControl:
         qrTicket.value = qrTicket.value.copyWith(

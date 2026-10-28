@@ -189,6 +189,15 @@ class NcmApi {
       'key': key,
       'type': 3,
     });
+    // On 803 the token can arrive only in the body's `cookie` text instead of
+    // a `set-cookie` header.
+    final cookie = jsonText(body['cookie']);
+    if (body['code'] == 803 && cookie != null && cookie.isNotEmpty) {
+      final parsed = NeteaseCookies.parse(cookie);
+      if ((parsed['MUSIC_U'] ?? '').isNotEmpty) {
+        _client.cookies.restore({..._client.cookies.snapshot(), ...parsed});
+      }
+    }
     return QrLoginResult.fromCode(
       jsonIntOrNull(body['code']),
       message: jsonText(body['message']),
