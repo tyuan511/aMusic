@@ -420,6 +420,16 @@ class AmusicPlayer extends AudioPlayerPlatform {
     SetSkipSilenceRequest request,
   ) async => SetSkipSilenceResponse();
 
+  /// On Android `just_audio` applies the audio session's attributes to every
+  /// player it activates. The engine owns its audio output, so the stream
+  /// level attributes are none of our business: accept and ignore instead of
+  /// throwing the base class's `UnimplementedError` (which surfaced as a
+  /// "播放失败" toast on Android).
+  @override
+  Future<SetAndroidAudioAttributesResponse> setAndroidAudioAttributes(
+    SetAndroidAudioAttributesRequest request,
+  ) async => SetAndroidAudioAttributesResponse();
+
   @override
   Future<SetLoopModeResponse> setLoopMode(SetLoopModeRequest request) async {
     _loop = request.loopMode;

@@ -329,4 +329,28 @@ void main() {
       throwsA(anything),
     );
   }, skip: skip);
+
+  // Regression: just_audio forwards the audio session's attributes to the
+  // platform player on Android (and under test). The base class throws
+  // `UnimplementedError`, which used to surface as a "播放失败" toast.
+  test('setAndroidAudioAttributes is accepted, not thrown', () async {
+    final platform = await JustAudioPlatform.instance.init(
+      InitRequest(id: 'attributes'),
+    );
+    addTearDown(
+      () => JustAudioPlatform.instance.disposePlayer(
+        DisposePlayerRequest(id: 'attributes'),
+      ),
+    );
+    await expectLater(
+      platform.setAndroidAudioAttributes(
+        SetAndroidAudioAttributesRequest(
+          contentType: 0,
+          flags: 0,
+          usage: 0,
+        ),
+      ),
+      completes,
+    );
+  }, skip: skip);
 }
